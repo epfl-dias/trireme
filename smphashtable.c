@@ -29,8 +29,12 @@
 
 #define MAX_PENDING_PER_SERVER  (ONEWAY_BUFFER_SIZE - (CACHELINE >> 3))
 
+#define TXN_BATCH 1
+#define TXN_SINGLE 0
+
 static volatile int nready = 0;
 
+extern int ops_per_txn;
 extern int batch_size;
 extern int niters;
 extern double dist_threshold;
@@ -141,7 +145,6 @@ void destroy_hash_table(struct hash_table *hash_table)
   free(hash_table);
 }
 
-
 void start_hash_table_servers(struct hash_table *hash_table, int first_core) 
 {
   int r;
@@ -149,7 +152,7 @@ void start_hash_table_servers(struct hash_table *hash_table, int first_core)
   hash_table->quitting = 0;
   int ncpus, coreid = 0;
 
-  ncpus = get_nprocs_conf();
+  ncpus = get_nprocs_conf() / 2;
   assert(ncpus >= hash_table->nservers);
 
   for (int i = 0; i < hash_table->nservers; i++) {
@@ -162,7 +165,7 @@ void start_hash_table_servers(struct hash_table *hash_table, int first_core)
     r = pthread_create(&hash_table->threads[i], NULL, hash_table_server, (void *) (&hash_table->thread_data[i]));
     assert(r == 0);
 
-    coreid += 1;
+    coreid += 2;
     if (coreid == ncpus) {
       coreid = 1;
     }
@@ -234,15 +237,17 @@ void load_data(int id, struct partition *p)
 void get_next_query(struct hash_table *hash_table, int s, struct hash_query *query)
 {
   struct partition *p = &hash_table->partitions[s];
-  size_t qid = s * p->nrecs;
-  size_t eqid = qid + p->nrecs;
- 
-  query->nops = batch_size;
+  char is_local;
+  double r = ((double)rand_r(&p->seed) / RAND_MAX);
 
-  for (int i = 0; i < batch_size; i++) {
+  is_local = (r < dist_threshold);
+
+  query->nops = ops_per_txn;
+
+  for (int i = 0; i < ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
 
-    double r = ((double)rand_r(&p->seed) / RAND_MAX);
+    r = ((double)rand_r(&p->seed) / RAND_MAX);
 
     if (r > write_threshold) {
       op->optype = OPTYPE_UPDATE;
@@ -257,7 +262,7 @@ void get_next_query(struct hash_table *hash_table, int s, struct hash_query *que
     else
       delta = (unsigned long) p->nrecs * r;
 
-    if (r > dist_threshold) {
+    if (!is_local) {
       // remote op
       op->key = delta + (((s + 1) % hash_table->nservers) * p->nrecs);
       //op->key = delta + p->nrecs; /* all reqs to server 1 */
@@ -265,9 +270,6 @@ void get_next_query(struct hash_table *hash_table, int s, struct hash_query *que
       //local op
       op->key = delta + (s * p->nrecs);
     }
-
-    if (op->key == eqid)
-      op->key = eqid - 1;
   }
 }
 
@@ -279,6 +281,48 @@ int is_local_op(struct hash_table *hash_table, int s, hash_key key)
 
   //return hash_get_server(hash_table, key) == s;
   return (key >= sqid && key < eqid);
+}
+
+struct elem *local_txn_op(struct partition *p, struct hash_op *op)
+{
+  struct elem *e;
+
+  e = hash_lookup(p, op->key);
+  assert(e);
+
+  // if value is not ready, lookup and updates fail
+  if (!is_value_ready(e)) {
+    assert(e->ref_count == (DATA_READY_MASK | 2));
+
+    dprint("lookup %" PRIu64 " rc %" PRIu64 " aborted \n", op->key,
+      e->ref_count);
+
+    p->naborts_local++;
+
+    return NULL;
+  }
+
+  // if pending lookups are there, updates fail
+  if (op->optype == OPTYPE_UPDATE && e->ref_count > 1) {
+    dprint("update %" PRIu64 " rc %" PRIu64 " aborted \n", op->key,
+      e->ref_count);
+
+    p->naborts_local++;
+
+    return NULL;
+  }
+
+  if (op->optype == OPTYPE_LOOKUP) {
+    e->ref_count++;
+    p->nlookups_local++;
+    p->nhits++;
+  } else {
+    assert(op->optype == OPTYPE_UPDATE);
+    e->ref_count = DATA_READY_MASK | 2; 
+    p->nupdates_local++;
+  }
+
+  return e;
 }
 
 void *txn_op(struct hash_table *hash_table, int s, struct hash_op *op)
@@ -296,61 +340,25 @@ void *txn_op(struct hash_table *hash_table, int s, struct hash_op *op)
   // if this is us, just call local procedure
   if (is_local) {
     assert(op->key >= s * p->nrecs && op->key < (s * p->nrecs + p->nrecs));
+    
+    e = local_txn_op(p, op);
 
-    e = hash_lookup(p, op->key);
-    assert(e);
-
-    // if value is not ready, lookup and updates fail
-    if (!is_value_ready(e)) {
-      assert(e->ref_count == (DATA_READY_MASK | 2));
-
-      dprint("lookup %" PRIu64 " rc %" PRIu64 " aborted \n", s, op->key,
-        e->ref_count);
-
-      p->naborts_local++;
-
-      return NULL;
-    }
-
-    // if pending lookups are there, updates fail
-    if (op->optype == OPTYPE_UPDATE && e->ref_count > 1) {
-      dprint("update %" PRIu64 " rc %" PRIu64 " aborted \n", op->key,
-        e->ref_count);
-
-      p->naborts_local++;
-
-      return NULL;
-    }
-
-    value = e->value;
-    assert(value);
-
-    if (op->optype == OPTYPE_LOOKUP) {
-      e->ref_count++;
-      p->nlookups_local++;
-      p->nhits++;
-    } else {
-      assert(op->optype == OPTYPE_UPDATE);
-      e->ref_count = DATA_READY_MASK | 2; 
-      p->nupdates_local++;
-    }
+    // it is possible for a local txn to fail as someone else might have
+    // acquired a lock before us
+    if (e)
+      value = e->value;
 
   } else {
 
     // call the corresponding authority and block
-    smp_hash_doall(hash_table, s, 1, op, &value);
+    smp_hash_doall(hash_table, s, 1, &op, &value);
 
-    if (value) {
-      e = (struct elem *)value;
-      value = e->value;
-    }
+    // the remote server blocks us until data is ready. We should never 
+    // have the situation where we get a NO notification from remote server
+    assert(value);
 
-    if (op->optype == OPTYPE_LOOKUP) {
-      p->nlookups_remote++;
-    } else {
-      assert(op->optype == OPTYPE_UPDATE);
-      p->nupdates_remote++;
-    }
+    e = (struct elem *)value;
+    value = e->value;
   }
 
   if (value) {
@@ -383,7 +391,7 @@ void txn_start(struct hash_table *hash_table, int s, struct hash_query *query)
   assert(query->nops < MAX_OPS_PER_QUERY);
 }
 
-void txn_finish(struct hash_table *hash_table, int s, int status)
+void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
 {
   struct txn_ctx *ctx = &hash_table->partitions[s].txn_ctx;
   int nops = ctx->nops;
@@ -391,8 +399,8 @@ void txn_finish(struct hash_table *hash_table, int s, int status)
   while (--nops >= 0) {
     struct op_ctx *octx = &ctx->op_ctx[nops];
 
-    if (octx->optype == OPTYPE_LOOKUP) {
-      assert(octx->old_value == NULL);
+    if (octx->optype == OPTYPE_LOOKUP || mode == TXN_BATCH) {
+      assert(octx->old_value == NULL || mode == TXN_BATCH);
       if (octx->is_local)
         mp_release_value_(octx->e);      
       else
@@ -412,17 +420,124 @@ void txn_finish(struct hash_table *hash_table, int s, int status)
   ctx->nops = 0;
 }
 
-void txn_abort(struct hash_table *hash_table, int s)
+void txn_abort(struct hash_table *hash_table, int s, int mode)
 {
-  return txn_finish(hash_table, s, TXN_ABORT);
+  return txn_finish(hash_table, s, TXN_ABORT, mode);
 }
 
-void txn_commit(struct hash_table *hash_table, int s)
+void txn_commit(struct hash_table *hash_table, int s, int mode)
 {
-  return txn_finish(hash_table, s, TXN_COMMIT);
+  return txn_finish(hash_table, s, TXN_COMMIT, mode);
 }
 
-static int run_txn(struct hash_table *hash_table, int s, struct hash_query *query)
+static int txn_batch_op(struct hash_table *hash_table, int s, 
+  struct hash_query *query, void **values)
+{
+  // We are going to gather all pointers first. Then, we do the
+  // updates if necessary. So, there need be no undo logging
+  int i, r, nremote;
+
+  struct txn_ctx *tctx = &hash_table->partitions[s].txn_ctx;
+
+  void **eremote = malloc(sizeof(void *) * query->nops);
+  assert(eremote);
+
+  struct hash_op **ops = malloc(sizeof(struct op *) * query->nops); 
+  assert(ops);
+
+  struct op_ctx **r_o_ctx = malloc(sizeof(struct op_ctx *) * query->nops);
+  assert(r_o_ctx);
+
+  r = 1;
+  nremote = 0;
+
+  for (i = 0; i < query->nops; i++) {
+
+    struct op_ctx *octx = &tctx->op_ctx[i];
+    struct hash_op *op = &query->ops[i];
+
+    octx->optype = op->optype;
+    octx->is_local = is_local_op(hash_table, s, op->key);
+    octx->old_value = NULL;
+
+    if (octx->is_local) {
+
+      // get local values
+      octx->e = local_txn_op(&hash_table->partitions[s], op);
+      if (!octx->e) {
+        r = 0;
+        goto final;
+      }
+
+      values[i] = octx->e->value;
+
+      tctx->nops++;
+
+     } else {
+      // only gather remote ops for now
+      ops[nremote] = op;
+      eremote[nremote] = NULL;
+      r_o_ctx[nremote] = octx;
+      nremote++;
+    }
+  }
+
+  // now get all remote values 
+  smp_hash_doall(hash_table, s, nremote, ops, eremote);
+
+  // prep context
+  for (i = 0; i < nremote; i++) {
+    r_o_ctx[i]->e = (struct elem *)eremote[i]; 
+    assert(eremote[i]);
+  }
+
+  // now set all values
+  for (i = 0; i < query->nops; i++)
+    values[i] = tctx->op_ctx[i].e->value;
+    
+final:
+  free(eremote);
+  free(ops);
+  free(r_o_ctx);
+
+  return r;
+}
+
+static int run_batch_txn(struct hash_table *hash_table, int s, 
+  struct hash_query *query)
+{
+  int i, r;
+
+  void **values = malloc(sizeof(void *) * query->nops);
+  assert(values);
+
+  txn_start(hash_table, s, query);
+
+  r = TXN_COMMIT;
+  if (!txn_batch_op(hash_table, s, query, values))
+    r = TXN_ABORT;
+
+  if (r == TXN_COMMIT) {
+    for (i = 0; i < query->nops; i++) {
+      // in both lookup and update, we just check the value
+      uint64_t *int_val = (uint64_t *)values[i];
+
+      for (int j = 0; j < YCSB_NFIELDS; j++) {
+        assert (int_val[j] == query->ops[i].key);
+      }
+    }
+
+    txn_commit(hash_table, s, TXN_BATCH);
+  } else
+    txn_abort(hash_table, s, TXN_BATCH);
+
+  free(values);
+
+  return r;
+}
+
+static int run_txn(struct hash_table *hash_table, int s, 
+  struct hash_query *query)
 {
   int i, r;
   void *value;
@@ -442,14 +557,14 @@ static int run_txn(struct hash_table *hash_table, int s, struct hash_query *quer
     uint64_t *int_val = (uint64_t *)value;
 
     for (int j = 0; j < YCSB_NFIELDS; j++) {
-      assert (int_val[i] == query->ops[i].key);
+      assert (int_val[j] == query->ops[i].key);
     }
   }
 
   if (r == TXN_COMMIT) {
-    txn_commit(hash_table, s);
+    txn_commit(hash_table, s, TXN_SINGLE);
   } else {
-    txn_abort(hash_table, s);
+    txn_abort(hash_table, s, TXN_SINGLE);
   }
 
   return r;
@@ -617,7 +732,7 @@ void * hash_table_server(void* args)
 
   printf("srv %d load time %.3f\n", s, tend - tstart);
   printf("srv %d rec count: %" PRId64 " tx count: %d, per_txn_op cnt: %d\n", 
-    s, p->nrecs, niters, batch_size);
+    s, p->nrecs, niters, ops_per_txn);
 
   double avg;
   double stddev;
@@ -644,14 +759,17 @@ void * hash_table_server(void* args)
     get_next_query(hash_table, s, &query);
 
     do {
-      r = run_txn(hash_table, s, &query);
+      if (batch_size == 1)
+        r = run_txn(hash_table, s, &query);
+      else
+        r = run_batch_txn(hash_table, s, &query);
 
       // see if we need to answer someone
       process_requests(hash_table, s);
 
       naborts++;
 
-#ifdef DEBUG
+#ifdef DPROGRESS
       if (naborts % 1000 == 0) {
         printf("srv %d txn %d aborted %d times\n", s, i, naborts);
         fflush(stdout);
@@ -660,7 +778,7 @@ void * hash_table_server(void* args)
 
     } while (r == TXN_ABORT);
 
-#ifdef DEBUG
+#ifdef DPROGRESS
     if (niters * pct / 100 == i) {
       printf("srv %d %d%% txn complete\n", s, pct);
       fflush(stdout);
@@ -731,7 +849,8 @@ int smp_hash_update(struct hash_table *hash_table, int client_id, hash_key key)
   return 1;
 }
 
-void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, struct hash_op *queries, void **values)
+void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
+  struct hash_op **queries, void **values)
 {
   int r, pindex = 0;
   uint64_t val;
@@ -743,7 +862,7 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
   uint64_t msg_data[INSERT_MSG_LENGTH];
 
   for(int i = 0; i < nqueries; i++) {
-    int s = hash_get_server(hash_table, queries[i].key);
+    int s = hash_get_server(hash_table, queries[i]->key);
 
     while (pending_count[s] >= MAX_PENDING_PER_SERVER) {
       // we need to read values from server "s" buffer otherwise if we try to write
@@ -753,7 +872,7 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
       // however instead of reading server "s"-s buffer immediatelly we will read elements 
       // in same order that they were queued till we reach elements that were queued for 
       // server "s"
-      int ps = hash_get_server(hash_table, queries[pindex].key);
+      int ps = hash_get_server(hash_table, queries[pindex]->key);
       r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 0);
       if (r == 0) {
         buffer_flush(&boxes[client_id].boxes[ps].in);
@@ -764,18 +883,20 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
       pindex++;
     }
 
-    switch (queries[i].optype) {
+    switch (queries[i]->optype) {
       case OPTYPE_LOOKUP:
-        msg_data[0] = (uint64_t)queries[i].key | HASHOP_LOOKUP;
+        msg_data[0] = (uint64_t)queries[i]->key | HASHOP_LOOKUP;
         buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
+        hash_table->partitions[client_id].nlookups_remote++;
         break;
       case OPTYPE_UPDATE:
-        msg_data[0] = (uint64_t)queries[i].key | HASHOP_UPDATE;
+        msg_data[0] = (uint64_t)queries[i]->key | HASHOP_UPDATE;
         buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
+        hash_table->partitions[client_id].nupdates_remote++;
         break;
       case OPTYPE_INSERT:
-        msg_data[0] = (uint64_t)queries[i].key | HASHOP_INSERT;
-        msg_data[1] = (uint64_t)queries[i].size;
+        msg_data[0] = (uint64_t)queries[i]->key | HASHOP_INSERT;
+        msg_data[1] = (uint64_t)queries[i]->size;
         buffer_write_all(&boxes[client_id].boxes[s].in, 
           INSERT_MSG_LENGTH, msg_data, 0);
         break;
@@ -793,7 +914,7 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
   }
 
   while (pindex < nqueries) {
-    int ps = hash_get_server(hash_table, queries[pindex].key);
+    int ps = hash_get_server(hash_table, queries[pindex]->key);
     r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 0);
 
     if (r) {

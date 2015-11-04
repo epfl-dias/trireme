@@ -86,7 +86,7 @@ int smp_hash_update(struct hash_table *hash_table, int client_id, hash_key key);
  * NOTE: this has become basically obsolete, it can be substituted by using 
  * smp_hash_lookup, smp_hash_insert, AND get_next or try_get_next
  */
-void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, struct hash_op *queries, void **values);
+void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, struct hash_op **queries, void **values);
 
 
 void smp_flush_all(struct hash_table *hash_table, int client_id);

@@ -36,7 +36,8 @@ int queries_per_txn = 1;
 int nservers        = 1;
 int nclients        = 1;
 int first_core      = -1;
-int batch_size      = 1000;
+int batch_size      = 1;
+int ops_per_txn     = 1;
 int niters          = 1000000;
 size_t size         = 1000000;
 int query_mask      = (1 << 29) - 1;
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
 {
   int opt_char;
 
-  while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u")) != -1) {
+  while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:")) != -1) {
     switch (opt_char) {
       case 'a':
         alpha = atof(optarg);
@@ -101,6 +102,10 @@ int main(int argc, char *argv[])
         batch_size = atoi(optarg);
         assert(batch_size < MAX_OPS_PER_QUERY);
         break;
+      case 'o':
+        ops_per_txn = atoi(optarg);
+        assert(ops_per_txn < MAX_OPS_PER_QUERY);
+        break;
       case 'u':
         track_cpu_usage = 1;
         break;
@@ -112,6 +117,7 @@ int main(int argc, char *argv[])
                "   -d ratio of distributed to local txns\n"
                "   -b batch size \n"
                "   -i number of iterations\n"
+               "   -o ops per iteration\n"
                "   -t max #records\n"
                "   -m log of max hash key\n"
                "   -w hash insert ratio over total number of queries\n"
