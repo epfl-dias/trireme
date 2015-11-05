@@ -86,6 +86,7 @@ void *hash_table_server(void* args);
 int is_value_ready(struct elem *e);
 void mp_release_value_(struct elem *e);
 void atomic_release_value_(struct elem *e);
+void process_requests(struct hash_table *hash_table, int s);
 
 /**
  * hash_get_server: returns server that should handle given key
@@ -93,14 +94,14 @@ void atomic_release_value_(struct elem *e);
 static inline int hash_get_server(const struct hash_table *hash_table, hash_key key)
 {
   //return key % hash_table->nservers;
-  return key / hash_table->partitions[0].nrecs;
+  return key / hash_table->nrecs;
 }
 
 struct hash_table *create_hash_table(size_t nrecs, int nservers)
 {
   struct hash_table *hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
   hash_table->nservers = nservers;
-  hash_table->nrecs = nrecs;
+  hash_table->nrecs = nrecs / nservers;
   hash_table->partitions = memalign(CACHELINE, nservers * sizeof(struct partition));
 
   hash_table->nclients = 0;
@@ -325,13 +326,14 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
   return e;
 }
 
-void *txn_op(struct hash_table *hash_table, int s, struct hash_op *op)
+void *txn_op(struct hash_table *hash_table, int s, struct hash_op *op, 
+  int is_local)
 {
   void *value = NULL;
   struct elem *e = NULL;
   struct partition *p = &hash_table->partitions[s];
   struct txn_ctx *ctx = &p->txn_ctx;
-  int is_local = is_local_op(hash_table, s, op->key);
+  //int is_local = is_local_op(hash_table, s, op->key);
 
   dprint("srv(%d): issue %s %s op key %" PRIu64 "\n", 
     s, is_local ? "local":"remote", 
@@ -368,7 +370,7 @@ void *txn_op(struct hash_table *hash_table, int s, struct hash_op *op)
     octx->is_local = is_local;
 
     if (op->optype == OPTYPE_UPDATE) {
-      octx->old_value = malloc(e->size);
+      octx->old_value = memalign(CACHELINE, e->size);
       assert(octx->old_value);
 
       memcpy(octx->old_value, e->value, e->size);
@@ -430,105 +432,95 @@ void txn_commit(struct hash_table *hash_table, int s, int mode)
   return txn_finish(hash_table, s, TXN_COMMIT, mode);
 }
 
-static int txn_batch_op(struct hash_table *hash_table, int s, 
-  struct hash_query *query, void **values)
-{
-  // We are going to gather all pointers first. Then, we do the
-  // updates if necessary. So, there need be no undo logging
-  int i, r, nremote;
-
-  struct txn_ctx *tctx = &hash_table->partitions[s].txn_ctx;
-
-  void **eremote = malloc(sizeof(void *) * query->nops);
-  assert(eremote);
-
-  struct hash_op **ops = malloc(sizeof(struct op *) * query->nops); 
-  assert(ops);
-
-  struct op_ctx **r_o_ctx = malloc(sizeof(struct op_ctx *) * query->nops);
-  assert(r_o_ctx);
-
-  r = 1;
-  nremote = 0;
-
-  for (i = 0; i < query->nops; i++) {
-
-    struct op_ctx *octx = &tctx->op_ctx[i];
-    struct hash_op *op = &query->ops[i];
-
-    octx->optype = op->optype;
-    octx->is_local = is_local_op(hash_table, s, op->key);
-    octx->old_value = NULL;
-
-    if (octx->is_local) {
-
-      // get local values
-      octx->e = local_txn_op(&hash_table->partitions[s], op);
-      if (!octx->e) {
-        r = 0;
-        goto final;
-      }
-
-      values[i] = octx->e->value;
-
-      tctx->nops++;
-
-     } else {
-      // only gather remote ops for now
-      ops[nremote] = op;
-      eremote[nremote] = NULL;
-      r_o_ctx[nremote] = octx;
-      nremote++;
-    }
-  }
-
-  // now get all remote values 
-  smp_hash_doall(hash_table, s, nremote, ops, eremote);
-
-  // prep context
-  for (i = 0; i < nremote; i++) {
-    r_o_ctx[i]->e = (struct elem *)eremote[i]; 
-    assert(eremote[i]);
-  }
-
-  // now set all values
-  for (i = 0; i < query->nops; i++)
-    values[i] = tctx->op_ctx[i].e->value;
-    
-final:
-  free(eremote);
-  free(ops);
-  free(r_o_ctx);
-
-  return r;
-}
-
 static int run_batch_txn(struct hash_table *hash_table, int s, 
   struct hash_query *query)
 {
-  int i, r;
+  int i, r, nops, nremote;
 
-  void **values = malloc(sizeof(void *) * query->nops);
+  void **values = (void **) memalign(CACHELINE, sizeof(void *) * query->nops);
   assert(values);
 
   txn_start(hash_table, s, query);
 
   r = TXN_COMMIT;
-  if (!txn_batch_op(hash_table, s, query, values))
-    r = TXN_ABORT;
+  nops = query->nops;
 
-  if (r == TXN_COMMIT) {
-    for (i = 0; i < query->nops; i++) {
-      // in both lookup and update, we just check the value
-      uint64_t *int_val = (uint64_t *)values[i];
+  nremote = 0;
+  for (i = 0; i < nops; i++) {
+    struct hash_op *op = &query->ops[i];    
+    op->server = hash_get_server(hash_table, op->key);
 
-      for (int j = 0; j < YCSB_NFIELDS; j++) {
-        assert (int_val[j] == query->ops[i].key);
+    // if local, get it
+    if (op->server == s) {
+      values[i] = txn_op(hash_table, s, &query->ops[i], 1);
+
+      if (!values[i]) {
+        r = TXN_ABORT;
+        goto final;
       }
+    } else {
+      // remote op. Just issue it. We'll collect later
+      if (op->optype == OPTYPE_LOOKUP)
+        smp_hash_lookup(hash_table, s, op->key);
+      else
+        smp_hash_update(hash_table, s, op->key);
+
+      values[i] = NULL;
+      nremote++;
+    }
+  }
+
+  hash_table->partitions[s].nlookups_remote += nremote;
+
+  if (nremote) {
+    // now get all remote values
+    smp_flush_all(hash_table, s);
+
+    struct txn_ctx *ctx = &hash_table->partitions[s].txn_ctx;
+    struct box_array *boxes = hash_table->boxes;
+
+    for (i = 0; i < nops; i++) {
+      // skip local values we already have
+      if (values[i])
+        continue;
+
+      uint64_t val;
+      struct hash_op *op = &query->ops[i];
+
+      // loop till we get the remote value
+      while (buffer_read_all(&boxes[s].boxes[op->server].out, 1, &val, 0) == 0) {
+        process_requests(hash_table, s);
+      } 
+
+      struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
+      octx->optype = op->optype;
+      octx->e = (struct elem *)val;
+      octx->is_local = 0;
+      octx->old_value = NULL;
+      ctx->nops++;
+
+      values[i] = octx->e->value;
+
+      nremote--;
     }
 
+    assert(nremote == 0);
+  }
+
+  // now we have all values. Verify them.
+  for (i = 0; i < query->nops; i++) {
+    // in both lookup and update, we just check the value
+    uint64_t *int_val = (uint64_t *)values[i];
+
+    for (int j = 0; j < YCSB_NFIELDS; j++) {
+      assert (int_val[j] == query->ops[i].key);
+    }
+  }
+
+final:
+  if (r == TXN_COMMIT)
     txn_commit(hash_table, s, TXN_BATCH);
-  } else
+  else
     txn_abort(hash_table, s, TXN_BATCH);
 
   free(values);
@@ -546,7 +538,10 @@ static int run_txn(struct hash_table *hash_table, int s,
 
   r = TXN_COMMIT;
   for (i = 0; i < query->nops; i++) {
-    value = txn_op(hash_table, s, &query->ops[i]);
+    struct hash_op *op = &query->ops[i];
+    int is_local = (hash_get_server(hash_table, op->key) == s);
+
+    value = txn_op(hash_table, s, op, is_local);
   
     if (!value) {
       r = TXN_ABORT;
@@ -557,7 +552,7 @@ static int run_txn(struct hash_table *hash_table, int s,
     uint64_t *int_val = (uint64_t *)value;
 
     for (int j = 0; j < YCSB_NFIELDS; j++) {
-      assert (int_val[j] == query->ops[i].key);
+      assert (int_val[j] == op->key);
     }
   }
 
@@ -580,6 +575,9 @@ void process_requests(struct hash_table *hash_table, int s)
 
   for (int i = 0; i < nclients; i++) {
       
+    if (i == s)
+      continue;
+
     int count = buffer_peek(&boxes[i].boxes[s].in, ONEWAY_BUFFER_SIZE, 
       localbuf);
 
@@ -852,82 +850,49 @@ int smp_hash_update(struct hash_table *hash_table, int client_id, hash_key key)
 void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
   struct hash_op **queries, void **values)
 {
-  int r, pindex = 0;
+  int r, i;
   uint64_t val;
 
-  int *pending_count = (int*)memalign(CACHELINE, hash_table->nservers * sizeof(int));
-  memset(pending_count, 0, hash_table->nservers * sizeof(int));
-
   struct box_array *boxes = hash_table->boxes;
-  uint64_t msg_data[INSERT_MSG_LENGTH];
+  uint64_t msg_data;
 
   for(int i = 0; i < nqueries; i++) {
     int s = hash_get_server(hash_table, queries[i]->key);
 
-    while (pending_count[s] >= MAX_PENDING_PER_SERVER) {
-      // we need to read values from server "s" buffer otherwise if we try to write
-      // more queries to server "s" it will be blocked trying to write the return value 
-      // to the buffer and it can easily cause deadlock between clients and servers
-      //
-      // however instead of reading server "s"-s buffer immediatelly we will read elements 
-      // in same order that they were queued till we reach elements that were queued for 
-      // server "s"
-      int ps = hash_get_server(hash_table, queries[pindex]->key);
-      r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 0);
-      if (r == 0) {
-        buffer_flush(&boxes[client_id].boxes[ps].in);
-        r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 1);
-      }
-      values[pindex] = (void *)(unsigned long)val;
-      pending_count[ps]--;
-      pindex++;
-    }
-
     switch (queries[i]->optype) {
       case OPTYPE_LOOKUP:
-        msg_data[0] = (uint64_t)queries[i]->key | HASHOP_LOOKUP;
-        buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
+        msg_data = (uint64_t)queries[i]->key | HASHOP_LOOKUP;
+        buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
         hash_table->partitions[client_id].nlookups_remote++;
         break;
       case OPTYPE_UPDATE:
-        msg_data[0] = (uint64_t)queries[i]->key | HASHOP_UPDATE;
-        buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
+        msg_data = (uint64_t)queries[i]->key | HASHOP_UPDATE;
+        buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
         hash_table->partitions[client_id].nupdates_remote++;
         break;
-      case OPTYPE_INSERT:
-        msg_data[0] = (uint64_t)queries[i]->key | HASHOP_INSERT;
-        msg_data[1] = (uint64_t)queries[i]->size;
-        buffer_write_all(&boxes[client_id].boxes[s].in, 
-          INSERT_MSG_LENGTH, msg_data, 0);
-        break;
-
       default:
         assert(0);
         break;
     }
-    pending_count[s]++;
   }
+
 
   // after queueing all the queries we flush all buffers and read all remaining values
-  for (int i = 0; i < hash_table->nservers; i++) {
-    buffer_flush(&boxes[client_id].boxes[i].in);
-  }
+  smp_flush_all(hash_table, client_id);
 
-  while (pindex < nqueries) {
-    int ps = hash_get_server(hash_table, queries[pindex]->key);
+  i = 0;
+  while (i < nqueries) {
+    int ps = hash_get_server(hash_table, queries[i]->key);
     r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 0);
 
     if (r) {
-      values[pindex] = (void *)(unsigned long)val;
-      pending_count[ps]--;
-      pindex++;
+      values[i] = (void *)(unsigned long)val;
+      i++;
     }
 
     process_requests(hash_table, client_id);
 
   }
-
-  free(pending_count);
 
 }
 

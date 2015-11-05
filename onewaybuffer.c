@@ -22,10 +22,11 @@ void buffer_write_all(struct onewaybuffer* buffer, int write_count, const uint64
 {
   assert(write_count <= ONEWAY_BUFFER_SIZE);
  
-  // wait till there is space in buffer
-  while (buffer->tmp_wr_index + write_count - 1 >= buffer->rd_index + ONEWAY_BUFFER_SIZE) {
+  /* while (buffer->tmp_wr_index + write_count - 1 >= buffer->rd_index + ONEWAY_BUFFER_SIZE) {
     _mm_pause();
   }
+  */
+  assert (buffer->tmp_wr_index + write_count - 1 < buffer->rd_index + ONEWAY_BUFFER_SIZE); 
 
   for (int i = 0; i < write_count; i++) {
     buffer->data[(buffer->tmp_wr_index + i) & (ONEWAY_BUFFER_SIZE - 1)] = data[i];

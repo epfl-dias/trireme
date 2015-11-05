@@ -15,6 +15,9 @@
 #define  FALSE          0       // Boolean false
 #define  TRUE           1       // Boolean true
 
+
+static double *power_table = NULL;
+
 //=========================================================================
 //= Multiplicative LCG for generating uniform(0.0, 1.0) random numbers    =
 //=   - x_n = 7^5*x_(n-1)mod(2^31 - 1)                                    =
@@ -65,7 +68,7 @@ int zipf(double alpha, int n)
   if (first == TRUE)
   {
     for (i=1; i<=n; i++)
-      c = c + (1.0 / pow((double) i, alpha));
+      c = c + (1.0 / power_table[i]);
  
     c = 1.0 / c;
 
@@ -82,7 +85,7 @@ int zipf(double alpha, int n)
   sum_prob = 0;
   for (i=1; i<=n; i++)
   {
-    sum_prob = sum_prob + c / pow((double) i, alpha);
+    sum_prob = sum_prob + c / power_table[i];
     if (sum_prob >= z)
     {
       zipf_value = i;
@@ -106,6 +109,26 @@ uint64_t *zipf_get_keys(double alpha, uint64_t N, uint64_t nvalues)
 
   rand_val(seed);
 
+  printf("\nIniting power table: ");
+  fflush(stdout);
+
+  power_table = malloc(sizeof(double) * (N + 1));
+  assert(power_table);
+
+  for (i=1; i<=N; i++) {
+    power_table[i] = pow((double) i, alpha);
+
+    if (N * p / 100 == i) {
+      printf("%d%% ", p);
+      fflush(stdout);
+      p += 10;
+    }
+  }
+
+  printf("\nDone initing power table. Generating queries:\n");
+  fflush(stdout);
+
+  p = 10;
   zipf_rv = malloc(sizeof(uint64_t) * nvalues);
   assert(zipf_rv);
 

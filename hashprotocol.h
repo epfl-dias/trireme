@@ -21,6 +21,7 @@ struct hash_op {
   uint32_t optype;
   uint32_t size;
   hash_key key;
+  int server;
 };
 
 /**
