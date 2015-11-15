@@ -13,6 +13,7 @@
 #include "onewaybuffer.h"
 #include "smphashtable.h"
 #include "util.h"
+#include "tpcc.h"
 
 /** 
  * Hash Table Operations
@@ -74,6 +75,7 @@ struct hash_table {
   struct thread_args *thread_data;
 
   struct partition *partitions;
+  struct partition *g_partition; /* used for item table */
   struct box_array *boxes;
   uint64_t *keys;
 
@@ -103,6 +105,7 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
   hash_table->nservers = nservers;
   hash_table->nrecs = nrecs / nservers;
   hash_table->partitions = memalign(CACHELINE, nservers * sizeof(struct partition));
+  hash_table->g_partition = memalign(CACHELINE, sizeof(struct partition));
 
   hash_table->nclients = 0;
   pthread_mutex_init(&hash_table->create_client_lock, NULL);
@@ -111,6 +114,7 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
   for (int i = 0; i < hash_table->nservers; i++) {
     init_hash_partition(&hash_table->partitions[i], nrecs / nservers, nservers);
   }
+  init_hash_partition(hash_table->g_partition, nrecs / nservers, nservers);
 
   hash_table->threads = (pthread_t *)malloc(nservers * sizeof(pthread_t));
   hash_table->thread_data = (struct thread_args *)malloc(nservers * sizeof(struct thread_args));
@@ -134,6 +138,7 @@ void destroy_hash_table(struct hash_table *hash_table)
     destroy_hash_partition(&hash_table->partitions[i], atomic_release_value_);
   }
   free(hash_table->partitions);
+  free(hash_table->g_partition);
 
   for (int i = 0; i < hash_table->nservers; i++) 
     free(hash_table->boxes[i].boxes);
@@ -724,7 +729,11 @@ void * hash_table_server(void* args)
    
   double tstart = now();
 
+#if TPCC_BENCH
+  tpcc_load_data(s, p, hash_table->g_partition);
+#else
   load_data(s, p);
+#endif
 
   double tend = now();
 

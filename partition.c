@@ -121,7 +121,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   if (size < sizeof(e->local_values)) 
     e->value = (char *)e->local_values;
   else
-    e->value = malloc(size);
+    e->value = memalign(size, CACHELINE);
   assert(e->value);
 
   e->size = size;

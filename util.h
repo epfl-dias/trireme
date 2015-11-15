@@ -4,6 +4,9 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+#define FALSE 0
+#define TRUE 1
+
 #define CACHELINE   64 
 #define MAX_CLIENTS 128 // must be power of 2
 #define MAX_SERVERS 128 // must be power of 2
@@ -58,5 +61,11 @@ read_tsc(void)
 }
 
 uint64_t *zipf_get_keys(double alpha, uint64_t N, uint64_t nvalues);
+
+uint64_t RAND(uint64_t max);
+uint64_t URand(uint64_t x, uint64_t y);
+uint64_t NURand(uint64_t A, uint64_t x, uint64_t y);
+uint64_t make_alpha_string(int min, int max, char* str);
+uint64_t make_numeric_string(int min, int max, char* str);
 
 #endif

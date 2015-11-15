@@ -11,9 +11,7 @@
 #include <math.h>               // Needed for pow()
 #include <stdint.h>
 #include <inttypes.h>
-
-#define  FALSE          0       // Boolean false
-#define  TRUE           1       // Boolean true
+#include "util.h"
 
 
 static double *power_table = NULL;

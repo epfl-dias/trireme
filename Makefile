@@ -5,7 +5,7 @@ LFLAGS = -lpthread -lm -lrt -ltcmalloc
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
 LIBSRC = smphashtable.c onewaybuffer.c \
-				 partition.c util.c zipf.c \
+				 partition.c util.c zipf.c tpcc.c \
 				 ia32msr.c ia32perf.c ycsb.c 
 
 LIBOBJS = $(LIBSRC:.c=.o)
