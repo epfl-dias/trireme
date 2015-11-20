@@ -21,8 +21,14 @@ struct hash_op {
   uint32_t optype;
   uint32_t size;
   hash_key key;
-  int server;
 };
+
+#define MAKE_OP(op,type,sz,k)\
+{\
+  op.optype = type;\
+  op.size = sz;\
+  op.key = k;\
+}
 
 /**
  * struct hash_query - Hash table query

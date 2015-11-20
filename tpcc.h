@@ -5,6 +5,7 @@
 #define MAKE_HASH_KEY(tid,rid)  (tid | rid)
 #define GET_TID(key) (key & TID_MASK)
 
+#define MAKE_STOCK_KEY(w,s) (w * TPCC_MAX_ITEMS + s)
 #define MAKE_DIST_KEY(w,d) (w * TPCC_NDIST_PER_WH + d)
 #define MAKE_CUST_KEY(w,d,c) (MAKE_DIST_KEY(w,d) * TPCC_NCUST_PER_DIST + c)
 #define MAKE_OL_KEY(w,d,o,ol) (MAKE_CUST_KEY(w,d,o) * TPCC_MAX_OL_PER_ORDER + ol)
@@ -143,13 +144,9 @@ struct tpcc_stock {
 	char s_data[50];
 };
 
-#if 0
-struct secondary_record {
+/* struct secondary_record {
   char sr_last_name[LAST_NAME_LEN];
   hash_key sr_rid;
-};
-#endif
-
-void tpcc_load_data(int id, struct partition *p, struct partition *g);
+}; */
 
 #endif

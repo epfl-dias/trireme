@@ -77,5 +77,6 @@ void destroy_hash_partition(struct partition *p, release_value_f *release);
 struct elem * hash_lookup(struct partition *p, hash_key key);
 struct elem * hash_insert(struct partition *p, hash_key key, int size, release_value_f *release);
 int hash_get_bucket(const struct partition *p, hash_key key);
+void hash_remove(struct partition *p, struct elem *e);
 
 #endif

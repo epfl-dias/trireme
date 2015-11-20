@@ -4,10 +4,50 @@
 #include "hashprotocol.h"
 #include "util.h"
 
+#define TXN_BATCH 1
+#define TXN_SINGLE 0
+
 /**
- * struct hash_table
+ * Server/Client Message Passing Data Structures
  */
-struct hash_table;
+struct box {
+  struct onewaybuffer in;
+  struct onewaybuffer out;
+}  __attribute__ ((aligned (CACHELINE)));
+
+struct box_array {
+  struct box *boxes;
+} __attribute__ ((aligned (CACHELINE)));
+
+struct thread_args {
+  int id;
+  int core;
+  struct hash_table *hash_table;
+};
+
+/*
+ * Hash Table data structure
+ */
+struct hash_table {
+  int nservers;
+  volatile int nclients;
+  size_t nrecs;
+
+  pthread_mutex_t create_client_lock;
+
+  volatile int quitting;
+  pthread_t *threads;
+  struct thread_args *thread_data;
+
+  struct partition *partitions;
+  struct partition *g_partition; /* used for item table */
+  struct box_array *boxes;
+  uint64_t *keys;
+
+  // stats
+  int track_cpu_usage;
+};
+
 
 /**
  * create_hash_table - Create new smp hash table
@@ -112,5 +152,13 @@ void stats_get_mem(struct hash_table *hash_table, size_t *used, size_t *total);
 void stats_set_track_cpu_usage(struct hash_table *hash_table, int track_cpu_usage);
 double stats_get_cpu_usage(struct hash_table *hash_table);
 double stats_get_tps(struct hash_table *hash_table);
+
+
+void txn_start(struct hash_table *hash_table, int s);
+void txn_commit(struct hash_table *hash_table, int s, int mode);
+void txn_abort(struct hash_table *hash_table, int s, int mode);
+void *txn_op(struct hash_table *hash_table, int s, struct partition *p, 
+    struct hash_op *op, int is_local);
+int hash_get_server(const struct hash_table *hash_table, hash_key key);
 
 #endif

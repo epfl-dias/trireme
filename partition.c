@@ -78,6 +78,10 @@ void hash_remove(struct partition *p, struct elem *e)
   p->size -= (sizeof(struct elem) + e->size);
   assert(p->size >= 0);
   TAILQ_REMOVE(eh, e, chain);
+  free(e->value);
+  free(e);
+
+  dprint("Deleted %"PRId64"\n", e->key);
 }
 
 struct elem * hash_lookup(struct partition *p, hash_key key)
@@ -98,21 +102,14 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
 
 struct elem *hash_insert(struct partition *p, hash_key key, int size, 
         release_value_f *release)
-{
+{  
   struct elist *eh = &(p->table[hash_get_bucket(p, key)].chain);
-  struct elem *e = hash_lookup(p, key);
-
-  assert (e == NULL);
-/*
-  if (e != NULL) {
-    hash_remove(p, e);
-    release(e);
-  } 
-*/
-
+  
+  //struct elem *e = hash_lookup(p, key);
+  //assert (e == NULL);
 
   // try to allocate space for new value
-  e = (struct elem *)memalign(sizeof(struct elem), CACHELINE);
+  struct elem *e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));
   assert (e);
 
   e->key = key;
@@ -121,7 +118,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   if (size < sizeof(e->local_values)) 
     e->value = (char *)e->local_values;
   else
-    e->value = memalign(size, CACHELINE);
+    e->value = malloc(size);
   assert(e->value);
 
   e->size = size;

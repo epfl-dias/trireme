@@ -8,9 +8,10 @@
 
 #include "ia32perf.h"
 #include "partition.h"
-#include "smphashtable.h"
 #include "onewaybuffer.h"
+#include "smphashtable.h"
 #include "util.h"
+#include "benchmark.h"
 
 #if defined(INTEL64)
   // Event Select values for Intel I7 core processor
@@ -50,6 +51,7 @@ int track_cpu_usage = 0;
 int QID[MAX_CLIENTS];
 
 struct hash_table *hash_table;
+struct benchmark *g_benchmark;
 int iters_per_client; 
 
 uint64_t pmccount[NEVT][MAX_SERVERS + MAX_CLIENTS];
@@ -128,6 +130,9 @@ int main(int argc, char *argv[])
   }
   if (first_core == -1) first_core = nclients;
 
+  // set benchmark to micro for now
+  g_benchmark = &tpcc_bench;
+  //g_benchmark = &micro_bench;
   run_benchmark();
   return 0;
 }
