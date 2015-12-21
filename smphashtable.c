@@ -185,6 +185,7 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       break;
     case OPTYPE_LOOKUP:
       e = hash_lookup(p, op->key);
+      assert(e);
 
       // if value is not ready, lookup and updates fail
       if (!is_value_ready(e)) {

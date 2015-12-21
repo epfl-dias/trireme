@@ -12,81 +12,36 @@
 #include "tpcc.h"
 
 struct item {
-  uint64_t ol_i_id;
-  uint64_t ol_supply_w_id;
-  uint64_t ol_quantity;
+  int ol_i_id;
+  int ol_supply_w_id;
+  int ol_quantity;
 };
 
 // neworder tpcc query
 struct tpcc_query {
-  uint64_t w_id;
-  uint64_t d_id;
-  uint64_t c_id;
+  int w_id;
+  int d_id;
+  int c_id;
+
+  // payment input
+  int d_w_id;
+  int c_w_id;
+  int c_d_id;
+  char c_last[LAST_NAME_LEN];
+  double h_amount;
+  char by_last_name;
+
+  //new order input
   struct item item[TPCC_MAX_OL_PER_ORDER];
   char rbk;
   char remote;
-  uint64_t ol_cnt;
-  uint64_t o_entry_d;
+  int ol_cnt;
+  int o_entry_d;
 };
 
-int tpcc_hash_get_server(struct hash_table *hash_table, hash_key key)
-{
-  // only time we lookup remotely is for stock table
-  assert((key & TID_MASK) == STOCK_TID);
+extern double dist_threshold;
 
-  return ((key - 1) & ~TID_MASK) / TPCC_MAX_ITEMS;
-}
-
-void tpcc_get_next_query(struct hash_table *hash_table, int s, void *arg)
-{
-  struct partition *p = &hash_table->partitions[s];
-  int ol_cnt, dup;
-  struct tpcc_query *q = (struct tpcc_query *) arg;
-
-  // XXX: for now, only neworder query. for now, only local
-  q->w_id = s;
-  q->d_id = URand(1, TPCC_NDIST_PER_WH);
-  q->c_id = NURand(1023, 1, TPCC_NCUST_PER_DIST);
-  q->rbk = URand(1, 100);
-  q->ol_cnt = URand(5, 15);
-  q->o_entry_d = 2013;
-  q->remote = 0;
-
-  ol_cnt = q->ol_cnt;
-  assert(ol_cnt <= TPCC_MAX_OL_PER_ORDER);
-  for (int o = 0; o < ol_cnt; o++) {
-    struct item *i = &q->item[o];
-
-    do {
-      i->ol_i_id = NURand(8191, 1, TPCC_MAX_ITEMS);
-
-      // no duplicates
-      dup = 0;
-      for (int j = 0; j < o; j++)
-        if (q->item[j].ol_i_id == i->ol_i_id) {
-          dup = 1;
-          break;
-        }
-    } while(dup);     
-
-    int x = URand(1, 100);
-    if (x > 1 || p->nservers == 1) {
-    //if (1) {
-      i->ol_supply_w_id = s;
-    } else {
-      while ((i->ol_supply_w_id = URand(0, p->nservers - 1) == s))
-        ;
-      
-      q->remote = 1;
-    }
-
-    i->ol_quantity = URand(1, 10);
-  }
-
-
-}
-    
-static uint64_t set_last_name(uint64_t num, char* name)
+static int set_last_name(int num, char* name)
 {
   static const char *n[] =
   {"BAR", "OUGHT", "ABLE", "PRI", "PRES",
@@ -98,8 +53,112 @@ static uint64_t set_last_name(uint64_t num, char* name)
   return strlen(name);
 }
 
+int tpcc_hash_get_server(struct hash_table *hash_table, hash_key key)
+{
+  // only time we lookup remotely is for stock table
+  assert((key & TID_MASK) == STOCK_TID);
+
+  return ((key - 1) & ~TID_MASK) / TPCC_MAX_ITEMS;
+}
+
+void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
+    void *arg)
+{
+  struct partition *p = &hash_table->partitions[s];
+  struct tpcc_query *q = (struct tpcc_query *) arg;
+
+  // XXX: for now, only local
+  q->w_id = s;
+  q->d_w_id = s;
+
+  q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+  q->h_amount = URand(&p->seed, 1, 5000);
+  //int x = URand(&p->seed, 1, 100);
+  int y = URand(&p->seed, 1, 100);
+
+  //XXX: For now, always home wh
+  if (1) {
+  //if(x <= 85) {
+    // home warehouse
+    q->c_d_id = q->d_id;
+    q->c_w_id = s;
+  } else {
+    q->c_d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+
+    // remote warehouse if we have >1 wh
+    if(p->nservers > 1) {
+      while((q->c_w_id = URand(&p->seed, 1, p->nservers - 1)) == q->w_id)
+        ; 
+
+    } else {
+      q->c_w_id = s;
+    }
+  }
+
+  if(y <= 60) {
+    // by last name
+    q->by_last_name = TRUE;
+    set_last_name(NURand(&p->seed, 255, 0, 999), q->c_last);
+  } else {
+    // by cust id
+    q->by_last_name = FALSE;
+    q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
+  }
+}
+
+void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s, 
+    void *arg)
+{
+  struct partition *p = &hash_table->partitions[s];
+  int ol_cnt, dup;
+  struct tpcc_query *q = (struct tpcc_query *) arg;
+
+  // XXX: for now, only neworder query. for now, only local
+  q->w_id = s;
+  q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+  q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
+  q->rbk = URand(&p->seed, 1, 100);
+  q->ol_cnt = URand(&p->seed, 5, 15);
+  q->o_entry_d = 2013;
+  q->remote = 0;
+
+  ol_cnt = q->ol_cnt;
+  assert(ol_cnt <= TPCC_MAX_OL_PER_ORDER);
+  for (int o = 0; o < ol_cnt; o++) {
+    struct item *i = &q->item[o];
+
+    do {
+      i->ol_i_id = NURand(&p->seed, 8191, 1, TPCC_MAX_ITEMS);
+
+      // no duplicates
+      dup = 0;
+      for (int j = 0; j < o; j++)
+        if (q->item[j].ol_i_id == i->ol_i_id) {
+          dup = 1;
+          break;
+        }
+    } while(dup);     
+
+    int x = URand(&p->seed, 1, 100);
+    if (dist_threshold == 1)
+      x = 2;
+
+    if (x > 1 || p->nservers == 1) {
+    //if (1) {
+      i->ol_supply_w_id = s;
+    } else {
+      while ((i->ol_supply_w_id = URand(&p->seed, 0, p->nservers - 1) == s))
+        ;
+      
+      q->remote = 1;
+    }
+
+    i->ol_quantity = URand(&p->seed, 1, 10);
+  }
+}
+    
 __attribute__ ((unused)) static uint64_t cust_derive_key(char * c_last, 
-    uint64_t c_d_id, uint64_t c_w_id)
+    int c_d_id, int c_w_id)
 {
   uint64_t key = 0;
   char offset = 'A';
@@ -126,17 +185,17 @@ static void load_stock(int w_id, struct partition *p)
     r = (struct tpcc_stock *) e->value;
     r->s_i_id = i;
     r->s_w_id = w_id;
-    r->s_quantity = URand(10, 100);
+    r->s_quantity = URand(&p->seed, 10, 100);
     for (int j = 0; j < 10; j++)
-      make_alpha_string(24, 24, r->s_dist[j]);
+      make_alpha_string(&p->seed, 24, 24, r->s_dist[j]);
 
     r->s_ytd = 0;
     r->s_order_cnt = 0;
     r->s_remote_cnt = 0;
     
-    int len = make_alpha_string(26, 50, r->s_data);
-    if (RAND(100) < 10) {
-      int idx = URand(0, len - 8); 
+    int len = make_alpha_string(&p->seed, 26, 50, r->s_data);
+    if (RAND(&p->seed, 100) < 10) {
+      int idx = URand(&p->seed, 0, len - 8); 
       memcpy(&r->s_data[idx], "original", 8);
     }
 
@@ -167,7 +226,7 @@ static void load_history(int w_id, struct partition *p)
       r->h_w_id = w_id;
       r->h_date = 0;
       r->h_amount = 10.0;
-      make_alpha_string(12, 24, r->h_data);
+      make_alpha_string(&p->seed, 12, 24, r->h_data);
 
       p->ninserts++;
       e->ref_count++;
@@ -189,6 +248,9 @@ static void load_customer(int w_id, struct partition *p)
       e = hash_insert(p, key, sizeof(struct tpcc_customer), NULL);
       assert(e);
 
+      e->ref_count++;
+      p->ninserts++;
+
       r = (struct tpcc_customer *) e->value;
       r->c_id = c;
       r->c_d_id = d;
@@ -197,61 +259,99 @@ static void load_customer(int w_id, struct partition *p)
       if (c <= 1000)
         set_last_name(c - 1, r->c_last);
       else
-        set_last_name(NURand(255,0,999), r->c_last);
+        set_last_name(NURand(&p->seed, 255,0,999), r->c_last);
 
       memcpy(r->c_middle, "OE", 2);
 
-      make_alpha_string(FIRST_NAME_MIN_LEN, FIRST_NAME_LEN, r->c_first);
+      make_alpha_string(&p->seed, FIRST_NAME_MIN_LEN, FIRST_NAME_LEN, r->c_first);
 
-      make_alpha_string(10, 20, r->c_street[0]);
-      make_alpha_string(10, 20, r->c_street[1]);
-      make_alpha_string(10, 20, r->c_city);
-      make_alpha_string(2, 2, r->c_state); /* State */
-      make_numeric_string(9, 9, r->c_zip); /* Zip */
-      make_numeric_string(16, 16, r->c_phone); /* Zip */
+      make_alpha_string(&p->seed, 10, 20, r->c_street[0]);
+      make_alpha_string(&p->seed, 10, 20, r->c_street[1]);
+      make_alpha_string(&p->seed, 10, 20, r->c_city);
+      make_alpha_string(&p->seed, 2, 2, r->c_state); /* State */
+      make_numeric_string(&p->seed, 9, 9, r->c_zip); /* Zip */
+      make_numeric_string(&p->seed, 16, 16, r->c_phone); /* Zip */
       r->c_since = 0;
       r->c_credit_lim = 50000;
       r->c_delivery_cnt = 0;
-      make_alpha_string(300, 500, r->c_data);
+      make_alpha_string(&p->seed, 300, 500, r->c_data);
 
-      if (RAND(10) == 0) {
+      if (RAND(&p->seed, 10) == 0) {
         r->c_credit[0] = 'G';
       } else {
         r->c_credit[0] = 'B';
       }
       r->c_credit[1] = 'C';
-      r->c_discount = (double)RAND(5000) / 10000;
+      r->c_discount = (double)RAND(&p->seed, 5000) / 10000;
       r->c_balance = -10.0;
       r->c_ytd_payment = 10.0;
       r->c_payment_cnt = 1;
 
-      /* XXX: create secondary index using the main hash table itself. 
+      /* create secondary index using the main hash table itself. 
        * we can do this by deriving a key from the last name,dist,wh id 
        * and using it to create a new record which will contain both
-       * the <last name,did,wid> secondary key and real key of the record
+       * the real key of all records with that last name
+       * XXX: Note that this key is not unique - so all names hashing to
+       * the same key will hash to the same key. Thus, ppl with different
+       * last names might hash to the same sr record.
        */
-#if 0
-      hash_key dkey;
-      dkey = cust_derive_key(r->c_last, d, w);
+      hash_key sr_dkey = cust_derive_key(r->c_last, d, w_id);
+      hash_key sr_key = MAKE_HASH_KEY(CUSTOMER_SIDX_TID, sr_dkey);
 
-      // now we insert another record for secondary index
-      struct elem *sie = hash_insert(p, dkey, 
-          sizeof(struct secondary_record), NULL);
-      assert(sie);
-    
-      struct secondary_record *sr = (struct secondary_record *)sie->value;
-      strcpy(sr->sr_last_name, r->c_last);
-      sr->sr_rid = r->ckey;
-      sie->ref_count++;
-#endif
+      dprint("lookingup sr index record for cust: %s, idx-dkey %"PRId64"\n", r->c_last, sr_key);
 
-      p->ninserts++;
-      e->ref_count++;
+      // pull up the record if its already there
+      struct secondary_record *sr = NULL;
+      struct elem *sie = hash_lookup(p, sr_key);
+      int sr_idx, sr_nids;
+
+      if (sie) {
+        sr = (struct secondary_record *) sie->value;
+
+        dprint("found index record for cust: %s, nrids %d, rid_idx %d\n", r->c_last, sr->sr_nids, sr->sr_idx);
+
+        sr_idx = sr->sr_idx;
+        sr_nids = sr->sr_nids;
+
+      } else {
+        dprint("Creating sr index record for cust: %s, idx-dkey %"PRId64"\n", r->c_last, sr_key);
+
+        sie = hash_insert(p, sr_key, sizeof(struct secondary_record), NULL);
+        assert(sie);
+ 
+        sr = (struct secondary_record *) sie->value;
+
+        /* XXX: memory leak possibility - if this record is ever freed
+         * this malloc wont be released
+         */
+        sr->sr_rids = malloc(sizeof(hash_key) * NDEFAULT_RIDS);
+        assert(sr->sr_rids);
+
+        sr->sr_idx = sr_idx = 0;
+        sr->sr_nids = sr_nids = NDEFAULT_RIDS;
+
+        sie->ref_count++;
+        p->ninserts++;
+      }
+
+      assert(sr_idx < sr_nids);
+   
+      /* add this record to the index */
+      sr->sr_rids[sr_idx] = key;
+      if (++sr_idx == sr_nids) {
+        // reallocate the record array
+        sr_nids *= 2;
+        sr->sr_rids = realloc(sr->sr_rids, sizeof(hash_key) * sr_nids);
+        assert(sr->sr_rids);
+      }
+
+      sr->sr_idx = sr_idx;
+      sr->sr_nids = sr_nids;
     }
   }
 }
 
-void init_permutation(uint64_t *cperm)
+void init_permutation(struct partition *p, uint64_t *cperm)
 {
     int i;
 
@@ -261,7 +361,7 @@ void init_permutation(uint64_t *cperm)
 
     // shuffle
     for(i = 0; i < TPCC_NCUST_PER_DIST - 1; i++) {
-        uint64_t j = URand(i + 1, TPCC_NCUST_PER_DIST - 1);
+        uint64_t j = URand(&p->seed, i + 1, TPCC_NCUST_PER_DIST - 1);
         uint64_t tmp = cperm[i];
         cperm[i] = cperm[j];
         cperm[j] = tmp;
@@ -281,7 +381,7 @@ static void load_order(int w_id, struct partition *p)
   assert(cperm);
 
   for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
-    init_permutation(cperm); 
+    init_permutation(p, cperm); 
 
     for (int o = 1; o <= TPCC_NCUST_PER_DIST; o++) {
       ckey = MAKE_CUST_KEY(w_id, d, o);
@@ -295,18 +395,18 @@ static void load_order(int w_id, struct partition *p)
 
       r = (struct tpcc_order *) e->value;
 
-      uint64_t c_id = cperm[o - 1];
+      int c_id = cperm[o - 1];
       r->o_id = o;
       r->o_c_id = c_id;
       r->o_d_id = d;
       r->o_w_id = w_id;
-      uint64_t o_entry = 2013;
+      int o_entry = 2013;
       r->o_entry_d = 2013;
       if (o < 2101)
-        r->o_carrier_id = URand(1, 10);
+        r->o_carrier_id = URand(&p->seed, 1, 10);
       else
         r->o_carrier_id = 0;
-      uint64_t o_ol_cnt = URand(5, 15);
+      int o_ol_cnt = URand(&p->seed, 5, 15);
       r->o_ol_cnt = o_ol_cnt;
       r->o_all_local = 1;
 
@@ -326,7 +426,7 @@ static void load_order(int w_id, struct partition *p)
         r_ol->ol_d_id = d;
         r_ol->ol_w_id = w_id;
         r_ol->ol_number = ol;
-        r_ol->ol_i_id = URand(1, 100000);
+        r_ol->ol_i_id = URand(&p->seed, 1, 100000);
         r_ol->ol_supply_w_id = w_id;
 
         if (o < 2101) {
@@ -334,10 +434,10 @@ static void load_order(int w_id, struct partition *p)
           r_ol->ol_amount = 0;
         } else {
           r_ol->ol_delivery_d = 0;
-          r_ol->ol_amount = (double)URand(1, 999999)/100;
+          r_ol->ol_amount = (double)URand(&p->seed, 1, 999999)/100;
         }
         r_ol->ol_quantity = 5;
-        make_alpha_string(24, 24, r_ol->ol_dist_info);
+        make_alpha_string(&p->seed, 24, 24, r_ol->ol_dist_info);
 
         //          uint64_t key = orderlineKey(wid, did, oid);
         //          index_insert(i_orderline, key, row, wh_to_part(wid));
@@ -389,14 +489,14 @@ void load_item(int w_id, struct partition *p)
 
     r = (struct tpcc_item *) e->value;
     r->i_id = i;
-    r->i_im_id = URand(1L,10000L);
-    make_alpha_string(14, 24, r->i_name);
-    r->i_price = URand(1, 100);
-    data_len = make_alpha_string(26, 50, r->i_data);
+    r->i_im_id = URand(&p->seed, 1L,10000L);
+    make_alpha_string(&p->seed, 14, 24, r->i_name);
+    r->i_price = URand(&p->seed, 1, 100);
+    data_len = make_alpha_string(&p->seed, 26, 50, r->i_data);
 
     // TODO in TPCC, "original" should start at a random position
-    if (RAND(10) == 0) {
-      int idx = URand(0, data_len - 8);
+    if (RAND(&p->seed, 10) == 0) {
+      int idx = URand(&p->seed, 0, data_len - 8);
       memcpy(&r->i_data[idx], "original", 8);
     }
   }
@@ -418,13 +518,13 @@ void load_warehouse(int w_id, struct partition *p)
   r = (struct tpcc_warehouse *) e->value;
   r->w_id = w_id;
 
-  make_alpha_string(6, 10, r->w_name);
-  make_alpha_string(10, 20, r->w_street[0]);
-  make_alpha_string(10, 20, r->w_street[1]);
-  make_alpha_string(10, 20, r->w_city);
-  make_alpha_string(2, 2, r->w_state);
-  make_alpha_string(9, 9, r->w_zip);
-  double tax = (double)URand(0L,200L)/1000.0;
+  make_alpha_string(&p->seed, 6, 10, r->w_name);
+  make_alpha_string(&p->seed, 10, 20, r->w_street[0]);
+  make_alpha_string(&p->seed, 10, 20, r->w_street[1]);
+  make_alpha_string(&p->seed, 10, 20, r->w_city);
+  make_alpha_string(&p->seed, 2, 2, r->w_state);
+  make_alpha_string(&p->seed, 9, 9, r->w_zip);
+  double tax = (double)URand(&p->seed, 0L,200L)/1000.0;
   double w_ytd=300000.00;
   r->w_tax = tax;
   r->w_ytd = w_ytd;
@@ -449,13 +549,13 @@ void load_district(int w_id, struct partition *p)
     r->d_id = d;
     r->d_w_id = w_id;
 
-    make_alpha_string(6, 10, r->d_name);
-    make_alpha_string(10, 20, r->d_street[0]);
-    make_alpha_string(10, 20, r->d_street[1]);
-    make_alpha_string(10, 20, r->d_city);
-    make_alpha_string(2, 2, r->d_state);
-    make_alpha_string(9, 9, r->d_zip);
-    double tax = (double)URand(0L,200L)/1000.0;
+    make_alpha_string(&p->seed, 6, 10, r->d_name);
+    make_alpha_string(&p->seed, 10, 20, r->d_street[0]);
+    make_alpha_string(&p->seed, 10, 20, r->d_street[1]);
+    make_alpha_string(&p->seed, 10, 20, r->d_city);
+    make_alpha_string(&p->seed, 2, 2, r->d_state);
+    make_alpha_string(&p->seed, 9, 9, r->d_zip);
+    double tax = (double)URand(&p->seed, 0L,200L)/1000.0;
     double w_ytd=30000.00;
     r->d_tax = tax;
     r->d_ytd = w_ytd;
@@ -498,11 +598,11 @@ int tpcc_run_neworder_txn_v1 (struct hash_table *hash_table, int id,
   struct hash_op op;
   struct partition *item_p = hash_table->g_partition;
   char remote = q->remote;
-  uint64_t w_id = q->w_id;
-  uint64_t d_id = q->d_id;
-  uint64_t c_id = q->c_id;
-  uint64_t ol_cnt = q->ol_cnt;
-  uint64_t o_entry_d = q->o_entry_d;
+  int w_id = q->w_id;
+  int d_id = q->d_id;
+  int c_id = q->c_id;
+  int ol_cnt = q->ol_cnt;
+  int o_entry_d = q->o_entry_d;
 
   int r = TXN_COMMIT;
 
@@ -896,6 +996,225 @@ int tpcc_run_neworder_txn (struct hash_table *hash_table, int id, struct tpcc_qu
   return 0;
 }
 
+int tpcc_run_payment_txn (struct hash_table *hash_table, int id, struct tpcc_query *q)
+{
+  struct hash_op op;
+  uint64_t key, pkey;
+  struct partition *p = &hash_table->partitions[id];
+  int w_id = q->w_id;
+  int d_id = q->d_id;
+  int c_w_id = q->c_w_id;
+  int c_d_id = q->c_d_id;
+  int c_id = q->c_id;
+  double h_amount = q->h_amount;
+
+  int r = TXN_COMMIT;
+
+  txn_start(hash_table, id);
+
+  /*====================================================+
+      EXEC SQL UPDATE warehouse SET w_ytd = w_ytd + :h_amount
+      WHERE w_id=:w_id;
+  +====================================================*/
+  /*===================================================================+
+      EXEC SQL SELECT w_street_1, w_street_2, w_city, w_state, w_zip, w_name
+      INTO :w_street_1, :w_street_2, :w_city, :w_state, :w_zip, :w_name
+      FROM warehouse
+      WHERE w_id=:w_id;
+  +===================================================================*/
+
+  pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
+  MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+  struct tpcc_warehouse *w_r = 
+    (struct tpcc_warehouse *) txn_op(hash_table, id, NULL, &op, 1 /*local*/);
+  assert(w_r);
+
+  w_r->w_ytd += h_amount;
+
+  /*=====================================================+
+      EXEC SQL UPDATE district SET d_ytd = d_ytd + :h_amount
+      WHERE d_w_id=:w_id AND d_id=:d_id;
+  =====================================================*/
+  /*====================================================================+
+      EXEC SQL SELECT d_street_1, d_street_2, d_city, d_state, d_zip, d_name
+      INTO :d_street_1, :d_street_2, :d_city, :d_state, :d_zip, :d_name
+      FROM district
+      WHERE d_w_id=:w_id AND d_id=:d_id;
+  +====================================================================*/
+  key = MAKE_DIST_KEY(w_id, d_id);
+  pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
+  MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+  struct tpcc_district *d_r = 
+    (struct tpcc_district *) txn_op(hash_table, id, NULL, &op, 1);
+  assert(d_r);
+
+  d_r->d_ytd += h_amount;
+
+  struct tpcc_customer *c_r;
+  if (q->by_last_name) {
+    /*==========================================================+
+      EXEC SQL SELECT count(c_id) INTO :namecnt
+      FROM customer
+      WHERE c_last=:c_last AND c_d_id=:c_d_id AND c_w_id=:c_w_id;
+    +==========================================================*/
+
+    // XXX: for now all, local. We would have to dispatch a remote request
+    // in the case of a remote warehouse here
+    assert(c_w_id == w_id);
+
+    key = cust_derive_key(q->c_last, c_d_id, c_w_id);
+    pkey = MAKE_HASH_KEY(CUSTOMER_SIDX_TID, key);
+    MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+    struct elem *sie = hash_lookup(p, pkey);
+    struct secondary_record *sr = (struct secondary_record *) sie->value;
+    assert(sie);
+ 
+    struct tpcc_customer **c_recs = malloc(sizeof(struct tpcc_customer *) * 
+      sr->sr_nids);
+    assert(c_recs);
+
+    /*==========================================================================+
+      EXEC SQL DECLARE c_byname CURSOR FOR
+      SELECT c_first, c_middle, c_id, c_street_1, c_street_2, c_city, c_state,
+        c_zip, c_phone, c_credit, c_credit_lim, c_discount, c_balance, c_since
+        FROM customer
+        WHERE c_w_id=:c_w_id AND c_d_id=:c_d_id AND c_last=:c_last
+        ORDER BY c_first;
+      EXEC SQL OPEN c_byname;
+    +===========================================================================*/
+    /* retrieve all matching records */
+    int i, nmatch;
+    i = nmatch = 0;
+    int sr_nids = sr->sr_idx;
+    while (i < sr_nids) {
+      /* XXX: Painful here. We have to retrieve all customers with update lock
+       * as we potentially anybody could be the median guy. We might need lock
+       * escalation if this becomes a bottleneck in practice
+       * 
+       * XXX: We are requesting one by one. We can batch all requests here
+       */
+      pkey = MAKE_HASH_KEY(CUSTOMER_TID, sr->sr_rids[i]);
+      MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+
+      struct tpcc_customer *tmp = 
+        (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, 1);
+      assert(tmp);
+
+      if (strcmp(tmp->c_last, q->c_last) == 0) {
+        c_recs[nmatch++] = tmp;
+      }
+
+      i++;
+    }
+
+    /*============================================================================+
+        for (n=0; n<namecnt/2; n++) {
+            EXEC SQL FETCH c_byname
+            INTO :c_first, :c_middle, :c_id,
+                 :c_street_1, :c_street_2, :c_city, :c_state, :c_zip,
+                 :c_phone, :c_credit, :c_credit_lim, :c_discount, :c_balance, :c_since;
+            }
+        EXEC SQL CLOSE c_byname;
+    +=============================================================================*/
+    // now sort based on first name and get middle element
+    // XXX: Inefficient bubble sort for now
+    for (int i = 0; i < nmatch; i++) {
+      for (int j = i + 1; j < nmatch; j++) {
+        if (strcmp(c_recs[i]->c_first, c_recs[j]->c_first) > 0) {
+          struct tpcc_customer *tmp = c_recs[i];
+          c_recs[i] = c_recs[j];
+          c_recs[j] = tmp;
+        }
+      }
+    }
+
+    c_r = c_recs[nmatch / 2];
+
+    free(c_recs);
+
+    } else { // search customers by cust_id
+      /*=====================================================================+
+        EXEC SQL SELECT c_first, c_middle, c_last, c_street_1, c_street_2,
+            c_city, c_state, c_zip, c_phone, c_credit, c_credit_lim,
+            c_discount, c_balance, c_since
+          INTO :c_first, :c_middle, :c_last, :c_street_1, :c_street_2,
+            :c_city, :c_state, :c_zip, :c_phone, :c_credit, :c_credit_lim,
+            :c_discount, :c_balance, :c_since
+          FROM customer
+          WHERE c_w_id=:c_w_id AND c_d_id=:c_d_id AND c_id=:c_id;
+      +======================================================================*/
+      key = MAKE_CUST_KEY(c_w_id, c_d_id, c_id);
+      pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
+      MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+      
+      // XXX: for now, all
+      assert (c_w_id == w_id);
+
+      c_r = (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, 1);
+      assert(c_r);
+    }
+
+    /*======================================================================+
+        EXEC SQL UPDATE customer SET c_balance = :c_balance, c_data = :c_new_data
+        WHERE c_w_id = :c_w_id AND c_d_id = :c_d_id AND c_id = :c_id;
+    +======================================================================*/
+    c_r->c_balance -= h_amount;
+    c_r->c_ytd_payment += h_amount;
+    c_r->c_payment_cnt++;
+
+    if (strstr(c_r->c_credit, "BC") ) {
+
+        /*=====================================================+
+            EXEC SQL SELECT c_data
+            INTO :c_data
+            FROM customer
+            WHERE c_w_id=:c_w_id AND c_d_id=:c_d_id AND c_id=:c_id;
+        +=====================================================*/
+      char c_new_data[501];
+      sprintf(c_new_data,"| %4d %2d %4d %2d %4d $%7.2f",
+          c_id, c_d_id, c_w_id, d_id, w_id, h_amount);
+      strncat(c_new_data, c_r->c_data, 500 - strlen(c_new_data));
+      strcpy(c_r->c_data, c_new_data);
+    }
+/*
+    char h_data[25];
+    char * w_name = r_wh_local->get_value("W_NAME");
+    char * d_name = r_dist_local->get_value("D_NAME");
+    strncpy(h_data, w_name, 10);
+    int length = strlen(h_data);
+    if (length > 10) length = 10;
+    strcpy(&h_data[length], "    ");
+    strncpy(&h_data[length + 4], d_name, 10);
+    h_data[length+14] = '\0';
+*/
+    /*=============================================================================+
+      EXEC SQL INSERT INTO
+      history (h_c_d_id, h_c_w_id, h_c_id, h_d_id, h_w_id, h_date, h_amount, h_data)
+      VALUES (:c_d_id, :c_w_id, :c_id, :d_id, :w_id, :datetime, :h_amount, :h_data);
+      +=============================================================================*/
+    pkey = MAKE_CUST_KEY(w_id, d_id, c_id);
+    key = MAKE_HASH_KEY(HISTORY_TID, pkey);
+    MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order)), key);
+    struct tpcc_history *h_r = 
+      (struct tpcc_history *) txn_op(hash_table, id, NULL, &op, 1);
+    assert(h_r);
+
+    h_r->h_c_id = c_id;
+    h_r->h_c_d_id = c_d_id;
+    h_r->h_c_w_id = c_w_id;
+    h_r->h_d_id = d_id;
+    h_r->h_w_id = w_id;
+    h_r->h_date = 2013; /* XXX: Why 2013? */
+    h_r->h_amount = h_amount;
+
+    if (r == TXN_COMMIT)
+      txn_commit(hash_table, id, TXN_SINGLE);
+    else
+      txn_abort(hash_table, id, TXN_SINGLE);
+
+    return r;
+}
+
 void *tpcc_alloc_query()
 {
   struct tpcc_query *q = malloc(sizeof(struct tpcc_query));
@@ -918,6 +1237,14 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg)
 
   //return tpcc_run_neworder_txn(hash_table, s, q); 
   return tpcc_run_neworder_txn_v1(hash_table, s, q); 
+  //return tpcc_run_payment_txn(hash_table, s, q); 
+}
+
+void tpcc_get_next_query(struct hash_table *hash_table, int s, 
+    void *arg)
+{
+  tpcc_get_next_neworder_query(hash_table, s, arg);
+  //tpcc_get_next_payment_query(hash_table, s, arg);
 }
 
 struct benchmark tpcc_bench = {

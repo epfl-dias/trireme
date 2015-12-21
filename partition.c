@@ -10,6 +10,7 @@
 #include "hashprotocol.h"
 #include "partition.h"
 #include "util.h"
+#include "tpcc.h"
 
 void init_hash_partition(struct partition *p, size_t nrecs, int nservers)
 {
@@ -105,11 +106,11 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 {  
   struct elist *eh = &(p->table[hash_get_bucket(p, key)].chain);
   
-  //struct elem *e = hash_lookup(p, key);
-  //assert (e == NULL);
+  struct elem *e = hash_lookup(p, key);
+  assert (e == NULL || (key & ORDER_TID));
 
   // try to allocate space for new value
-  struct elem *e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));
+  e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));
   assert (e);
 
   e->key = key;

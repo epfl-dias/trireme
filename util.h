@@ -62,10 +62,10 @@ read_tsc(void)
 
 uint64_t *zipf_get_keys(double alpha, uint64_t N, uint64_t nvalues);
 
-uint64_t RAND(uint64_t max);
-uint64_t URand(uint64_t x, uint64_t y);
-uint64_t NURand(uint64_t A, uint64_t x, uint64_t y);
-uint64_t make_alpha_string(int min, int max, char* str);
-uint64_t make_numeric_string(int min, int max, char* str);
+int RAND(unsigned int *seed, int max);
+int URand(unsigned int *seed, int x, int y);
+int NURand(unsigned int *seed, int A, int x, int y);
+int make_alpha_string(unsigned int *seed, int min, int max, char* str);
+int make_numeric_string(unsigned int *seed, int min, int max, char* str);
 
 #endif

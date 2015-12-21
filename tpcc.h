@@ -144,9 +144,13 @@ struct tpcc_stock {
 	char s_data[50];
 };
 
-/* struct secondary_record {
-  char sr_last_name[LAST_NAME_LEN];
-  hash_key sr_rid;
-}; */
+struct secondary_record {
+  int sr_idx;
+  int sr_nids;
+  hash_key *sr_rids;
+#define NDEFAULT_RIDS 16
+};
+
+#define CUSTOMER_SIDX_TID 0x0A00000000000000
 
 #endif
