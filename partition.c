@@ -105,9 +105,12 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
         release_value_f *release)
 {  
   struct elist *eh = &(p->table[hash_get_bucket(p, key)].chain);
+  struct elem *e;
   
-  struct elem *e = hash_lookup(p, key);
+#if VERIFY_CONSISTENCY
+  e = hash_lookup(p, key);
   assert (e == NULL || (key & ORDER_TID));
+#endif
 
   // try to allocate space for new value
   e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));

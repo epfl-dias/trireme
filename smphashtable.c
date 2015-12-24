@@ -268,7 +268,9 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
     assert(value);
 
     e = (struct elem *)value;
+
     value = e->value;
+    assert(value);
   }
 
   if (value) {
@@ -508,15 +510,15 @@ void process_requests(struct hash_table *hash_table, int s)
 
         struct elem *e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
 
-        dprint("cl %d before release %" PRIu64 " rc %" PRIu64 "\n", i, 
-          e->key, e->ref_count);
+        dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
+            s, i, e->key, e->ref_count);
 
         mp_release_value_(p, e);
         k++;
         nreleases++;
 
-        dprint("cl %d post release %" PRIu64 " rc %" PRIu64 "\n", i, 
-          e->key, e->ref_count);
+        dprint("srv(%d): cl %d post release %" PRIu64 " rc %" PRIu64 "\n", 
+            s, i, e->key, e->ref_count);
     }
 
     buffer_seek(&boxes[i].boxes[s].in, k);
@@ -532,7 +534,12 @@ void process_requests(struct hash_table *hash_table, int s)
               localbuf[k] & (~HASHOP_MASK));
 
             e[j] = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
-            assert(e[j]);
+            if (!e[j]) {
+              dprint("srv (%d): cl %d lookup FAILED %" PRIu64 "\n", s, i, 
+                localbuf[k] & (~HASHOP_MASK));
+
+              assert(e[j]);
+            }
 
             dprint("srv (%d) cl %d lookup %" PRIu64 " rc %" PRIu64 "\n", s, i,
               localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
@@ -575,7 +582,11 @@ void process_requests(struct hash_table *hash_table, int s)
               localbuf[k] & (~HASHOP_MASK));
 
             e[j] = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
-            assert (e[j]);
+            if (!e[j]) {
+              printf("srv (%d): cl %d update %" PRIu64 "\n", s, i, 
+                localbuf[k] & (~HASHOP_MASK));
+              assert (e[j]);
+            }
 
             dprint("cl %d update %" PRIu64 " rc %" PRIu64 "\n", i, 
               localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
@@ -639,8 +650,9 @@ void * hash_table_server(void* args)
   double tend = now();
 
   printf("srv %d load time %.3f\n", s, tend - tstart);
-  printf("srv %d rec count: %" PRId64 " tx count: %d, per_txn_op cnt: %d\n", 
-    s, p->nrecs, niters, ops_per_txn);
+  printf("srv %d rec count: %d partition sz %lu-KB "
+      "tx count: %d, per_txn_op cnt: %d\n", s, p->ninserts, p->size / 1024, 
+      niters, ops_per_txn);
 
   double avg;
   double stddev;
@@ -663,7 +675,8 @@ void * hash_table_server(void* args)
 
   for (i = 0; i < niters; i++) {
     // run query as txn
-    int naborts = 0;
+    if (i % 100000 == 0)
+      printf("srv(%d): running txn %d\n", s, i);
 
     g_benchmark->get_next_query(hash_table, s, query);
 
@@ -679,24 +692,13 @@ void * hash_table_server(void* args)
       // see if we need to answer someone
       process_requests(hash_table, s);
 
-      naborts++;
-
-#ifdef DPROGRESS
-      if (naborts % 1000 == 0) {
-        printf("srv %d txn %d aborted %d times\n", s, i, naborts);
-        fflush(stdout);
-      }
-#endif
+      if (r == TXN_ABORT)
+        dprint("srv(%d): rerunning aborted txn %d\n", s, i);
 
     } while (r == TXN_ABORT);
 
-#ifdef DPROGRESS
-    if (niters * pct / 100 == i) {
-      printf("srv %d %d%% txn complete\n", s, pct);
-      fflush(stdout);
-      pct += 10;
-    }
-#endif
+    if (i % 100000 == 0)
+      printf("srv(%d): completed txn %d\n", s, i);
 
   }
 
@@ -714,6 +716,9 @@ void * hash_table_server(void* args)
 
   printf("srv %d quitting \n", s);
   fflush(stdout);
+
+  if (g_benchmark->verify_txn)
+    g_benchmark->verify_txn(hash_table, s);
 
  #if 0
   // stay running until someone else needs us
@@ -771,6 +776,10 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
   for(int i = 0; i < nqueries; i++) {
     int s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
+    dprint("srv(%d): issue remote op %s key %" PRIu64 " to %d\n", 
+      client_id, queries[i]->optype == OPTYPE_LOOKUP ? "lookup":"update", 
+      queries[i]->key, s);
+
     switch (queries[i]->optype) {
       case OPTYPE_LOOKUP:
         msg_data = (uint64_t)queries[i]->key | HASHOP_LOOKUP;
@@ -825,7 +834,8 @@ void mp_release_value_(struct partition *p, struct elem *e)
 {
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 
-  dprint("Releasing key %" PRIu64 " rc %" PRIu64 "\n", e->key,
+  dprint("srv(%ld): Releasing key %" PRIu64 " rc %" PRIu64 "\n", 
+      p - hash_table->partitions, e->key,
       e->ref_count);
 
   if (e->ref_count == 0) {
@@ -848,7 +858,7 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id, void *pt
 
 void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr)
 {
-  mp_send_release_msg_(hash_table, client_id, ptr, 0 /* force_flush */);
+  mp_send_release_msg_(hash_table, client_id, ptr, 1 /* force_flush */);
 }
 
 void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr)

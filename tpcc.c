@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <inttypes.h>
 #include "hashprotocol.h"
 #include "onewaybuffer.h"
@@ -56,9 +57,46 @@ static int set_last_name(int num, char* name)
 int tpcc_hash_get_server(struct hash_table *hash_table, hash_key key)
 {
   // only time we lookup remotely is for stock table
-  assert((key & TID_MASK) == STOCK_TID);
+  uint64_t tid = key & TID_MASK;
+  int target;
+  hash_key base_cid;
 
-  return ((key - 1) & ~TID_MASK) / TPCC_MAX_ITEMS;
+  assert(tid == STOCK_TID || tid == CUSTOMER_SIDX_TID || tid == CUSTOMER_TID);
+
+  switch (tid) {
+    case STOCK_TID:
+      target = ((key - 1) & ~TID_MASK) / TPCC_MAX_ITEMS - 1;
+      break;
+
+    case CUSTOMER_SIDX_TID:
+      // XXX: ugly hack. key decoding here depends on the string hashing
+      // in cust_derive_key. We just get lower 10 bits and derive w_id
+      base_cid = TPCC_NDIST_PER_WH + 1;
+      key = key & ~TID_MASK & 0x3FF;
+      key -= base_cid;
+      assert(key >= 0);
+
+      target = key / TPCC_NDIST_PER_WH;
+      break;
+
+    case CUSTOMER_TID:
+      // distid, wid, all start from 1. So starting cid is 33001
+      base_cid = MAKE_CUST_KEY(1,1,1);
+      key = key & ~TID_MASK;
+      key -= base_cid;
+
+      target = key / (TPCC_NCUST_PER_DIST * TPCC_NDIST_PER_WH);
+
+      break;
+
+    default:
+      printf("Invalid TID with key %"PRId64"\n", key);
+      assert(0);
+  }
+
+  assert(target >= 0);
+
+  return target;
 }
 
 void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
@@ -67,31 +105,29 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  // XXX: for now, only local
-  q->w_id = s;
-  q->d_w_id = s;
-
+  q->w_id = s + 1;
+  q->d_w_id = s + 1;
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->h_amount = URand(&p->seed, 1, 5000);
-  //int x = URand(&p->seed, 1, 100);
+  int x = URand(&p->seed, 1, 100);
   int y = URand(&p->seed, 1, 100);
 
   //XXX: For now, always home wh
-  if (1) {
-  //if(x <= 85) {
+  //if (1) {
+  if(x <= 85 || dist_threshold == 1) {
     // home warehouse
     q->c_d_id = q->d_id;
-    q->c_w_id = s;
+    q->c_w_id = s + 1;
   } else {
     q->c_d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
 
     // remote warehouse if we have >1 wh
     if(p->nservers > 1) {
-      while((q->c_w_id = URand(&p->seed, 1, p->nservers - 1)) == q->w_id)
+      while((q->c_w_id = URand(&p->seed, 1, p->nservers)) == (s + 1))
         ; 
 
     } else {
-      q->c_w_id = s;
+      q->c_w_id = s + 1;
     }
   }
 
@@ -114,7 +150,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
   // XXX: for now, only neworder query. for now, only local
-  q->w_id = s;
+  q->w_id = s + 1;
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
   q->rbk = URand(&p->seed, 1, 100);
@@ -145,13 +181,15 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
 
     if (x > 1 || p->nservers == 1) {
     //if (1) {
-      i->ol_supply_w_id = s;
+      i->ol_supply_w_id = s + 1;
     } else {
-      while ((i->ol_supply_w_id = URand(&p->seed, 0, p->nservers - 1) == s))
+      while ((i->ol_supply_w_id = URand(&p->seed, 1, p->nservers)) == (s + 1))
         ;
-      
+
       q->remote = 1;
     }
+
+    assert(i->ol_supply_w_id != 0);
 
     i->ol_quantity = URand(&p->seed, 1, 10);
   }
@@ -298,8 +336,6 @@ static void load_customer(int w_id, struct partition *p)
       hash_key sr_dkey = cust_derive_key(r->c_last, d, w_id);
       hash_key sr_key = MAKE_HASH_KEY(CUSTOMER_SIDX_TID, sr_dkey);
 
-      dprint("lookingup sr index record for cust: %s, idx-dkey %"PRId64"\n", r->c_last, sr_key);
-
       // pull up the record if its already there
       struct secondary_record *sr = NULL;
       struct elem *sie = hash_lookup(p, sr_key);
@@ -307,15 +343,10 @@ static void load_customer(int w_id, struct partition *p)
 
       if (sie) {
         sr = (struct secondary_record *) sie->value;
-
-        dprint("found index record for cust: %s, nrids %d, rid_idx %d\n", r->c_last, sr->sr_nids, sr->sr_idx);
-
         sr_idx = sr->sr_idx;
         sr_nids = sr->sr_nids;
 
       } else {
-        dprint("Creating sr index record for cust: %s, idx-dkey %"PRId64"\n", r->c_last, sr_key);
-
         sie = hash_insert(p, sr_key, sizeof(struct secondary_record), NULL);
         assert(sie);
  
@@ -567,31 +598,32 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
 {
   struct partition *p = &hash_table->partitions[id];
   struct partition *item = hash_table->g_partition;
+  int w_id = id + 1;
 
   printf("srv (%d): Loading stock..\n", id);
-  load_stock(id, p);
+  load_stock(w_id, p);
 
   printf("srv (%d): Loading history..\n", id);
-  load_history(id, p);
+  load_history(w_id, p);
 
   printf("srv (%d): Loading customer..\n", id);
-  load_customer(id, p);
+  load_customer(w_id, p);
 
   printf("srv (%d): Loading order..\n", id);
-  load_order(id, p);
+  load_order(w_id, p);
   if (id == 0) {
     load_item(id, item);
     printf("srv (%d): Loading item..\n", id);
   }
 
   printf("srv (%d): Loading wh..\n", id);
-  load_warehouse(id, p);
+  load_warehouse(w_id, p);
 
   printf("srv (%d): Loading district..\n", id);
-  load_district(id, p);
+  load_district(w_id, p);
 }
 
-int tpcc_run_neworder_txn_v1 (struct hash_table *hash_table, int id, 
+int tpcc_run_neworder_txn(struct hash_table *hash_table, int id, 
     struct tpcc_query *q)
 {
   uint64_t key, pkey;
@@ -649,7 +681,7 @@ int tpcc_run_neworder_txn_v1 (struct hash_table *hash_table, int id,
    * EXEC SQL UPDATE district SET d _next_o_id = :d _next_o_id + 1
    * WHERE d _id = :d_id AN D d _w _id = :w _id ; 
    */
-  d_r->d_next_o_id = o_id++;
+  d_r->d_next_o_id++;
 
   /* 
    * EXEC SQL INSERT IN TO ORDERS (o_id , o_d _id , o_w _id , o_c_id ,
@@ -664,7 +696,8 @@ int tpcc_run_neworder_txn_v1 (struct hash_table *hash_table, int id,
     (struct tpcc_order *) txn_op(hash_table, id, NULL, &op, 1);
   assert(o_r);
 
-  dprint("srv(%d): inserted %"PRId64"\n", id, pkey);
+  //dprint("srv(%d): inserted %"PRId64"\n", id, pkey);
+  //printf("srv(%d): inserted w %d d %d oid %d key %"PRIu64"\n", id, w_id, d_id, o_id, key);
 
   o_r->o_id = o_id;
   o_r->o_c_id = c_id;
@@ -796,211 +829,10 @@ final:
   return r;
 }
 
-int tpcc_run_neworder_txn (struct hash_table *hash_table, int id, struct tpcc_query *q)
-{
-  uint64_t key, pkey;
-  struct partition *p = &hash_table->partitions[id];
-  struct partition *item_p = hash_table->g_partition;
-  char remote = q->remote;
-  uint64_t w_id = q->w_id;
-  uint64_t d_id = q->d_id;
-  uint64_t c_id = q->c_id;
-  uint64_t ol_cnt = q->ol_cnt;
-  uint64_t o_entry_d = q->o_entry_d;
-
-  /*
-   * EXEC SQL SELECT c_discount, c_last, c_credit, w_tax
-   * INTO :c_discount, :c_last, :c_credit, :w_tax
-   * FROM customer, warehouse
-   * WHERE w_id = :w_id AND c_w_id = w_id AND c_d_id = :d_id AND c_id = :c_id;
-   */
-  pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
-
-  // we only support local lookups for now
-  struct elem *w_e = hash_lookup(p, pkey);
-  assert(w_e);
-
-  struct tpcc_warehouse *w_r = (struct tpcc_warehouse *)w_e->value;
-  assert(w_r);
-
-  double w_tax = w_r->w_tax;
-  key = MAKE_CUST_KEY(w_id, d_id, c_id);
-  pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
-  struct elem *c_e = hash_lookup(p, pkey);
-  assert(c_e);
-
-  struct tpcc_customer *c_r = (struct tpcc_customer *)c_e->value;
-  assert(c_r);
-
-  uint64_t c_discount = c_r->c_discount;
-
-  /*
-   * EXEC SQL SELECT d_next_o_id, d_tax
-   *  INTO :d_next_o_id, :d_tax
-   *  FROM district WHERE d_id = :d_id AND d_w_id = :w_id;
-   */
-  key = MAKE_DIST_KEY(w_id, d_id);
-  pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
-  struct elem *d_e = hash_lookup(p, pkey);
-  assert(d_e);
-
-  struct tpcc_district *d_r = (struct tpcc_district *) d_e->value;
-  assert(d_r);
-
-  uint64_t o_id = d_r->d_next_o_id;
-  double d_tax = d_r->d_tax;
-
-  /* 
-   * EXEC SQL UPDATE district SET d _next_o_id = :d _next_o_id + 1
-   * WHERE d _id = :d_id AN D d _w _id = :w _id ; 
-   */
-  d_r->d_next_o_id = o_id++;
-
-  /* 
-   * EXEC SQL INSERT IN TO ORDERS (o_id , o_d _id , o_w _id , o_c_id ,
-   * o_entry_d , o_ol_cnt, o_all_local)
-   * VALUES (:o_id , :d _id , :w _id , :c_id ,
-   * :d atetime, :o_ol_cnt, :o_all_local);
-   */
-  key = MAKE_CUST_KEY(w_id, d_id, o_id);
-  pkey = MAKE_HASH_KEY(ORDER_TID, key);
-  struct elem *o_e = hash_insert(p, pkey, sizeof(struct tpcc_order), NULL);
-  assert(o_e);
-
-  p->ninserts++;
-  o_e->ref_count++;
-  struct tpcc_order *o_r = (struct tpcc_order *)o_e->value;
-  assert(o_r);
-
-  o_r->o_id = o_id;
-  o_r->o_c_id = c_id;
-  o_r->o_d_id = d_id;
-  o_r->o_w_id = w_id;
-  o_r->o_entry_d = o_entry_d;
-  o_r->o_ol_cnt = ol_cnt;
-  
-  // for now only local
-  assert(remote == 0);
-  o_r->o_all_local = 1;
-
-  /* 
-   * EXEC SQL INSERT IN TO NEW_ORDER (no_o_id , no_d_id , no_w _id )
-   * VALUES (:o_id , :d _id , :w _id );
-   */
-  pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
-  struct elem *no_e = hash_insert(p, pkey, sizeof(struct tpcc_new_order), NULL);
-  assert(no_e);
-
-  p->ninserts++;
-  no_e->ref_count++;
-  struct tpcc_new_order *no_r = (struct tpcc_new_order *)no_e->value;
-  assert(no_r);
-
-  no_r->no_o_id = o_id;
-  no_r->no_d_id = d_id;
-  no_r->no_w_id = w_id;
-
-  for (int ol_number = 0; ol_number < ol_cnt; ol_number++) {
-    uint64_t ol_i_id = q->item[ol_number].ol_i_id;
-    uint64_t ol_supply_w_id = q->item[ol_number].ol_supply_w_id;
-    uint64_t ol_quantity = q->item[ol_number].ol_quantity;
-
-    /* 
-     * EXEC SQL SELECT i_price, i_name , i_data
-     * INTO :i_price, :i_name, :i_data
-     * FROM item WHERE i_id = ol_i_id
-     */
-    pkey = MAKE_HASH_KEY(ITEM_TID, ol_i_id);
-    struct elem *i_e = hash_lookup(item_p, pkey);
-    assert(i_e);
-
-    struct tpcc_item *i_r = (struct tpcc_item *) i_e->value;
-    assert(i_r);
-
-    uint64_t i_price = i_r->i_price;
-    //char *i_name = i_r->i_name;
-    //char *i_data = i_r->i_data;
-
-    /* 
-     * EXEC SQL SELECT s_quantity, s_d ata,
-     * s_d ist_01, s_dist_02, s_d ist_03, s_d ist_04, s_d ist_05
-     * s_d ist_06, s_dist_07, s_d ist_08, s_d ist_09, s_d ist_10
-     * IN TO :s_quantity, :s_d ata,
-     * :s_d ist_01, :s_d ist_02, :s_dist_03, :s_d ist_04, :s_d ist_05
-     * :s_d ist_06, :s_d ist_07, :s_dist_08, :s_d ist_09, :s_d ist_10
-     * FROM stock
-     * WH ERE s_i_id = :ol_i_id AN D s_w _id = :ol_supply_w _id ;
-     */
-    key = MAKE_STOCK_KEY(w_id, ol_i_id);
-    pkey = MAKE_HASH_KEY(STOCK_TID, key);
-    struct elem *s_e = hash_lookup(p, pkey);
-    assert(s_e);
-
-    struct tpcc_stock *s_r = (struct tpcc_stock *) s_e->value;
-    assert(s_r);
-    uint64_t s_quantity = s_r->s_quantity;
-    /* 
-    char *s_data = s_r->s_data;
-    char *s_dist[10];
-    for (int i = 0; i < 10; i++)
-      s_dist[i] = s_r->s_dist[i];
-    */
-
-    s_r->s_ytd += ol_quantity;
-    s_r->s_order_cnt++;
-    if (remote) {
-      assert(0); // for now all local
-      s_r->s_remote_cnt++;
-    }
-
-    uint64_t quantity;
-    if (s_quantity > ol_quantity + 10)
-      quantity = s_quantity - ol_quantity;
-    else
-      quantity = s_quantity - ol_quantity + 91;
-
-    s_r->s_quantity = quantity;
-
-    /* 
-     * EXEC SQL INSERT
-     * INTO order_line(ol_o_id, ol_d_id, ol_w_id, ol_number,
-     * ol_i_id, ol_supply_w_id,
-     * ol_quantity, ol_amount, ol_dist_info)
-     * VALUES(:o_id, :d_id, :w_id, :ol_number,
-     * :ol_i_id, :ol_supply_w_id,
-     * :ol_quantity, :ol_amount, :ol_dist_info);
-     */
-    key = MAKE_OL_KEY(w_id, d_id, o_id, ol_number);
-    pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
-    struct elem *ol_e = hash_insert(p, pkey, sizeof(struct tpcc_order_line), NULL);
-    assert(ol_e);
-
-    p->ninserts++;
-    no_e->ref_count++;
-    struct tpcc_order_line *ol_r = (struct tpcc_order_line *) ol_e->value;
-    assert(ol_r);
-
-    double ol_amount = ol_quantity * i_price * (1 + w_tax + d_tax) * (1 - c_discount);
-
-    ol_r->ol_o_id = o_id;
-    ol_r->ol_d_id = d_id;
-    ol_r->ol_w_id = w_id;
-    ol_r->ol_number = ol_number;
-    ol_r->ol_i_id = ol_i_id;
-    ol_r->ol_supply_w_id = ol_supply_w_id;
-    ol_r->ol_quantity = ol_quantity;
-    ol_r->ol_amount = ol_amount;
-  
-  }
-  
-  return 0;
-}
-
 int tpcc_run_payment_txn (struct hash_table *hash_table, int id, struct tpcc_query *q)
 {
   struct hash_op op;
   uint64_t key, pkey;
-  struct partition *p = &hash_table->partitions[id];
   int w_id = q->w_id;
   int d_id = q->d_id;
   int c_w_id = q->c_w_id;
@@ -1009,6 +841,8 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id, struct tpcc_que
   double h_amount = q->h_amount;
 
   int r = TXN_COMMIT;
+
+  assert(q->w_id == id + 1);
 
   txn_start(hash_table, id);
 
@@ -1057,17 +891,12 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id, struct tpcc_que
       FROM customer
       WHERE c_last=:c_last AND c_d_id=:c_d_id AND c_w_id=:c_w_id;
     +==========================================================*/
-
-    // XXX: for now all, local. We would have to dispatch a remote request
-    // in the case of a remote warehouse here
-    assert(c_w_id == w_id);
-
     key = cust_derive_key(q->c_last, c_d_id, c_w_id);
     pkey = MAKE_HASH_KEY(CUSTOMER_SIDX_TID, key);
     MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-    struct elem *sie = hash_lookup(p, pkey);
-    struct secondary_record *sr = (struct secondary_record *) sie->value;
-    assert(sie);
+    struct secondary_record *sr = 
+      (struct secondary_record *) txn_op(hash_table, id, NULL, &op, c_w_id == w_id);
+    assert(sr);
  
     struct tpcc_customer **c_recs = malloc(sizeof(struct tpcc_customer *) * 
       sr->sr_nids);
@@ -1097,9 +926,10 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id, struct tpcc_que
       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
 
       struct tpcc_customer *tmp = 
-        (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, 1);
+        (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, c_w_id == w_id);
       assert(tmp);
 
+      /* XXX: This strcmp and the next below have a huge overhead */
       if (strcmp(tmp->c_last, q->c_last) == 0) {
         c_recs[nmatch++] = tmp;
       }
@@ -1117,7 +947,8 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id, struct tpcc_que
         EXEC SQL CLOSE c_byname;
     +=============================================================================*/
     // now sort based on first name and get middle element
-    // XXX: Inefficient bubble sort for now
+    // XXX: Inefficient bubble sort for now. Also the strcmp below has a huge
+    // overhead. We need some sorted secondary index structure
     for (int i = 0; i < nmatch; i++) {
       for (int j = i + 1; j < nmatch; j++) {
         if (strcmp(c_recs[i]->c_first, c_recs[j]->c_first) > 0) {
@@ -1146,11 +977,8 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id, struct tpcc_que
       key = MAKE_CUST_KEY(c_w_id, c_d_id, c_id);
       pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-      
-      // XXX: for now, all
-      assert (c_w_id == w_id);
 
-      c_r = (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, 1);
+      c_r = (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, c_w_id == w_id);
       assert(c_r);
     }
 
@@ -1233,18 +1061,136 @@ void tpcc_free_query(void *p)
 
 int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg)
 {
+  int r;
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  //return tpcc_run_neworder_txn(hash_table, s, q); 
-  return tpcc_run_neworder_txn_v1(hash_table, s, q); 
-  //return tpcc_run_payment_txn(hash_table, s, q); 
+  //r = tpcc_run_neworder_txn(hash_table, s, q); 
+  r =  tpcc_run_payment_txn(hash_table, s, q); 
+
+  return r;
 }
 
 void tpcc_get_next_query(struct hash_table *hash_table, int s, 
     void *arg)
 {
-  tpcc_get_next_neworder_query(hash_table, s, arg);
-  //tpcc_get_next_payment_query(hash_table, s, arg);
+  //tpcc_get_next_neworder_query(hash_table, s, arg);
+  tpcc_get_next_payment_query(hash_table, s, arg);
+}
+
+void tpcc_verify_txn(struct hash_table *hash_table, int id)
+{
+
+  hash_key key, pkey;
+  struct partition *p = &hash_table->partitions[id];
+  struct elem *e;
+  int w_id = id + 1;
+
+  printf("Server %d verifying consistency..\n", id);
+
+  // check 1: w_ytd = sum(d_ytd)
+  pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
+  e = hash_lookup(p, pkey);
+  assert(e);
+
+  struct tpcc_warehouse *w_r = (struct tpcc_warehouse *)e->value;
+  assert(w_r);
+ 
+  double d_ytd = 0;
+  for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
+    key = MAKE_DIST_KEY(w_id, d);
+    pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
+
+    struct elem *e = hash_lookup(p, pkey);
+    assert(e);
+
+    struct tpcc_district *d_r = (struct tpcc_district *)e->value;
+    assert(d_r);
+
+    d_ytd += d_r->d_ytd; 
+  
+  }
+
+  assert(d_ytd == w_r->w_ytd);
+
+  // with one global sweep of hashtable, get all necessary values
+  // check 2 vars
+  int max_o_id[TPCC_NDIST_PER_WH + 1], max_no_o_id[TPCC_NDIST_PER_WH + 1];
+
+  // check 3 vars
+  int nrows_no[TPCC_NDIST_PER_WH + 1], min_no_o_id[TPCC_NDIST_PER_WH + 1];
+
+  //check 4 vars
+  int sum_o_ol_cnt[TPCC_NDIST_PER_WH + 1], nrows_ol[TPCC_NDIST_PER_WH + 1];
+
+  for (int i = 0; i <= TPCC_NDIST_PER_WH; i++) {
+    nrows_no[i] = max_o_id[i] = max_no_o_id[i] = 0;
+    min_no_o_id[i] = INT_MAX - 1;
+    sum_o_ol_cnt[i] = nrows_ol[i] = 0;
+  }
+
+  for (int i = 0; i < p->nhash; i++) {
+    struct elist *eh = &(p->table[i].chain);
+    struct elem *e = TAILQ_FIRST(eh);
+
+    while (e != NULL) {
+      hash_key key = e->key;
+      uint64_t tid = GET_TID(key);
+      if (tid == ORDER_TID) {
+        struct tpcc_order *o_r = (struct tpcc_order *)e->value;
+        assert(o_r);
+
+        if (max_o_id[o_r->o_d_id] < o_r->o_id)
+          max_o_id[o_r->o_d_id] = o_r->o_id;
+
+        sum_o_ol_cnt[o_r->o_d_id] += o_r->o_ol_cnt;
+
+      } else if (tid == NEW_ORDER_TID) {
+        struct tpcc_new_order *no_r = (struct tpcc_new_order *)e->value;
+        assert(no_r);
+
+        nrows_no[no_r->no_d_id]++;
+
+        if (max_no_o_id[no_r->no_d_id] < no_r->no_o_id)
+          max_no_o_id[no_r->no_d_id] = no_r->no_o_id;
+        
+        if (min_no_o_id[no_r->no_d_id] > no_r->no_o_id)
+          min_no_o_id[no_r->no_d_id] = no_r->no_o_id;
+
+     } else if (tid == ORDER_LINE_TID) {
+        struct tpcc_order_line *ol_r = (struct tpcc_order_line *)e->value;
+        assert(ol_r);
+
+        nrows_ol[ol_r->ol_d_id]++;
+      }
+
+      e = TAILQ_NEXT(e, chain);
+    } 
+  }
+  
+  for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
+    key = MAKE_DIST_KEY(w_id, d);
+    pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
+
+    struct elem *e = hash_lookup(p, pkey);
+    assert(e);
+
+    struct tpcc_district *d_r = (struct tpcc_district *)e->value;
+    assert(d_r);
+
+    // check 2: D_NEXT_O_ID - 1 = max(O_ID) = max(NO_O_ID)
+    assert((d_r->d_next_o_id - 1) == max_o_id[d]);
+    assert((d_r->d_next_o_id - 1) == max_no_o_id[d]);
+
+    // check 3: max(NO_O_ID) - min(NO_O_ID) + 1 = [number of rows in the NEW-ORDER
+    // table for this district]
+    assert((max_no_o_id[d] - min_no_o_id[d] + 1) == nrows_no[d]);
+
+    //check 4: sum (O_OL_CNT) = number of rows in the ORDER-LINE table
+    assert(sum_o_ol_cnt[d] == nrows_ol[d]);
+
+    //check 5: 
+  }
+
 }
 
 struct benchmark tpcc_bench = {
@@ -1252,5 +1198,6 @@ struct benchmark tpcc_bench = {
   .load_data = tpcc_load_data,
   .get_next_query = tpcc_get_next_query,
   .run_txn = tpcc_run_txn,
+  .verify_txn = tpcc_verify_txn,
   .hash_get_server = tpcc_hash_get_server,
 };

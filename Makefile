@@ -1,5 +1,5 @@
 ARCH   = INTEL64
-DFLAGS = 
+DFLAGS = #optional flags include DEBUG, VERIFY_CONSISTENCY (for hash_insert)
 CFLAGS := -std=c99 -Wall -D_GNU_SOURCE -fms-extensions -g -O3 -fno-omit-frame-pointer -D$(ARCH) $(DFLAGS)
 LFLAGS = -lpthread -lm -lrt -ltcmalloc
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<

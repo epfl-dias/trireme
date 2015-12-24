@@ -138,5 +138,6 @@ struct benchmark micro_bench = {
   .alloc_query = micro_alloc_query,
   .get_next_query = micro_get_next_query,
   .run_txn = micro_run_txn,
+  .verify_txn = NULL,
   .hash_get_server = micro_hash_get_server,
 };
