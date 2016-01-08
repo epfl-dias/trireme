@@ -29,6 +29,9 @@ struct elem {
 TAILQ_HEAD(elist, elem);
 
 struct bucket {
+#if SE_INDEX_LATCH
+  pthread_mutex_t latch;
+#endif
   struct elist chain;
 };
 
@@ -68,6 +71,8 @@ struct partition {
    * use partition structure to keep thread-local state
    */
   sethread_state_t se_ready;
+#elif SHARED_NOTHING
+  pthread_mutex_t latch;
 #endif
 
   // stats

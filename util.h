@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <limits.h>
 
 #define FALSE 0
 #define TRUE 1
@@ -27,6 +28,13 @@
 #else
 #define dprint(...) 
 #endif
+
+/* bitarray macros */
+#define BITMASK(b) (1 << ((b) % CHAR_BIT))
+#define BITSLOT(b) ((b) / CHAR_BIT)
+#define BITSET(a, b) ((a)[BITSLOT(b)] |= BITMASK(b))
+#define BITTEST(a, b) ((a)[BITSLOT(b)] & BITMASK(b))
+#define BITNSLOTS(nb) ((nb + CHAR_BIT - 1) / CHAR_BIT)
 
 pid_t gettid(void);
 void set_affinity(int cpu_id);

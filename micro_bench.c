@@ -87,7 +87,8 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
       op->key = hash_table->keys[p->q_idx * s];
     } else {
-      op->key = hash_table->partitions[0].nrecs * r;
+      uint64_t nrecs = hash_table->partitions[0].nrecs; 
+      op->key = (nrecs * r) % nrecs;
     }
 
 #else
@@ -108,13 +109,14 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
       op->key = hash_table->keys[p->q_idx * s];
 
     } else {
-      unsigned long delta;
-      delta = (unsigned long) p->nrecs * r;
+      unsigned long delta = (unsigned long) p->nrecs * r;
+      int nservers = hash_table->nservers;
+      int tserver = nservers * r;
+      tserver %= nservers;
 
       if (!is_local) {
         // remote op
-        op->key = delta + (((s + 1) % hash_table->nservers) * p->nrecs);
-        //op->key = delta + p->nrecs; /* all reqs to server 1 */
+        op->key = delta + (tserver * p->nrecs);
       } else {
         //local op
         op->key = delta + (s * p->nrecs);
@@ -133,17 +135,54 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
 
   txn_start(hash_table, s);
 
+#if SHARED_NOTHING
+  /* we have to acquire all partition locks in partition order. This protocol
+   * is similar to the partitioned store design used in silo. 
+   */
+  
+  char partitions[BITNSLOTS(MAX_SERVERS)];
+  int tserver;
+
+  memset(partitions, 0, sizeof(partitions));
+
+  for (i = 0; i < query->nops; i++) {
+    tserver = micro_hash_get_server(hash_table, query->ops[i].key);
+    BITSET(partitions, tserver);
+
+    if (tserver != s)
+      hash_table->partitions[s].nlookups_remote++;
+  }
+
+  for (i = 0; i < hash_table->nservers; i++) {
+    if (BITTEST(partitions, i)) {
+      pthread_mutex_lock(&hash_table->partitions[i].latch);
+    }
+  }
+
+#endif
+
   r = TXN_COMMIT;
   for (i = 0; i < query->nops; i++) {
     struct hash_op *op = &query->ops[i];
     int is_local;
-#if SHARED_EVERYTHING
+#if defined SHARED_EVERYTHING || defined SHARED_NOTHING
     is_local = 1;
 #else
     is_local = (micro_hash_get_server(hash_table, op->key) == s);
 #endif
 
+#if SHARED_NOTHING
+    /* in shared nothing case, we locate the partition, latch it
+     * and then run the transaction
+     */
+    tserver = micro_hash_get_server(hash_table, op->key);
+    struct partition *tpartition = &hash_table->partitions[tserver];
+
+    value = txn_op(hash_table, s, tpartition, op, is_local);
+    assert(value);
+#else
     value = txn_op(hash_table, s, NULL, op, is_local);
+#endif
   
     if (!value) {
       r = TXN_ABORT;
@@ -158,11 +197,29 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
     }
   }
 
+#if SHARED_NOTHING
+  /* in shared nothing case, there is now way a transaction will ever be 
+   * aborted. We always get all partition locks before we start. So txn
+   * execution is completely serial. Likewise, there is no need to reset
+   * reference counts in records for logical locks as we don't need them.
+   *
+   * So just unlatch the partitions and be done
+   */
+
+  assert (r == TXN_COMMIT);
+  for (i = 0; i < hash_table->nservers; i++) {
+    if (BITTEST(partitions, i)) {
+      pthread_mutex_unlock(&hash_table->partitions[i].latch);
+    }
+  }
+#else
+
   if (r == TXN_COMMIT) {
     txn_commit(hash_table, s, TXN_SINGLE);
   } else {
     txn_abort(hash_table, s, TXN_SINGLE);
   }
+#endif
 
   return r;
 }

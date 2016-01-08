@@ -47,6 +47,8 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
 #if SHARED_EVERYTHING
   for (i = 0; i < MAX_SERVERS; i++)
     p->se_ready = STATE_READY;
+#elif SHARED_NOTHING
+  pthread_mutex_init(&p->latch, NULL);
 #endif
 
   if (alloc) {
@@ -54,6 +56,9 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
     assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
     for (i = 0; i < p->nhash; i++) {
       TAILQ_INIT(&(p->table[i].chain));
+#if SE_INDEX_LATCH
+      pthread_mutex_init(&(p->table[i].latch), NULL);
+#endif
     }
   }
 }
@@ -86,7 +91,14 @@ int hash_get_bucket(const struct partition *p, hash_key key)
 
 void hash_remove(struct partition *p, struct elem *e)
 {
-  struct elist *eh = &(p->table[hash_get_bucket(p, e->key)].chain);
+  int h = hash_get_bucket(p, e->key);
+  struct bucket *b = &p->table[h];
+
+#if SE_INDEX_LATCH
+  pthread_mutex_lock(&b->latch);
+#endif
+
+  struct elist *eh = &b->chain;
   p->size -= (sizeof(struct elem) + e->size);
   assert(p->size >= 0);
   TAILQ_REMOVE(eh, e, chain);
@@ -94,34 +106,56 @@ void hash_remove(struct partition *p, struct elem *e)
   free(e);
 
   dprint("Deleted %"PRId64"\n", e->key);
+
+#if SE_INDEX_LATCH
+  pthread_mutex_unlock(&b->latch);
+#endif
+
 }
 
 struct elem * hash_lookup(struct partition *p, hash_key key)
 {
-  struct elist *eh = &(p->table[hash_get_bucket(p, key)].chain);
+  int h = hash_get_bucket(p, key);
+  struct bucket *b = &p->table[h];
+
+#if SE_INDEX_LATCH
+  pthread_mutex_lock(&b->latch); 
+#endif
+
+  struct elist *eh = &(b->chain);
   struct elem *e = TAILQ_FIRST(eh);
 
   while (e != NULL) {
     if (e->key == key) {
-      return e;
+      break;
     }
     e = TAILQ_NEXT(e, chain);
   }
 
+#if SE_INDEX_LATCH
+  pthread_mutex_unlock(&b->latch); 
+#endif
 
-  return NULL;
+  return e;
 }
 
 struct elem *hash_insert(struct partition *p, hash_key key, int size, 
         release_value_f *release)
 {  
-  struct elist *eh = &(p->table[hash_get_bucket(p, key)].chain);
-  struct elem *e;
-  
+  int h = hash_get_bucket(p, key);
+  struct bucket *b = &p->table[h];
+ 
 #if VERIFY_CONSISTENCY
   e = hash_lookup(p, key);
   assert (e == NULL || (key & ORDER_TID));
 #endif
+
+#if SE_INDEX_LATCH
+  pthread_mutex_lock(&b->latch); 
+#endif
+
+  struct elist *eh = &b->chain;
+  struct elem *e;
 
   // try to allocate space for new value
   e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));
@@ -144,6 +178,10 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   p->size += sizeof(struct elem) + e->size;
 
   TAILQ_INSERT_TAIL(eh, e, chain);
+
+#if SE_INDEX_LATCH
+  pthread_mutex_unlock(&b->latch); 
+#endif
   
   return e;
 }

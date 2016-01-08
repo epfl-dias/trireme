@@ -212,6 +212,11 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
         p->naborts_local++;
         return NULL;
       }
+#elif SHARED_NOTHING
+      /* Do absolutely nothing for shared nothing as it proceeds by first
+       * getting partition locks. So there is no need to get record locks
+       * as access to the whole partition itself is serialized
+       */
 #else
 
       // if value is not ready, lookup and updates fail
@@ -238,12 +243,18 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       assert (p != hash_table->g_partition);
 
       e = hash_lookup(p, op->key);
+      assert(e);
 
 #if SHARED_EVERYTHING
       if (!selock_acquire(p, OPTYPE_UPDATE, e)) {
         p->naborts_local++;
         return NULL;
       }
+#elif SHARED_NOTHING
+      /* Do absolutely nothing for shared nothing as it proceeds by first
+       * getting partition locks. So there is no need to get record locks
+       * as access to the whole partition itself is serialized
+       */
 #else
 
       // if pending lookups are there, updates fail
@@ -988,6 +999,8 @@ int stats_get_nlookups(struct hash_table *hash_table)
       hash_table->partitions[i].nlookups_remote;
   }
 
+  printf("total lookups %d\n", nlookups);
+
   return nlookups;
 }
 
@@ -1002,6 +1015,8 @@ int stats_get_nupdates(struct hash_table *hash_table)
     nupdates += hash_table->partitions[i].nupdates_local + 
       hash_table->partitions[i].nupdates_remote;
   }
+
+  printf("total updates %d\n", nupdates);
 
   return nupdates;
 }
@@ -1030,6 +1045,9 @@ int stats_get_ninserts(struct hash_table *hash_table)
       hash_table->partitions[i].ninserts, hash_table->partitions[i].size / 1024);
     ninserts += hash_table->partitions[i].ninserts;
   }
+
+  printf("total inserts %d\n", ninserts);
+
   return ninserts;
 }
 
