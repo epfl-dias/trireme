@@ -5,6 +5,7 @@
 
 #include "hashprotocol.h"
 #include "util.h"
+#include "pthread.h"
 
 /**
  * Hash Table Storage Data Structures
@@ -20,7 +21,10 @@ struct elem {
   TAILQ_ENTRY(elem) chain;
   char *value;
   uint64_t local_values[2];
-};
+#if SHARED_EVERYTHING
+  pthread_mutex_t latch;
+#endif
+} __attribute__ ((aligned (CACHELINE)));
 
 TAILQ_HEAD(elist, elem);
 
@@ -40,6 +44,13 @@ struct txn_ctx {
   struct op_ctx op_ctx[MAX_OPS_PER_QUERY];
 };
 
+#if SHARED_EVERYTHING
+typedef enum sethread_state {
+  STATE_WAIT, 
+  STATE_READY
+} sethread_state_t;
+#endif
+
 struct partition {
   int nservers;
   int nhash;
@@ -50,6 +61,14 @@ struct partition {
   struct txn_ctx txn_ctx;
   unsigned int seed;
   uint64_t q_idx;
+
+#if SHARED_EVERYTHING
+  /* each partition is assoc with a thread. In se case, some partitions 
+   * might not have any data. None the less, for the time being, we can
+   * use partition structure to keep thread-local state
+   */
+  sethread_state_t se_ready;
+#endif
 
   // stats
   int nhits;
@@ -71,7 +90,9 @@ struct partition {
 
 typedef void release_value_f(struct elem *e);
 
-void init_hash_partition(struct partition *p, size_t max_size, int nservers);
+void init_hash_partition(struct partition *p, size_t max_size, int nservers, 
+    char alloc);
+
 void destroy_hash_partition(struct partition *p, release_value_f *release);
 
 struct elem * hash_lookup(struct partition *p, hash_key key);

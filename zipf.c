@@ -54,14 +54,14 @@ double rand_val(int seed)
   return((double) x / m);
 }
 
-int zipf(double alpha, int n)
+int zipf(double alpha, uint64_t n)
 {
   static int first = TRUE;      // Static first time flag
   static double c = 0;          // Normalization constant
   double z;                     // Uniform random number (0 < z < 1)
   double sum_prob;              // Sum of probabilities
   double zipf_value = 0;            // Computed exponential value to be returned
-  int    i;                     // Loop counter
+  uint64_t i;                     // Loop counter
 
   if (first == TRUE)
   {
@@ -99,7 +99,6 @@ int zipf(double alpha, int n)
 
 uint64_t *zipf_get_keys(double alpha, uint64_t N, uint64_t nvalues)
 {
-
   uint64_t *zipf_rv;
   uint64_t i;
   uint64_t seed = 19890811;
@@ -138,11 +137,10 @@ uint64_t *zipf_get_keys(double alpha, uint64_t N, uint64_t nvalues)
       fflush(stdout);
       p+=10;
     }
-  }
+
+ }
 
   printf("100%% \n");
 
   return zipf_rv;
 }
-
-

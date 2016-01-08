@@ -1064,8 +1064,8 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg)
   int r;
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  //r = tpcc_run_neworder_txn(hash_table, s, q); 
-  r =  tpcc_run_payment_txn(hash_table, s, q); 
+  r = tpcc_run_neworder_txn(hash_table, s, q); 
+  //r =  tpcc_run_payment_txn(hash_table, s, q); 
 
   return r;
 }
@@ -1073,8 +1073,8 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg)
 void tpcc_get_next_query(struct hash_table *hash_table, int s, 
     void *arg)
 {
-  //tpcc_get_next_neworder_query(hash_table, s, arg);
-  tpcc_get_next_payment_query(hash_table, s, arg);
+  tpcc_get_next_neworder_query(hash_table, s, arg);
+  //tpcc_get_next_payment_query(hash_table, s, arg);
 }
 
 void tpcc_verify_txn(struct hash_table *hash_table, int id)

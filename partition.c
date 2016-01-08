@@ -11,9 +11,13 @@
 #include "partition.h"
 #include "util.h"
 #include "tpcc.h"
+#include "pthread.h"
 
-void init_hash_partition(struct partition *p, size_t nrecs, int nservers)
+void init_hash_partition(struct partition *p, size_t nrecs, int nservers, 
+    char alloc)
 {
+  int i;
+
   assert((unsigned long)p % CACHELINE == 0);
   p->nservers = nservers;
   p->nrecs = nrecs;
@@ -40,10 +44,17 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers)
   p->idleclock = 0;
   p->seed = rand();
 
-  p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));
-  assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
-  for (int i = 0; i < p->nhash; i++) {
-    TAILQ_INIT(&(p->table[i].chain));
+#if SHARED_EVERYTHING
+  for (i = 0; i < MAX_SERVERS; i++)
+    p->se_ready = STATE_READY;
+#endif
+
+  if (alloc) {
+    p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));
+    assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
+    for (i = 0; i < p->nhash; i++) {
+      TAILQ_INIT(&(p->table[i].chain));
+    }
   }
 }
 
@@ -115,6 +126,10 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   // try to allocate space for new value
   e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));
   assert (e);
+
+#if SHARED_EVERYTHING
+  pthread_mutex_init(&e->latch, NULL);
+#endif
 
   e->key = key;
 

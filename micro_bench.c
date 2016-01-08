@@ -79,20 +79,49 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
     }
     op->size = 0;
 
-    unsigned long delta;
-    if (hash_table->keys)
-      delta = hash_table->keys[p->q_idx++];
-    else
+#if SHARED_EVERYTHING
+    // use zipfian if available
+    if (hash_table->keys) {
+      p->q_idx++;
+      assert(p->q_idx * s < niters * hash_table->nservers);
+
+      op->key = hash_table->keys[p->q_idx * s];
+    } else {
+      op->key = hash_table->partitions[0].nrecs * r;
+    }
+
+#else
+
+    /* we can either do zipfian across all partitions or explicitly control
+     * local vs remote. Doing both is meaningless - zipfian within a partition
+     * is not zipfian globally
+     */
+    if (hash_table->keys) {
+      if (is_local) {
+        printf("Asking for a local txn with zipfian dist. Not possible.\n");
+        assert(0);
+      }
+
+      p->q_idx++;
+      assert(p->q_idx * s < niters * hash_table->nservers);
+
+      op->key = hash_table->keys[p->q_idx * s];
+
+    } else {
+      unsigned long delta;
       delta = (unsigned long) p->nrecs * r;
 
-    if (!is_local) {
-      // remote op
-      op->key = delta + (((s + 1) % hash_table->nservers) * p->nrecs);
-      //op->key = delta + p->nrecs; /* all reqs to server 1 */
-    } else {
-      //local op
-      op->key = delta + (s * p->nrecs);
+      if (!is_local) {
+        // remote op
+        op->key = delta + (((s + 1) % hash_table->nservers) * p->nrecs);
+        //op->key = delta + p->nrecs; /* all reqs to server 1 */
+      } else {
+        //local op
+        op->key = delta + (s * p->nrecs);
+      }
     }
+
+#endif
   }
 }
 
@@ -107,7 +136,12 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
   r = TXN_COMMIT;
   for (i = 0; i < query->nops; i++) {
     struct hash_op *op = &query->ops[i];
-    int is_local = (micro_hash_get_server(hash_table, op->key) == s);
+    int is_local;
+#if SHARED_EVERYTHING
+    is_local = 1;
+#else
+    is_local = (micro_hash_get_server(hash_table, op->key) == s);
+#endif
 
     value = txn_op(hash_table, s, NULL, op, is_local);
   

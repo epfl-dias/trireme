@@ -10,11 +10,11 @@
 
 #include "hashprotocol.h"
 #include "partition.h"
-#include "onewaybuffer.h"
 #include "smphashtable.h"
 #include "util.h"
 #include "benchmark.h"
 #include "tpcc.h"
+#include "selock.h"
 
 /** 
  * Hash Table Operations
@@ -26,8 +26,6 @@
 #define HASHOP_RELEASE    0x4000000000000000 
 
 #define INSERT_MSG_LENGTH 2
-
-#define DATA_READY_MASK   0x8000000000000000
 
 #define MAX_PENDING_PER_SERVER  (ONEWAY_BUFFER_SIZE - (CACHELINE >> 3))
 
@@ -59,9 +57,24 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
 
   hash_table->boxes = memalign(CACHELINE, MAX_CLIENTS * sizeof(struct box_array));
   for (int i = 0; i < hash_table->nservers; i++) {
-    init_hash_partition(&hash_table->partitions[i], nrecs / nservers, nservers);
+
+#if SHARED_EVERYTHING
+    init_hash_partition(&hash_table->partitions[i], nrecs, nservers, 
+        i == 0 /*alloc buckets only for first partition*/);
+
+    /* make other partition buckets point to first partition's buckets */
+    if (i > 0) 
+      hash_table->partitions[i].table = hash_table->partitions[0].table;
+
+#else
+
+    init_hash_partition(&hash_table->partitions[i], nrecs / nservers, nservers, 
+        1 /*always alloc buckets*/);
+
+#endif
   }
-  init_hash_partition(hash_table->g_partition, nrecs / nservers, nservers);
+
+  init_hash_partition(hash_table->g_partition, nrecs / nservers, nservers, 1);
 
   hash_table->threads = (pthread_t *)malloc(nservers * sizeof(pthread_t));
   hash_table->thread_data = (struct thread_args *)malloc(nservers * sizeof(struct thread_args));
@@ -72,7 +85,7 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
     printf("Generating zipfian distribution: ");
     fflush(stdout);
 
-    hash_table->keys = zipf_get_keys(alpha, nrecs / nservers, niters);
+    hash_table->keys = zipf_get_keys(alpha, nrecs, niters * nservers);
   } else
     hash_table->keys = NULL;
 
@@ -83,6 +96,12 @@ void destroy_hash_table(struct hash_table *hash_table)
 {
   for (int i = 0; i < hash_table->nservers; i++) {
     destroy_hash_partition(&hash_table->partitions[i], atomic_release_value_);
+
+#if SHARED_EVERYTHING
+    /* we need to destory buckets for first partition only in case of se */
+    break;
+#endif
+
   }
   //destroy_hash_partition(&hash_table->g_partition, atomic_release_value_);
   free(hash_table->partitions);
@@ -183,9 +202,17 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       e->ref_count = DATA_READY_MASK | 2; 
       p->ninserts++;
       break;
+
     case OPTYPE_LOOKUP:
       e = hash_lookup(p, op->key);
       assert(e);
+
+#if SHARED_EVERYTHING
+      if (!selock_acquire(p, OPTYPE_LOOKUP, e)) {
+        p->naborts_local++;
+        return NULL;
+      }
+#else
 
       // if value is not ready, lookup and updates fail
       if (!is_value_ready(e)) {
@@ -200,15 +227,24 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
 
       if (p != hash_table->g_partition)
    	    e->ref_count++;
+#endif
 
       p->nlookups_local++;
       p->nhits++;
       break;
+
     case OPTYPE_UPDATE:
       // should not get a update to item partition
       assert (p != hash_table->g_partition);
 
       e = hash_lookup(p, op->key);
+
+#if SHARED_EVERYTHING
+      if (!selock_acquire(p, OPTYPE_UPDATE, e)) {
+        p->naborts_local++;
+        return NULL;
+      }
+#else
 
       // if pending lookups are there, updates fail
       if (!is_value_ready(e) || e->ref_count > 1) {
@@ -221,6 +257,8 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       }
 
       e->ref_count = DATA_READY_MASK | 2; 
+#endif
+
       p->nupdates_local++;
       break;
     default:
@@ -645,7 +683,14 @@ void * hash_table_server(void* args)
    
   double tstart = now();
 
+#if SHARED_EVERYTHING
+  /* load only one partition in case of shared everything */
+  if (s == 0)
+    g_benchmark->load_data(hash_table, s);
+#else
+  /* always load for trireme */
   g_benchmark->load_data(hash_table, s);
+#endif
 
   double tend = now();
 
@@ -675,9 +720,6 @@ void * hash_table_server(void* args)
 
   for (i = 0; i < niters; i++) {
     // run query as txn
-    if (i % 100000 == 0)
-      printf("srv(%d): running txn %d\n", s, i);
-
     g_benchmark->get_next_query(hash_table, s, query);
 
     do {
@@ -690,15 +732,19 @@ void * hash_table_server(void* args)
 #endif
 
       // see if we need to answer someone
+#ifndef SHARED_EVERYTHING
       process_requests(hash_table, s);
+#endif
 
       if (r == TXN_ABORT)
         dprint("srv(%d): rerunning aborted txn %d\n", s, i);
 
     } while (r == TXN_ABORT);
 
+#if PRINT_PROGRESS
     if (i % 100000 == 0)
       printf("srv(%d): completed txn %d\n", s, i);
+#endif
 
   }
 
@@ -712,7 +758,11 @@ void * hash_table_server(void* args)
   nready--;
 
   while (nready != 0)
-      process_requests(hash_table, s);
+#if SHARED_EVERYTHING
+    ;
+#else
+    process_requests(hash_table, s);
+#endif
 
   printf("srv %d quitting \n", s);
   fflush(stdout);
@@ -832,6 +882,10 @@ int is_value_ready(struct elem *e)
 
 void mp_release_value_(struct partition *p, struct elem *e)
 {
+#if SHARED_EVERYTHING
+  selock_release(p, e);
+#else
+
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 
   dprint("srv(%ld): Releasing key %" PRIu64 " rc %" PRIu64 "\n", 
@@ -842,7 +896,7 @@ void mp_release_value_(struct partition *p, struct elem *e)
     //printf("key %" PRIu64 " 0 rc\n", e->key);
     hash_remove(p, e);
   }
-
+#endif
 }
 
 void mp_send_release_msg_(struct hash_table *hash_table, int client_id, void *ptr, int force_flush)
@@ -863,7 +917,11 @@ void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr)
 
 void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr)
 {
+#if SHARED_EVERYTHING
+  assert(0);
+#else
   mp_send_release_msg_(hash_table, client_id, ptr, 1 /* force_flush */);
+#endif
 }
 
 void atomic_release_value_(struct elem *e)

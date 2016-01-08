@@ -3,9 +3,12 @@
 
 #include "hashprotocol.h"
 #include "util.h"
+#include "onewaybuffer.h"
 
 #define TXN_BATCH 1
 #define TXN_SINGLE 0
+
+#define DATA_READY_MASK 0x8000000000000000
 
 /**
  * Server/Client Message Passing Data Structures
@@ -137,6 +140,14 @@ void smp_flush_all(struct hash_table *hash_table, int client_id);
  */
 void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr);
 void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr);
+
+
+/* is_value_ready check ref counts to see if there is a write lock held
+ * on a data item. write lock can be held during insertion or during update
+ * During both times, no other read or write is allowed. 
+ * This is used by both messaging and shared everything designs
+ */
+int is_value_ready(struct elem *e);
 
 /**
  * Stats functions
