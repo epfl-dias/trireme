@@ -88,7 +88,8 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
       op->key = hash_table->keys[p->q_idx * s];
     } else {
       uint64_t nrecs = hash_table->partitions[0].nrecs; 
-      op->key = (nrecs * r) % nrecs;
+      op->key = nrecs * r;
+      op->key %= nrecs;
     }
 
 #else
@@ -155,7 +156,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
 
   for (i = 0; i < hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      pthread_mutex_lock(&hash_table->partitions[i].latch);
+      pthread_spin_lock(&hash_table->partitions[i].latch);
     }
   }
 
@@ -209,7 +210,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
   assert (r == TXN_COMMIT);
   for (i = 0; i < hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      pthread_mutex_unlock(&hash_table->partitions[i].latch);
+      pthread_spin_unlock(&hash_table->partitions[i].latch);
     }
   }
 #else

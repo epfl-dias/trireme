@@ -22,7 +22,7 @@ struct elem {
   char *value;
   uint64_t local_values[2];
 #if SHARED_EVERYTHING
-  pthread_mutex_t latch;
+  pthread_spinlock_t latch;
 #endif
 } __attribute__ ((aligned (CACHELINE)));
 
@@ -30,10 +30,10 @@ TAILQ_HEAD(elist, elem);
 
 struct bucket {
 #if SE_INDEX_LATCH
-  pthread_mutex_t latch;
+  pthread_spinlock_t latch;
 #endif
   struct elist chain;
-};
+}__attribute__ ((aligned (CACHELINE)));
 
 struct op_ctx {
   char is_local;
@@ -72,7 +72,7 @@ struct partition {
    */
   sethread_state_t se_ready;
 #elif SHARED_NOTHING
-  pthread_mutex_t latch;
+  pthread_spinlock_t latch;
 #endif
 
   // stats
@@ -98,7 +98,7 @@ typedef void release_value_f(struct elem *e);
 void init_hash_partition(struct partition *p, size_t max_size, int nservers, 
     char alloc);
 
-void destroy_hash_partition(struct partition *p, release_value_f *release);
+size_t destroy_hash_partition(struct partition *p, release_value_f *release);
 
 struct elem * hash_lookup(struct partition *p, hash_key key);
 struct elem * hash_insert(struct partition *p, hash_key key, int size, release_value_f *release);

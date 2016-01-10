@@ -26,7 +26,7 @@ int selock_nowait_acquire(struct partition *p, char optype,
    */
   int r = 0;
 
-  pthread_mutex_lock(&e->latch);
+  pthread_spin_lock(&e->latch);
 
   /* if there are no conflicting locks, we set ref count to indicate 
    * lock type
@@ -42,7 +42,7 @@ int selock_nowait_acquire(struct partition *p, char optype,
     r = 1;
   }
 
-  pthread_mutex_unlock(&e->latch);
+  pthread_spin_unlock(&e->latch);
 
   return r;
 }
@@ -51,13 +51,14 @@ void selock_nowait_release(struct partition *p, struct elem *e)
 {
   /* latch, reset ref count to free the logical lock, unlatch */
 
-  pthread_mutex_lock(&e->latch);
+  pthread_spin_lock(&e->latch);
 
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 
-  assert(e->ref_count > 0);
-
-  pthread_mutex_unlock(&e->latch);
+  if (e->ref_count == 0)
+    hash_remove(p, e);
+ 
+  pthread_spin_unlock(&e->latch);
 }
 
 int selock_acquire(struct partition *p, char optype, struct elem *e)

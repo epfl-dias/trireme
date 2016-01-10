@@ -149,7 +149,6 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
   int ol_cnt, dup;
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  // XXX: for now, only neworder query. for now, only local
   q->w_id = s + 1;
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
@@ -506,9 +505,7 @@ void load_item(int w_id, struct partition *p)
   hash_key key;
   int data_len;
 
-  if (w_id != 1) {
-    printf("Client %d skipping loading item table\n", w_id);
-  }
+  assert(w_id == 1);
     
   for (int i = 1; i <= TPCC_MAX_ITEMS; i++) {
     key = MAKE_HASH_KEY(ITEM_TID, i);
@@ -594,11 +591,10 @@ void load_district(int w_id, struct partition *p)
   }
 }
 
-void tpcc_load_data(struct hash_table *hash_table, int id)
+void tpcc_load_warehouse(struct hash_table *hash_table, int w_id, int id)
 {
   struct partition *p = &hash_table->partitions[id];
   struct partition *item = hash_table->g_partition;
-  int w_id = id + 1;
 
   printf("srv (%d): Loading stock..\n", id);
   load_stock(w_id, p);
@@ -611,8 +607,8 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
 
   printf("srv (%d): Loading order..\n", id);
   load_order(w_id, p);
-  if (id == 0) {
-    load_item(id, item);
+  if (w_id == 1) {
+    load_item(w_id, item);
     printf("srv (%d): Loading item..\n", id);
   }
 
@@ -621,6 +617,26 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
 
   printf("srv (%d): Loading district..\n", id);
   load_district(w_id, p);
+}
+
+/* shared-everything data loader just piggy backs on default. 
+ * By doing so, it will load data belonging to all warehouses
+ * in a single shared hashtable
+ */
+void se_tpcc_load_data(struct hash_table *hash_table, int id)
+{
+  /* this should be called only as this is only called in the
+   * shared everything config
+   */
+  assert(id == 0);
+
+  for (int i = 0; i < hash_table->nservers; i++)
+    tpcc_load_warehouse(hash_table, i + 1 /*wid*/, id);
+}
+
+void tpcc_load_data(struct hash_table *hash_table, int id)
+{
+  tpcc_load_warehouse(hash_table, id + 1, id);
 }
 
 int tpcc_run_neworder_txn(struct hash_table *hash_table, int id, 
@@ -635,8 +651,29 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   int c_id = q->c_id;
   int ol_cnt = q->ol_cnt;
   int o_entry_d = q->o_entry_d;
-
   int r = TXN_COMMIT;
+
+#if SHARED_NOTHING
+  /* we have to acquire all partition locks in warehouse order.  */
+  char partitions[BITNSLOTS(MAX_SERVERS)];
+  int i;
+
+  memset(partitions, 0, sizeof(partitions));
+  BITSET(partitions, w_id);
+
+  for (i = 0; i < ol_cnt; i++) {
+    BITSET(partitions, q->item[i].ol_supply_w_id);
+  }
+
+  assert(BITTEST(partitions, 0) == 0);
+
+  for (i = 1; i <= hash_table->nservers; i++) {
+    if (BITTEST(partitions, i)) { 
+      pthread_spin_lock(&hash_table->partitions[i - 1].latch);
+    }
+  }
+
+#endif
 
   txn_start(hash_table, id);
 
@@ -760,8 +797,23 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     pkey = MAKE_HASH_KEY(STOCK_TID, key);
     MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
 
-    struct tpcc_stock *s_r = 
-      (struct tpcc_stock *) txn_op(hash_table, id, NULL, &op, w_id == ol_supply_w_id);
+    struct tpcc_stock *s_r = NULL;
+#if SHARED_EVERYTHING
+    /* in shared everything mode, we always do local lookup */
+    s_r = (struct tpcc_stock *) txn_op(hash_table, id, NULL, &op, 1);
+#elif SHARED_NOTHING
+
+    /* directly pass the partition corresponding to supply wh */
+    s_r = (struct tpcc_stock *) txn_op(hash_table, id, 
+        &hash_table->partitions[ol_supply_w_id - 1], &op, 1);
+
+    /* since we acquire partition latch, we can't have failure */
+    assert(s_r);
+
+#else
+    s_r = (struct tpcc_stock *) txn_op(hash_table, id, NULL, &op, 
+        w_id == ol_supply_w_id);
+#endif
     if (!s_r) {
       dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
       r = TXN_ABORT;
@@ -821,10 +873,28 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   }
 
 final:
+
+#if SHARED_NOTHING
+  /* in shared nothing case, there is now way a transaction will ever be 
+   * aborted. We always get all partition locks before we start. So txn
+   * execution is completely serial. Likewise, there is no need to reset
+   * reference counts in records for logical locks as we don't need them.
+   *
+   * So just unlatch the partitions and be done
+   */
+
+  assert (r == TXN_COMMIT);
+  for (i = 1; i <= hash_table->nservers; i++) {
+    if (BITTEST(partitions, i)) {
+      pthread_spin_unlock(&hash_table->partitions[i - 1].latch);
+    }
+  }
+#else
   if (r == TXN_COMMIT)
     txn_commit(hash_table, id, TXN_SINGLE);
   else
     txn_abort(hash_table, id, TXN_SINGLE);
+#endif
   
   return r;
 }
@@ -1064,6 +1134,14 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg)
   int r;
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
+  // if we're running tpcc, se_index_latch better be enabled
+#if defined SHARED_EVERYTHING
+#ifndef SE_INDEX_LATCH
+  printf("Can't run tpcc in shared everything mode without index latch\n");
+  exit(1);
+#endif
+#endif
+
   r = tpcc_run_neworder_txn(hash_table, s, q); 
   //r =  tpcc_run_payment_txn(hash_table, s, q); 
 
@@ -1081,7 +1159,11 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 {
 
   hash_key key, pkey;
+#if SHARED_EVERYTHING
+  struct partition *p = &hash_table->partitions[0];
+#else
   struct partition *p = &hash_table->partitions[id];
+#endif
   struct elem *e;
   int w_id = id + 1;
 
@@ -1139,6 +1221,16 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
         struct tpcc_order *o_r = (struct tpcc_order *)e->value;
         assert(o_r);
 
+#ifndef SHARED_EVERYTHING
+        assert (o_r->o_w_id == w_id);
+#else
+        // shared everything config
+        if (o_r->o_w_id != w_id) {
+          e = TAILQ_NEXT(e, chain);
+          continue;
+        }
+#endif
+
         if (max_o_id[o_r->o_d_id] < o_r->o_id)
           max_o_id[o_r->o_d_id] = o_r->o_id;
 
@@ -1147,6 +1239,16 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
       } else if (tid == NEW_ORDER_TID) {
         struct tpcc_new_order *no_r = (struct tpcc_new_order *)e->value;
         assert(no_r);
+
+#ifndef SHARED_EVERYTHING
+        assert (no_r->no_w_id == w_id);
+#else
+        // shared everything config
+        if (no_r->no_w_id != w_id) {
+          e = TAILQ_NEXT(e, chain);
+          continue;
+        }
+#endif
 
         nrows_no[no_r->no_d_id]++;
 
@@ -1159,6 +1261,16 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
      } else if (tid == ORDER_LINE_TID) {
         struct tpcc_order_line *ol_r = (struct tpcc_order_line *)e->value;
         assert(ol_r);
+
+#ifndef SHARED_EVERYTHING
+        assert (ol_r->ol_w_id == w_id);
+#else
+        // shared everything config
+        if (ol_r->ol_w_id != w_id) {
+          e = TAILQ_NEXT(e, chain);
+          continue;
+        }
+#endif
 
         nrows_ol[ol_r->ol_d_id]++;
       }
@@ -1195,7 +1307,11 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
 struct benchmark tpcc_bench = {
   .alloc_query = tpcc_alloc_query,
+#if SHARED_EVERYTHING
+  .load_data = se_tpcc_load_data, 
+#else
   .load_data = tpcc_load_data,
+#endif
   .get_next_query = tpcc_get_next_query,
   .run_txn = tpcc_run_txn,
   .verify_txn = tpcc_verify_txn,

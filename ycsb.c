@@ -131,8 +131,8 @@ int main(int argc, char *argv[])
   if (first_core == -1) first_core = nclients;
 
   // set benchmark to micro for now
-  //g_benchmark = &tpcc_bench;
-  g_benchmark = &micro_bench;
+  g_benchmark = &tpcc_bench;
+  //g_benchmark = &micro_bench;
   run_benchmark();
   return 0;
 }

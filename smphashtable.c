@@ -94,11 +94,24 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
 
 void destroy_hash_table(struct hash_table *hash_table)
 {
-  for (int i = 0; i < hash_table->nservers; i++) {
-    destroy_hash_partition(&hash_table->partitions[i], atomic_release_value_);
+  int i;
+  size_t act_psize, dbg_psize;
+  act_psize = 0;
+
+#if SHARED_EVERYTHING
+  for (i = 0; i < hash_table->nservers; i++) {
+    act_psize += hash_table->partitions[i].size;
+  }
+
+#endif
+
+  for (i = 0; i < hash_table->nservers; i++) {
+    dbg_psize = destroy_hash_partition(&hash_table->partitions[i], 
+        atomic_release_value_);
 
 #if SHARED_EVERYTHING
     /* we need to destory buckets for first partition only in case of se */
+    assert(act_psize == dbg_psize);
     break;
 #endif
 
@@ -114,7 +127,7 @@ void destroy_hash_table(struct hash_table *hash_table)
 
   free(hash_table->threads);
   free(hash_table->thread_data);
-  pthread_mutex_destroy(&hash_table->create_client_lock); 
+  pthread_mutex_lock(&hash_table->create_client_lock); 
   free(hash_table);
 }
 

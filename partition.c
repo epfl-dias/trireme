@@ -48,7 +48,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
   for (i = 0; i < MAX_SERVERS; i++)
     p->se_ready = STATE_READY;
 #elif SHARED_NOTHING
-  pthread_mutex_init(&p->latch, NULL);
+  pthread_spin_init(&p->latch, 0);
 #endif
 
   if (alloc) {
@@ -57,16 +57,18 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
     for (i = 0; i < p->nhash; i++) {
       TAILQ_INIT(&(p->table[i].chain));
 #if SE_INDEX_LATCH
-      pthread_mutex_init(&(p->table[i].latch), NULL);
+      pthread_spin_init(&(p->table[i].latch), 0);
 #endif
     }
   }
 }
 
-void destroy_hash_partition(struct partition *p, release_value_f *release)
+size_t destroy_hash_partition(struct partition *p, release_value_f *release)
 {
+  int i;
   size_t dbg_p_size = 0;
-  for (int i = 0; i < p->nhash; i++) {
+
+  for (i = 0; i < p->nhash; i++) {
     struct elist *eh = &p->table[i].chain;
     struct elem *e = TAILQ_FIRST(eh);
     while (e != NULL) {
@@ -77,8 +79,19 @@ void destroy_hash_partition(struct partition *p, release_value_f *release)
     }
   }
 
+#if SHARED_EVERYTHING
+  /* in shared everything config, every thread uses its own partition
+   * structure but all threads share the same bucket array. 
+   * so size computed from the bucket here will not match size of just
+   * one partition if we have > 1 server
+   */
+#else
   assert(p->size == dbg_p_size);
+#endif
+
   free(p->table);
+  
+  return dbg_p_size;
 }
 
 /**
@@ -95,7 +108,7 @@ void hash_remove(struct partition *p, struct elem *e)
   struct bucket *b = &p->table[h];
 
 #if SE_INDEX_LATCH
-  pthread_mutex_lock(&b->latch);
+  pthread_spin_lock(&b->latch);
 #endif
 
   struct elist *eh = &b->chain;
@@ -108,7 +121,7 @@ void hash_remove(struct partition *p, struct elem *e)
   dprint("Deleted %"PRId64"\n", e->key);
 
 #if SE_INDEX_LATCH
-  pthread_mutex_unlock(&b->latch);
+  pthread_spin_unlock(&b->latch);
 #endif
 
 }
@@ -119,7 +132,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   struct bucket *b = &p->table[h];
 
 #if SE_INDEX_LATCH
-  pthread_mutex_lock(&b->latch); 
+  pthread_spin_lock(&b->latch); 
 #endif
 
   struct elist *eh = &(b->chain);
@@ -133,7 +146,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   }
 
 #if SE_INDEX_LATCH
-  pthread_mutex_unlock(&b->latch); 
+  pthread_spin_unlock(&b->latch); 
 #endif
 
   return e;
@@ -144,6 +157,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 {  
   int h = hash_get_bucket(p, key);
   struct bucket *b = &p->table[h];
+  struct elem *e;
  
 #if VERIFY_CONSISTENCY
   e = hash_lookup(p, key);
@@ -151,18 +165,17 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 #endif
 
 #if SE_INDEX_LATCH
-  pthread_mutex_lock(&b->latch); 
+  pthread_spin_lock(&b->latch); 
 #endif
 
   struct elist *eh = &b->chain;
-  struct elem *e;
 
   // try to allocate space for new value
   e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));
   assert (e);
 
 #if SHARED_EVERYTHING
-  pthread_mutex_init(&e->latch, NULL);
+  pthread_spin_init(&e->latch, 0);
 #endif
 
   e->key = key;
@@ -175,12 +188,12 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   assert(e->value);
 
   e->size = size;
-  p->size += sizeof(struct elem) + e->size;
+  p->size += sizeof(struct elem) + size;
 
   TAILQ_INSERT_TAIL(eh, e, chain);
 
 #if SE_INDEX_LATCH
-  pthread_mutex_unlock(&b->latch); 
+  pthread_spin_unlock(&b->latch); 
 #endif
   
   return e;
