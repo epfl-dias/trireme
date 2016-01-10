@@ -130,7 +130,6 @@ void destroy_hash_table(struct hash_table *hash_table)
 
   free(hash_table->threads);
   free(hash_table->thread_data);
-  pthread_mutex_lock(&hash_table->create_client_lock); 
   free(hash_table);
 }
 
@@ -696,7 +695,7 @@ void process_requests(struct hash_table *hash_table, int s)
   }
 }
 
-void * hash_table_server(void* args)
+void *hash_table_server(void* args)
 {
   int i, r;
   const int s = ((struct thread_args *) args)->id;
@@ -733,7 +732,9 @@ void * hash_table_server(void* args)
  
   fflush(stdout);
 
+  pthread_mutex_lock(&hash_table->create_client_lock); 
   nready++;
+  pthread_mutex_unlock(&hash_table->create_client_lock); 
 
   while (nready != hash_table->nservers) ;
 
