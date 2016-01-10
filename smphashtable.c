@@ -47,6 +47,7 @@ void process_requests(struct hash_table *hash_table, int s);
 struct hash_table *create_hash_table(size_t nrecs, int nservers)
 {
   struct hash_table *hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
+  hash_table->keys = NULL;
   hash_table->nservers = nservers;
   hash_table->nrecs = nrecs / nservers;
   hash_table->partitions = memalign(CACHELINE, nservers * sizeof(struct partition));
@@ -81,6 +82,7 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
 
   create_hash_table_client(hash_table);
 
+  /*
   if (alpha != 0) {
     printf("Generating zipfian distribution: ");
     fflush(stdout);
@@ -88,6 +90,7 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
     hash_table->keys = zipf_get_keys(alpha, nrecs, niters * nservers);
   } else
     hash_table->keys = NULL;
+  */
 
   return hash_table;
 }

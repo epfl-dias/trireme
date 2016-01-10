@@ -46,6 +46,8 @@ int query_shift     = 2;
 double write_threshold = ((double)0.2 * RAND_MAX);
 double dist_threshold = ((double) 0.1 * RAND_MAX);
 double alpha = 0;
+double hot_fraction = 0;
+int nhot_servers = 0;
 
 int track_cpu_usage = 0;
 int QID[MAX_CLIENTS];
@@ -72,10 +74,16 @@ int main(int argc, char *argv[])
 {
   int opt_char;
 
-  while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:")) != -1) {
+  while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:h:p:")) != -1) {
     switch (opt_char) {
       case 'a':
         alpha = atof(optarg);
+        break;
+      case 'h':
+        hot_fraction = atof(optarg);
+        break;
+      case 'p':
+        nhot_servers = atoi(optarg);
         break;
       case 's':
         nservers = atoi(optarg);
@@ -113,7 +121,9 @@ int main(int argc, char *argv[])
         break;
       default:
         printf("benchmark options are: \n"
-               "   -a alpha value for zipf\n"
+               "   -a alpha value for zipf/probability for bernoulli\n"
+               "   -h fraction of records to use for hot bernoulli range\n"
+               "   -p #servers to use for holding hot bernoulli range\n"
                "   -s number of servers / partitions\n"
                "   -c number of clients\n"
                "   -d ratio of distributed to local txns\n"
@@ -130,9 +140,15 @@ int main(int argc, char *argv[])
   }
   if (first_core == -1) first_core = nclients;
 
+  if (alpha) {
+    assert(hot_fraction != 0);
+    assert(nhot_servers != 0);
+    assert(nhot_servers <= nservers);
+  }
+
   // set benchmark to micro for now
-  g_benchmark = &tpcc_bench;
-  //g_benchmark = &micro_bench;
+  //g_benchmark = &tpcc_bench;
+  g_benchmark = &micro_bench;
   run_benchmark();
   return 0;
 }

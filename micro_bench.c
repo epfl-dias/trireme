@@ -16,6 +16,8 @@ extern int niters;
 extern double dist_threshold;
 extern double write_threshold;
 extern double alpha;
+extern double hot_fraction;
+extern double nhot_servers;
 
 int micro_hash_get_server(struct hash_table *hash_table, hash_key key)
 {
@@ -62,6 +64,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   struct hash_query *query = (struct hash_query *) arg;
   struct partition *p = &hash_table->partitions[s];
   double r = ((double)rand_r(&p->seed) / RAND_MAX);
+  int nservers = hash_table->nservers;
 
   is_local = (r < dist_threshold);
 
@@ -83,45 +86,79 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
     // use zipfian if available
     if (hash_table->keys) {
       p->q_idx++;
-      assert(p->q_idx * s < niters * hash_table->nservers);
+      assert(p->q_idx * s < niters * nservers);
 
       op->key = hash_table->keys[p->q_idx * s];
     } else {
       uint64_t nrecs = hash_table->partitions[0].nrecs; 
-      op->key = nrecs * r;
-      op->key %= nrecs;
+      
+      // use alpha parameter as the probability
+      if (alpha == 0) {
+        op->key = nrecs * r;
+        op->key %= nrecs;
+      } else {
+        /* generate key based on bernoulli dist. alpha is probability
+         * #items in one range = 0 to (nrecs * hot_fraction)
+         * Based on probability pick right range
+         */
+        hash_key last_hot_rec  = nrecs * hot_fraction / 100;
+        if (alpha > r) {
+          //hot range
+          op->key = last_hot_rec * r;
+        } else {
+          //cold range
+          op->key = (nrecs - last_hot_rec) * r + last_hot_rec;
+        }
+      }
     }
 
 #else
+
+    hash_key delta = 0;
+    int tserver = 0;
 
     /* we can either do zipfian across all partitions or explicitly control
      * local vs remote. Doing both is meaningless - zipfian within a partition
      * is not zipfian globally
      */
     if (hash_table->keys) {
-      if (is_local) {
-        printf("Asking for a local txn with zipfian dist. Not possible.\n");
-        assert(0);
-      }
-
       p->q_idx++;
-      assert(p->q_idx * s < niters * hash_table->nservers);
+      assert(p->q_idx * s < niters * nservers);
 
       op->key = hash_table->keys[p->q_idx * s];
 
-    } else {
-      unsigned long delta = (unsigned long) p->nrecs * r;
-      int nservers = hash_table->nservers;
-      int tserver = nservers * r;
-      tserver %= nservers;
+    } else if (alpha != 0) {
 
-      if (!is_local) {
-        // remote op
-        op->key = delta + (tserver * p->nrecs);
+      /* Get key based on bernoulli distribution. In case of shared nothing 
+       * and Trireme configs, there is one more parameter in addition to
+       * alpha - the probability, and hot_fraction, which is how hot and 
+       * cold records are spread out. 
+       * Under skew, we'll typically have just a few partitions store hot
+       * data. So we can use hot_fraction to limit #partitions for hot data.
+       * We assume cold data is always local
+       */
+      hash_key last_hot_rec  = p->nrecs * hot_fraction / 100;
+
+      if (alpha > r) {
+        // hot data
+        delta = last_hot_rec * r;
+        tserver = nhot_servers * r;
       } else {
-        //local op
-        op->key = delta + (s * p->nrecs);
+        // cold data
+        delta = (p->nrecs - last_hot_rec) * r + last_hot_rec;
+        tserver = ((hash_key) (nservers * r)) % nservers;
       }
+    } else {
+      delta = (hash_key) p->nrecs * r;
+      tserver = ((hash_key) (nservers * r)) % nservers;
+    }
+
+    if (!is_local) {
+      // remote op
+      op->key = delta + (tserver * p->nrecs);
+    } else {
+      //local op
+      op->key = delta + (s * p->nrecs);
     }
 
 #endif
