@@ -753,7 +753,7 @@ void *hash_table_server(void* args)
 #endif
 
       // see if we need to answer someone
-#ifndef SHARED_EVERYTHING
+#if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
       process_requests(hash_table, s);
 #endif
 
@@ -779,10 +779,10 @@ void *hash_table_server(void* args)
   nready--;
 
   while (nready != 0)
-#if SHARED_EVERYTHING
-    ;
-#else
+#if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
     process_requests(hash_table, s);
+#else
+    ;
 #endif
 
   printf("srv %d quitting \n", s);
