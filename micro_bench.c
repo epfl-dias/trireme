@@ -83,7 +83,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
       op->key = hash_table->keys[p->q_idx * s];
     } else {
-      uint64_t nrecs = hash_table->partitions[0].nrecs; 
+      uint64_t nrecs = p->nrecs; 
       
       // use alpha parameter as the probability
       if (alpha == 0) {
