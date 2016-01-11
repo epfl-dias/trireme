@@ -87,8 +87,21 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
       
       // use alpha parameter as the probability
       if (alpha == 0) {
-        op->key = nrecs * r;
-        op->key %= nrecs;
+
+        /* dist_threshold can be used to logically afinitize thread to data. 
+         * this will maximize cache utilization
+         */
+        if (dist_threshold == 1) {
+          // always pick within this server's key range
+          uint64_t nrecs_per_server = nrecs / nservers;
+          hash_key delta = nrecs_per_server * r;
+          op->key = s * nrecs_per_server + delta;
+
+        } else {
+          // just pick randomly
+          op->key = nrecs * r;
+          op->key %= nrecs;
+        }
       } else {
         /* generate key based on bernoulli dist. alpha is probability
          * #items in one range = 0 to (nrecs * hot_fraction)

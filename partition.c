@@ -46,7 +46,7 @@ void init_hash_partition(struct partition *p, size_t nrecs,
     assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
     for (i = 0; i < p->nhash; i++) {
       TAILQ_INIT(&(p->table[i].chain));
-#if SE_INDEX_LATCH
+#if SE_LATCH
       LATCH_INIT(&p->table[i].latch, p->nservers);
 #endif
     }
@@ -98,7 +98,7 @@ void hash_remove(struct partition *p, struct elem *e)
   int h = hash_get_bucket(p, e->key);
   struct bucket *b = &p->table[h];
 
-#if SE_INDEX_LATCH
+#if SE_LATCH
   LATCH_ACQUIRE(&b->latch, &alock_state);
 #endif
 
@@ -111,7 +111,7 @@ void hash_remove(struct partition *p, struct elem *e)
 
   dprint("Deleted %"PRId64"\n", e->key);
 
-#if SE_INDEX_LATCH
+#if SE_LATCH
   LATCH_RELEASE(&b->latch, &alock_state);
 #endif
 
@@ -123,7 +123,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   int h = hash_get_bucket(p, key);
   struct bucket *b = &p->table[h];
 
-#if SE_INDEX_LATCH
+#if SE_LATCH
   LATCH_ACQUIRE(&b->latch, &alock_state); 
 #endif
 
@@ -137,7 +137,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
     e = TAILQ_NEXT(e, chain);
   }
 
-#if SE_INDEX_LATCH
+#if SE_LATCH
   LATCH_RELEASE(&b->latch, &alock_state); 
 #endif
 
@@ -157,7 +157,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   assert (e == NULL || (key & ORDER_TID));
 #endif
 
-#if SE_INDEX_LATCH
+#if SE_LATCH
   LATCH_ACQUIRE(&b->latch, &alock_state); 
 #endif
 
@@ -185,7 +185,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 
   TAILQ_INSERT_TAIL(eh, e, chain);
 
-#if SE_INDEX_LATCH
+#if SE_LATCH
   LATCH_RELEASE(&b->latch, &alock_state); 
 #endif
   

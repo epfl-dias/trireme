@@ -61,7 +61,7 @@ struct elem {
 TAILQ_HEAD(elist, elem);
 
 struct bucket {
-#if SE_INDEX_LATCH
+#if SE_LATCH
   LATCH_T latch;
 #endif
   struct elist chain;

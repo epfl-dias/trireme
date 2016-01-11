@@ -1,5 +1,6 @@
 #include "headers.h"
 #include "smphashtable.h"
+#include "benchmark.h"
 
 #if 0
 enum lock_t {LOCK_EXCL, LOCK_SHRD, LOCK_NONE};
@@ -22,7 +23,8 @@ struct lock_item {
 #pragma message ("Using pthread mutex")
 #endif
 
-
+extern struct benchmark *g_benchmark;
+extern double write_threshold;
 
 int selock_nowait_acquire(struct elem *e, char optype)
 {
@@ -32,6 +34,7 @@ int selock_nowait_acquire(struct elem *e, char optype)
   int r = 0;
   int alock_state;
 
+#if SE_LATCH
   LATCH_ACQUIRE(&e->latch, &alock_state);
 
   /* if there are no conflicting locks, we set ref count to indicate 
@@ -49,6 +52,10 @@ int selock_nowait_acquire(struct elem *e, char optype)
   }
 
   LATCH_RELEASE(&e->latch, &alock_state);
+#else
+  assert(g_benchmark == &micro_bench && write_threshold == 1);
+  r = 1;
+#endif
 
   return r;
 }
@@ -58,11 +65,15 @@ void selock_nowait_release(struct elem *e)
   /* latch, reset ref count to free the logical lock, unlatch */
   int alock_state;
 
+#if SE_LATCH
   LATCH_ACQUIRE(&e->latch, &alock_state);
 
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 
   LATCH_RELEASE(&e->latch, &alock_state);
+#else
+  assert(g_benchmark == &micro_bench && write_threshold == 1);
+#endif
 }
 
 int selock_acquire(struct elem *e, char optype)

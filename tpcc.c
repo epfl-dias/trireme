@@ -1129,7 +1129,7 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg)
 
   // if we're running tpcc, se_index_latch better be enabled
 #if defined SHARED_EVERYTHING
-#ifndef SE_INDEX_LATCH
+#ifndef SE_LATCH
   printf("Can't run tpcc in shared everything mode without index latch\n");
   exit(1);
 #endif
