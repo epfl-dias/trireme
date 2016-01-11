@@ -40,7 +40,7 @@ typedef struct
 #define LATCH_T tlock_t
 #define LATCH_INIT(latch, nservers) tlock_init(latch)
 #define LATCH_ACQUIRE(latch, state) tlock_acquire(latch)
-#define LATCH_RELEASE(latch, state) tlock_unlock(latch)
+#define LATCH_RELEASE(latch, state) tlock_release(latch)
 #elif PTHREAD_SPINLOCK
 #define LATCH_T pthread_spinlock_t
 #define LATCH_INIT(latch, nservers) pthread_spin_init(latch, 0)

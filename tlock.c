@@ -9,7 +9,7 @@ void tlock_init(tlock_t *lock)
 
 void tlock_acquire(tlock_t *t)
 {
-  unsigned short me = __sync_fetch_and_add(&t->users, 1);
+  unsigned int me = __sync_fetch_and_add(&t->users, 1);
   
   while (t->ticket != me) _mm_pause();
 }
