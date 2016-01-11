@@ -1,5 +1,6 @@
 #include "headers.h"
 
+#if ANDERSON_LOCK
 void alock_init(alock_t *al, int nthread)
 {
   assert(al);
@@ -27,3 +28,4 @@ void alock_release(alock_t *lock, int *extra)
   int me = *extra;
   lock->has_lock[(me + 1) % lock->nthread].x = 1;
 }
+#endif

@@ -18,6 +18,8 @@
 
 #ifdef ANDERSON_LOCK
 #include "alock.h"
+#elif TICKET_LOCK
+#include "tlock.h"
 #endif
 
 #endif
