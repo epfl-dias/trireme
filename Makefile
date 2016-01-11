@@ -1,9 +1,9 @@
 ARCH   = INTEL64
 
 #optional DFLAGS: DEBUG, PRINT_PROGRESS, VERIFY_CONSISTENCY (for hash_insert) 
-# 								SHARED_EVERYTHING, SE_INDEX_LATCH, SHARED_NOTHING
+# 								SHARED_EVERYTHING, SE_INDEX_LATCH, ANDERSON_LOCK, SHARED_NOTHING
 DFLAGS =
-CFLAGS := -std=c99 -Wall -D_GNU_SOURCE -fms-extensions -g -O3 -fno-omit-frame-pointer -D$(ARCH) $(DFLAGS)
+CFLAGS := -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -fms-extensions -g -O3 -fno-omit-frame-pointer -D$(ARCH) $(DFLAGS)
 LFLAGS = -lpthread -lm -lrt -ltcmalloc
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 

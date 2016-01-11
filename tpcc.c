@@ -1,14 +1,7 @@
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <stdlib.h>
 #include <limits.h>
-#include <inttypes.h>
-#include "hashprotocol.h"
-#include "onewaybuffer.h"
-#include "partition.h"
+#include "headers.h"
 #include "smphashtable.h"
-#include "util.h"
+#include "partition.h"
 #include "benchmark.h"
 #include "tpcc.h"
 
@@ -669,7 +662,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
 
   for (i = 1; i <= hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) { 
-      pthread_spin_lock(&hash_table->partitions[i - 1].latch);
+      LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch);
     }
   }
 
@@ -886,7 +879,7 @@ final:
   assert (r == TXN_COMMIT);
   for (i = 1; i <= hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      pthread_spin_unlock(&hash_table->partitions[i - 1].latch);
+      LATCH_RELEASE(&hash_table->partitions[i - 1].latch);
     }
   }
 #else

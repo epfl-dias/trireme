@@ -4,11 +4,6 @@
 #include <stdint.h>
 
 /**
- * hash_key - Hash table key type
- */
-typedef uint64_t hash_key;
-
-/**
  * hash operations
  */
 enum optype {
@@ -37,7 +32,6 @@ struct hash_op {
  * @key: key to lookup or insert
  */
 struct hash_query {
-#define MAX_OPS_PER_QUERY 512
   struct hash_op ops[MAX_OPS_PER_QUERY];
   int nops;
 };

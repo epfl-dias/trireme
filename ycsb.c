@@ -1,17 +1,8 @@
-#include <assert.h>
-#include <malloc.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
 #include "ia32perf.h"
-#include "partition.h"
-#include "onewaybuffer.h"
-#include "smphashtable.h"
-#include "util.h"
+#include "headers.h"
 #include "benchmark.h"
+#include "hashprotocol.h"
+#include "smphashtable.h"
 
 #if defined(INTEL64)
   // Event Select values for Intel I7 core processor

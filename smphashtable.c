@@ -1,20 +1,11 @@
-#include <assert.h>
-#include <malloc.h>
-#include <math.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include <string.h>
-#include <sys/queue.h>
 #include <sys/sysinfo.h>
 
-#include "hashprotocol.h"
+#include "headers.h"
+#include "onewaybuffer.h"
 #include "partition.h"
 #include "smphashtable.h"
-#include "util.h"
 #include "benchmark.h"
 #include "tpcc.h"
-#include "selock.h"
 
 /** 
  * Hash Table Operations
@@ -223,7 +214,7 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       assert(e);
 
 #if SHARED_EVERYTHING
-      if (!selock_acquire(p, OPTYPE_LOOKUP, e)) {
+      if (!selock_acquire(e, OPTYPE_LOOKUP)) {
         p->naborts_local++;
         return NULL;
       }
@@ -261,7 +252,7 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       assert(e);
 
 #if SHARED_EVERYTHING
-      if (!selock_acquire(p, OPTYPE_UPDATE, e)) {
+      if (!selock_acquire(e, OPTYPE_UPDATE)) {
         p->naborts_local++;
         return NULL;
       }
@@ -911,10 +902,10 @@ int is_value_ready(struct elem *e)
 void mp_release_value_(struct partition *p, struct elem *e)
 {
 #if SHARED_EVERYTHING
-  selock_release(p, e);
+  selock_release(e);
 #else
-
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
+#endif
 
   dprint("srv(%ld): Releasing key %" PRIu64 " rc %" PRIu64 "\n", 
       p - hash_table->partitions, e->key,
@@ -924,7 +915,6 @@ void mp_release_value_(struct partition *p, struct elem *e)
     //printf("key %" PRIu64 " 0 rc\n", e->key);
     hash_remove(p, e);
   }
-#endif
 }
 
 void mp_send_release_msg_(struct hash_table *hash_table, int client_id, void *ptr, int force_flush)

@@ -1,14 +1,7 @@
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include "onewaybuffer.h"
+#include "headers.h"
 #include "partition.h"
 #include "smphashtable.h"
-#include "util.h"
 #include "benchmark.h"
-#include "tpcc.h"
 
 extern int ops_per_txn;
 extern int batch_size;
@@ -193,7 +186,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
 
   for (i = 0; i < hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      pthread_spin_lock(&hash_table->partitions[i].latch);
+      LATCH_ACQUIRE(&hash_table->partitions[i].latch);
     }
   }
 
@@ -247,7 +240,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
   assert (r == TXN_COMMIT);
   for (i = 0; i < hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      pthread_spin_unlock(&hash_table->partitions[i].latch);
+      LATCH_RELEASE(&hash_table->partitions[i].latch);
     }
   }
 #else

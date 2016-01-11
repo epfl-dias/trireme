@@ -5,20 +5,6 @@
 #include <stdint.h>
 #include <limits.h>
 
-#define FALSE 0
-#define TRUE 1
-
-#define CACHELINE   64 
-#define MAX_CLIENTS 128 // must be power of 2
-#define MAX_SERVERS 128 // must be power of 2
-
-#define TXN_COMMIT 0
-#define TXN_ABORT 1
-
-#define YCSB_NFIELDS 1
-#define YCSB_FIELD_SZ 8
-#define YCSB_REC_SZ (YCSB_NFIELDS * YCSB_FIELD_SZ)
-
 #ifdef DEBUG
 #define dprint(...) \
 {\

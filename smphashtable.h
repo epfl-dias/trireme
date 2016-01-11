@@ -2,55 +2,6 @@
 #define __SMPHASHTABLE_H_
 
 #include "hashprotocol.h"
-#include "util.h"
-#include "onewaybuffer.h"
-
-#define TXN_BATCH 1
-#define TXN_SINGLE 0
-
-#define DATA_READY_MASK 0x8000000000000000
-
-/**
- * Server/Client Message Passing Data Structures
- */
-struct box {
-  struct onewaybuffer in;
-  struct onewaybuffer out;
-}  __attribute__ ((aligned (CACHELINE)));
-
-struct box_array {
-  struct box *boxes;
-} __attribute__ ((aligned (CACHELINE)));
-
-struct thread_args {
-  int id;
-  int core;
-  struct hash_table *hash_table;
-};
-
-/*
- * Hash Table data structure
- */
-struct hash_table {
-  int nservers;
-  volatile int nclients;
-  size_t nrecs;
-
-  pthread_mutex_t create_client_lock;
-
-  volatile int quitting;
-  pthread_t *threads;
-  struct thread_args *thread_data;
-
-  struct partition *partitions;
-  struct partition *g_partition; /* used for item table */
-  struct box_array *boxes;
-  uint64_t *keys;
-
-  // stats
-  int track_cpu_usage;
-};
-
 
 /**
  * create_hash_table - Create new smp hash table

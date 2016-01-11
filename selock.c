@@ -1,8 +1,4 @@
-#include <sys/queue.h>
-#include <assert.h>
-
-#include "hashprotocol.h"
-#include "partition.h"
+#include "headers.h"
 #include "smphashtable.h"
 
 #if 0
@@ -18,15 +14,14 @@ struct lock_item {
 
 #if SHARED_EVERYTHING
 
-int selock_nowait_acquire(struct partition *p, char optype, 
-    struct elem *e)
+int selock_nowait_acquire(struct elem *e, char optype)
 {
   /* latch the record. check to see if it is a conflicting lock mode
    * if so, bad luck. we just fail
    */
   int r = 0;
 
-  pthread_spin_lock(&e->latch);
+  LATCH_ACQUIRE(&e->latch);
 
   /* if there are no conflicting locks, we set ref count to indicate 
    * lock type
@@ -42,33 +37,30 @@ int selock_nowait_acquire(struct partition *p, char optype,
     r = 1;
   }
 
-  pthread_spin_unlock(&e->latch);
+  LATCH_RELEASE(&e->latch);
 
   return r;
 }
 
-void selock_nowait_release(struct partition *p, struct elem *e)
+void selock_nowait_release(struct elem *e)
 {
   /* latch, reset ref count to free the logical lock, unlatch */
 
-  pthread_spin_lock(&e->latch);
+  LATCH_ACQUIRE(&e->latch);
 
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 
-  if (e->ref_count == 0)
-    hash_remove(p, e);
- 
-  pthread_spin_unlock(&e->latch);
+  LATCH_RELEASE(&e->latch);
 }
 
-int selock_acquire(struct partition *p, char optype, struct elem *e)
+int selock_acquire(struct elem *e, char optype)
 {
-  return selock_nowait_acquire(p, optype, e);
+  return selock_nowait_acquire(e, optype);
 }
 
-void selock_release(struct partition *p, struct elem *e)
+void selock_release(struct elem *e)
 {
-  return selock_nowait_release(p, e);
+  return selock_nowait_release(e);
 }
 
 #endif

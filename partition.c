@@ -1,17 +1,7 @@
-#include <assert.h>
-#include <malloc.h>
 #include <math.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h>
-#include <sys/queue.h>
 
-#include "hashprotocol.h"
+#include "headers.h"
 #include "partition.h"
-#include "util.h"
-#include "tpcc.h"
-#include "pthread.h"
 
 void init_hash_partition(struct partition *p, size_t nrecs, int nservers, 
     char alloc)
@@ -48,7 +38,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
   for (i = 0; i < MAX_SERVERS; i++)
     p->se_ready = STATE_READY;
 #elif SHARED_NOTHING
-  pthread_spin_init(&p->latch, 0);
+  LATCH_INIT(&p->latch, 0);
 #endif
 
   if (alloc) {
@@ -57,7 +47,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
     for (i = 0; i < p->nhash; i++) {
       TAILQ_INIT(&(p->table[i].chain));
 #if SE_INDEX_LATCH
-      pthread_spin_init(&(p->table[i].latch), 0);
+      LATCH_INIT(&(p->table[i].latch), 0);
 #endif
     }
   }
@@ -108,7 +98,7 @@ void hash_remove(struct partition *p, struct elem *e)
   struct bucket *b = &p->table[h];
 
 #if SE_INDEX_LATCH
-  pthread_spin_lock(&b->latch);
+  LATCH_ACQUIRE(&b->latch);
 #endif
 
   struct elist *eh = &b->chain;
@@ -121,7 +111,7 @@ void hash_remove(struct partition *p, struct elem *e)
   dprint("Deleted %"PRId64"\n", e->key);
 
 #if SE_INDEX_LATCH
-  pthread_spin_unlock(&b->latch);
+  LATCH_RELEASE(&b->latch);
 #endif
 
 }
@@ -132,7 +122,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   struct bucket *b = &p->table[h];
 
 #if SE_INDEX_LATCH
-  pthread_spin_lock(&b->latch); 
+  LATCH_ACQUIRE(&b->latch); 
 #endif
 
   struct elist *eh = &(b->chain);
@@ -146,7 +136,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   }
 
 #if SE_INDEX_LATCH
-  pthread_spin_unlock(&b->latch); 
+  LATCH_RELEASE(&b->latch); 
 #endif
 
   return e;
@@ -165,7 +155,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 #endif
 
 #if SE_INDEX_LATCH
-  pthread_spin_lock(&b->latch); 
+  LATCH_ACQUIRE(&b->latch); 
 #endif
 
   struct elist *eh = &b->chain;
@@ -175,7 +165,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   assert (e);
 
 #if SHARED_EVERYTHING
-  pthread_spin_init(&e->latch, 0);
+  LATCH_INIT(&e->latch, 0);
 #endif
 
   e->key = key;
@@ -193,7 +183,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   TAILQ_INSERT_TAIL(eh, e, chain);
 
 #if SE_INDEX_LATCH
-  pthread_spin_unlock(&b->latch); 
+  LATCH_RELEASE(&b->latch); 
 #endif
   
   return e;

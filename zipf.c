@@ -5,14 +5,7 @@
  *        Email: christen@csee.usf.edu
  */
 
-#include <assert.h>             // Needed for assert() macro
-#include <stdio.h>              // Needed for printf()
-#include <stdlib.h>             // Needed for exit() and ato*()
-#include <math.h>               // Needed for pow()
-#include <stdint.h>
-#include <inttypes.h>
-#include "util.h"
-
+#include "headers.h"
 
 static double *power_table = NULL;
 
