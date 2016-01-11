@@ -22,16 +22,21 @@ typedef struct {
   volatile int nthread;
 } __attribute__ ((aligned (CACHELINE))) alock_t;
 
-#ifdef ANDERSON_LOCK
+#if ANDERSON_LOCK
 #define LATCH_T alock_t
 #define LATCH_INIT alock_init
 #define LATCH_ACQUIRE alock_acquire
 #define LATCH_RELEASE alock_release
-#else
+#elif PTHREAD_SPINLOCK
 #define LATCH_T pthread_spinlock_t
 #define LATCH_INIT(latch, nservers) pthread_spin_init(latch, 0)
 #define LATCH_ACQUIRE(latch, state) pthread_spin_lock(latch)
 #define LATCH_RELEASE(latch, state)  pthread_spin_unlock(latch)
+#else
+#define LATCH_T pthread_mutex_t
+#define LATCH_INIT(latch, nservers) pthread_mutex_init(latch, NULL)
+#define LATCH_ACQUIRE(latch, state) pthread_mutex_lock(latch)
+#define LATCH_RELEASE(latch, state)  pthread_mutex_unlock(latch)
 #endif
 
 /**

@@ -14,6 +14,16 @@ struct lock_item {
 
 #if SHARED_EVERYTHING
 
+#if ANDERSON_LOCK
+#pragma message ("Using ALOCK")
+#elif PTHREAD_SPINLOCK
+#pragma message ("Using pthread spinlock")
+#else
+#pragma message ("Using pthread mutex")
+#endif
+
+
+
 int selock_nowait_acquire(struct elem *e, char optype)
 {
   /* latch the record. check to see if it is a conflicting lock mode
