@@ -20,8 +20,9 @@ int selock_nowait_acquire(struct elem *e, char optype)
    * if so, bad luck. we just fail
    */
   int r = 0;
+  int alock_state;
 
-  LATCH_ACQUIRE(&e->latch);
+  LATCH_ACQUIRE(&e->latch, &alock_state);
 
   /* if there are no conflicting locks, we set ref count to indicate 
    * lock type
@@ -37,7 +38,7 @@ int selock_nowait_acquire(struct elem *e, char optype)
     r = 1;
   }
 
-  LATCH_RELEASE(&e->latch);
+  LATCH_RELEASE(&e->latch, &alock_state);
 
   return r;
 }
@@ -45,12 +46,13 @@ int selock_nowait_acquire(struct elem *e, char optype)
 void selock_nowait_release(struct elem *e)
 {
   /* latch, reset ref count to free the logical lock, unlatch */
+  int alock_state;
 
-  LATCH_ACQUIRE(&e->latch);
+  LATCH_ACQUIRE(&e->latch, &alock_state);
 
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 
-  LATCH_RELEASE(&e->latch);
+  LATCH_RELEASE(&e->latch, &alock_state);
 }
 
 int selock_acquire(struct elem *e, char optype)

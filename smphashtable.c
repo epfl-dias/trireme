@@ -716,15 +716,17 @@ void *hash_table_server(void* args)
       "tx count: %d, per_txn_op cnt: %d\n", s, p->ninserts, p->size / 1024, 
       niters, ops_per_txn);
 
-  double avg;
-  double stddev;
-  stats_get_buckets(hash_table, s, &avg, &stddev);
-  printf("srv %d hash table occupancy avg %0.3f stddev %0.3f\n", s, avg, stddev);
- 
-  fflush(stdout);
+
+  //double avg;
+  //double stddev;
+  //stats_get_buckets(hash_table, s, &avg, &stddev);
+  //printf("srv %d hash table occupancy avg %0.3f stddev %0.3f\n", s, avg, stddev);
+  //fflush(stdout);
 
   pthread_mutex_lock(&hash_table->create_client_lock); 
+
   nready++;
+
   pthread_mutex_unlock(&hash_table->create_client_lock); 
 
   while (nready != hash_table->nservers) ;

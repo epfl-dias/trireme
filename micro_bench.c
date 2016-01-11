@@ -172,7 +172,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
    */
   
   char partitions[BITNSLOTS(MAX_SERVERS)];
-  int tserver;
+  int tserver, alock_state;
 
   memset(partitions, 0, sizeof(partitions));
 
@@ -186,7 +186,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
 
   for (i = 0; i < hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      LATCH_ACQUIRE(&hash_table->partitions[i].latch);
+      LATCH_ACQUIRE(&hash_table->partitions[i].latch, &alock_state);
     }
   }
 
@@ -240,7 +240,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
   assert (r == TXN_COMMIT);
   for (i = 0; i < hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      LATCH_RELEASE(&hash_table->partitions[i].latch);
+      LATCH_RELEASE(&hash_table->partitions[i].latch, &alock_state);
     }
   }
 #else

@@ -3,8 +3,8 @@
 #include "headers.h"
 #include "partition.h"
 
-void init_hash_partition(struct partition *p, size_t nrecs, int nservers, 
-    char alloc)
+void init_hash_partition(struct partition *p, size_t nrecs, 
+    int nservers, char alloc)
 {
   int i;
 
@@ -38,7 +38,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
   for (i = 0; i < MAX_SERVERS; i++)
     p->se_ready = STATE_READY;
 #elif SHARED_NOTHING
-  LATCH_INIT(&p->latch, 0);
+  LATCH_INIT(&p->latch, p->nservers);
 #endif
 
   if (alloc) {
@@ -47,7 +47,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, int nservers,
     for (i = 0; i < p->nhash; i++) {
       TAILQ_INIT(&(p->table[i].chain));
 #if SE_INDEX_LATCH
-      LATCH_INIT(&(p->table[i].latch), 0);
+      LATCH_INIT(&p->table[i].latch, p->nservers);
 #endif
     }
   }
@@ -94,11 +94,12 @@ int hash_get_bucket(const struct partition *p, hash_key key)
 
 void hash_remove(struct partition *p, struct elem *e)
 {
+  int alock_state;
   int h = hash_get_bucket(p, e->key);
   struct bucket *b = &p->table[h];
 
 #if SE_INDEX_LATCH
-  LATCH_ACQUIRE(&b->latch);
+  LATCH_ACQUIRE(&b->latch, &alock_state);
 #endif
 
   struct elist *eh = &b->chain;
@@ -111,18 +112,19 @@ void hash_remove(struct partition *p, struct elem *e)
   dprint("Deleted %"PRId64"\n", e->key);
 
 #if SE_INDEX_LATCH
-  LATCH_RELEASE(&b->latch);
+  LATCH_RELEASE(&b->latch, &alock_state);
 #endif
 
 }
 
 struct elem * hash_lookup(struct partition *p, hash_key key)
 {
+  int alock_state;
   int h = hash_get_bucket(p, key);
   struct bucket *b = &p->table[h];
 
 #if SE_INDEX_LATCH
-  LATCH_ACQUIRE(&b->latch); 
+  LATCH_ACQUIRE(&b->latch, &alock_state); 
 #endif
 
   struct elist *eh = &(b->chain);
@@ -136,7 +138,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   }
 
 #if SE_INDEX_LATCH
-  LATCH_RELEASE(&b->latch); 
+  LATCH_RELEASE(&b->latch, &alock_state); 
 #endif
 
   return e;
@@ -148,6 +150,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   int h = hash_get_bucket(p, key);
   struct bucket *b = &p->table[h];
   struct elem *e;
+  int alock_state;
  
 #if VERIFY_CONSISTENCY
   e = hash_lookup(p, key);
@@ -155,7 +158,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 #endif
 
 #if SE_INDEX_LATCH
-  LATCH_ACQUIRE(&b->latch); 
+  LATCH_ACQUIRE(&b->latch, &alock_state); 
 #endif
 
   struct elist *eh = &b->chain;
@@ -165,7 +168,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   assert (e);
 
 #if SHARED_EVERYTHING
-  LATCH_INIT(&e->latch, 0);
+  LATCH_INIT(&e->latch, p->nservers);
 #endif
 
   e->key = key;
@@ -183,7 +186,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   TAILQ_INSERT_TAIL(eh, e, chain);
 
 #if SE_INDEX_LATCH
-  LATCH_RELEASE(&b->latch); 
+  LATCH_RELEASE(&b->latch, &alock_state); 
 #endif
   
   return e;

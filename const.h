@@ -13,7 +13,9 @@
 
 #define CACHELINE   64 
 #define MAX_CLIENTS 128 // must be power of 2
+#ifndef MAX_SERVERS
 #define MAX_SERVERS 128 // must be power of 2
+#endif
 
 #define YCSB_NFIELDS 1
 #define YCSB_FIELD_SZ 8

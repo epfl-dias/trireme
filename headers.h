@@ -16,5 +16,9 @@
 #include "type.h"
 #include "util.h"
 
+#ifdef ANDERSON_LOCK
+#include "alock.h"
+#endif
+
 #endif
 

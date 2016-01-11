@@ -10,12 +10,28 @@
 typedef uint64_t hash_key;
 
 /* lock type used to implement latching */
+
+// anderson lock
+struct myalock {
+  volatile int x;
+} __attribute__ ((aligned (CACHELINE)));
+
+typedef struct {
+  volatile struct myalock has_lock[MAX_SERVERS] __attribute__ ((aligned (CACHELINE)));
+  volatile int next_slot;
+  volatile int nthread;
+} __attribute__ ((aligned (CACHELINE))) alock_t;
+
 #ifdef ANDERSON_LOCK
+#define LATCH_T alock_t
+#define LATCH_INIT alock_init
+#define LATCH_ACQUIRE alock_acquire
+#define LATCH_RELEASE alock_release
 #else
 #define LATCH_T pthread_spinlock_t
-#define LATCH_INIT pthread_spin_init
-#define LATCH_ACQUIRE pthread_spin_lock
-#define LATCH_RELEASE pthread_spin_unlock
+#define LATCH_INIT(latch, nservers) pthread_spin_init(latch, 0)
+#define LATCH_ACQUIRE(latch, state) pthread_spin_lock(latch)
+#define LATCH_RELEASE(latch, state)  pthread_spin_unlock(latch)
 #endif
 
 /**

@@ -649,7 +649,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
 #if SHARED_NOTHING
   /* we have to acquire all partition locks in warehouse order.  */
   char partitions[BITNSLOTS(MAX_SERVERS)];
-  int i;
+  int i, alock_state;
 
   memset(partitions, 0, sizeof(partitions));
   BITSET(partitions, w_id);
@@ -662,7 +662,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
 
   for (i = 1; i <= hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) { 
-      LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch);
+      LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
     }
   }
 
@@ -879,7 +879,7 @@ final:
   assert (r == TXN_COMMIT);
   for (i = 1; i <= hash_table->nservers; i++) {
     if (BITTEST(partitions, i)) {
-      LATCH_RELEASE(&hash_table->partitions[i - 1].latch);
+      LATCH_RELEASE(&hash_table->partitions[i - 1].latch, &alock_state);
     }
   }
 #else
