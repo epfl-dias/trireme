@@ -182,25 +182,37 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
 #if SHARED_NOTHING
   /* we have to acquire all partition locks in partition order. This protocol
    * is similar to the partitioned store design used in silo. 
+   * We do this only if we know there are remote transactions
    */
   
-  char partitions[BITNSLOTS(MAX_SERVERS)];
-  int tserver, alock_state;
+  int tserver, alock_state, partitions[MAX_SERVERS], npartitions;
+  char bits[BITNSLOTS(MAX_SERVERS)], nbits;
 
-  memset(partitions, 0, sizeof(partitions));
+  memset(bits, 0, sizeof(bits));
+  npartitions = nbits = 0;
 
   for (i = 0; i < query->nops; i++) {
     tserver = micro_hash_get_server(hash_table, query->ops[i].key);
-    BITSET(partitions, tserver);
+    if (BITTEST(bits, tserver)) {
+      ;
+    } else {
+      BITSET(bits, tserver);
+      nbits++;
+    }
 
     if (tserver != s)
       hash_table->partitions[s].nlookups_remote++;
   }
 
   for (i = 0; i < hash_table->nservers; i++) {
-    if (BITTEST(partitions, i)) {
+    if (BITTEST(bits, i)) {
       LATCH_ACQUIRE(&hash_table->partitions[i].latch, &alock_state);
+      partitions[npartitions++] = i;
+      nbits--;
     }
+
+    if (nbits == 0)
+      break;
   }
 
 #endif
@@ -251,10 +263,11 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
    */
 
   assert (r == TXN_COMMIT);
-  for (i = 0; i < hash_table->nservers; i++) {
-    if (BITTEST(partitions, i)) {
-      LATCH_RELEASE(&hash_table->partitions[i].latch, &alock_state);
-    }
+
+  for (i = 0; i < npartitions; i++) {
+    int t = partitions[i];
+    assert (BITTEST(bits, t)); 
+    LATCH_RELEASE(&hash_table->partitions[t].latch, &alock_state);
   }
 #else
 

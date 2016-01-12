@@ -46,6 +46,11 @@ static inline void _mm_pause()
   __asm __volatile("pause");
 }
 
+static inline void barrier()
+{
+  __asm __volatile("": : :"memory");
+}
+
 static inline uint64_t __attribute__((always_inline))
 read_tsc(void)
 {
