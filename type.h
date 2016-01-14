@@ -33,8 +33,8 @@ typedef struct {
 
 typedef struct
 {
-  unsigned short ticket;
-  unsigned short users;
+  volatile unsigned short ticket;
+  volatile unsigned short users;
 } tlock_t;
 
 #define LATCH_T tlock_t

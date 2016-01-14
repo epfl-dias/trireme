@@ -177,7 +177,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   struct elist *eh = &b->chain;
 
   // try to allocate space for new value
-  e = (struct elem *) malloc(sizeof(struct elem));
+  e = (struct elem *) memalign(CACHELINE, sizeof(struct elem));
   assert (e);
 
 #if SHARED_EVERYTHING

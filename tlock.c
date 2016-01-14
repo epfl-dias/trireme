@@ -16,7 +16,7 @@ void tlock_acquire(tlock_t *t)
 
 void tlock_release(tlock_t *t)
 {
-  barrier();
+  __sync_synchronize();
   t->ticket++;
 }
 
