@@ -138,8 +138,8 @@ int main(int argc, char *argv[])
   }
 
   // set benchmark to micro for now
-  //g_benchmark = &tpcc_bench;
-  g_benchmark = &micro_bench;
+  g_benchmark = &tpcc_bench;
+  //g_benchmark = &micro_bench;
   run_benchmark();
   return 0;
 }
@@ -310,10 +310,12 @@ void run_benchmark()
   printf("== results ==\n");
   printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
   //printf(" Lookup hit rate: %.3f\n", (double)stats_get_nhits(hash_table) / stats_get_nlookups(hash_table));
+#if GATHER_STATS
   stats_get_nlookups(hash_table);
   stats_get_ninserts(hash_table);
   stats_get_nupdates(hash_table);
   stats_get_naborts(hash_table);
+#endif
  
   destroy_hash_table(hash_table);
 }

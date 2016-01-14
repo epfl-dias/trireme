@@ -200,8 +200,10 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
       nbits++;
     }
 
+#if GATHER_STATS
     if (tserver != s)
       hash_table->partitions[s].nlookups_remote++;
+#endif
   }
 
   for (i = 0; i < hash_table->nservers; i++) {

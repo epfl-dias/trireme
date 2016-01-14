@@ -11,7 +11,7 @@
 #define TXN_COMMIT 0
 #define TXN_ABORT 1
 
-#define CACHELINE   64 
+#define CACHELINE 64 
 #define MAX_CLIENTS 128 // must be power of 2
 #ifndef MAX_SERVERS
 #define MAX_SERVERS 128 // must be power of 2
@@ -26,5 +26,7 @@
 #define BUFFER_FLUSH_COUNT  8
 
 #define MAX_OPS_PER_QUERY 512
+
+#define MAX_TUPLE_TYPES 32
 
 #endif

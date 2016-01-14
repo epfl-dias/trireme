@@ -2,6 +2,8 @@
 
 #include "headers.h"
 #include "partition.h"
+#include "tpcc.h"
+#include "plmalloc.h"
 
 void init_hash_partition(struct partition *p, size_t nrecs, 
     int nservers, char alloc)
@@ -51,12 +53,16 @@ void init_hash_partition(struct partition *p, size_t nrecs,
 #endif
     }
   }
+
+  /* initialize partition-local heap */
+  plmalloc_init(p);
 }
 
-size_t destroy_hash_partition(struct partition *p, release_value_f *release)
+size_t destroy_hash_partition(struct partition *p)
 {
   int i;
   size_t dbg_p_size = 0;
+  size_t act_p_size = p->size;
 
   for (i = 0; i < p->nhash; i++) {
     struct elist *eh = &p->table[i].chain;
@@ -64,10 +70,14 @@ size_t destroy_hash_partition(struct partition *p, release_value_f *release)
     while (e != NULL) {
       struct elem *next = TAILQ_NEXT(e, chain);
       dbg_p_size += sizeof(struct elem) + e->size;
-      release(e);
+      //release(e);
+      hash_remove(p, e);
       e = next;
     }
   }
+
+  /* free the heap */
+  plmalloc_destroy(p);
 
 #if SHARED_EVERYTHING
   /* in shared everything config, every thread uses its own partition
@@ -76,7 +86,7 @@ size_t destroy_hash_partition(struct partition *p, release_value_f *release)
    * one partition if we have > 1 server
    */
 #else
-  assert(p->size == dbg_p_size);
+  assert(p->size == 0 && act_p_size == dbg_p_size);
 #endif
 
   free(p->table);
@@ -106,7 +116,10 @@ void hash_remove(struct partition *p, struct elem *e)
   p->size -= (sizeof(struct elem) + e->size);
   assert(p->size >= 0);
   TAILQ_REMOVE(eh, e, chain);
-  free(e->value);
+
+  if (e->value != (char *)e->local_values) {
+    free(e->value);
+  }
   free(e);
 
   dprint("Deleted %"PRId64"\n", e->key);
@@ -151,7 +164,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   struct bucket *b = &p->table[h];
   struct elem *e;
   int alock_state;
- 
+
 #if VERIFY_CONSISTENCY
   e = hash_lookup(p, key);
   assert (e == NULL || (key & ORDER_TID));
@@ -164,7 +177,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   struct elist *eh = &b->chain;
 
   // try to allocate space for new value
-  e = (struct elem *)memalign(CACHELINE, sizeof(struct elem));
+  e = (struct elem *) malloc(sizeof(struct elem));
   assert (e);
 
 #if SHARED_EVERYTHING
@@ -174,10 +187,11 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   e->key = key;
 
   // if size fits locally, store locally. Else alloc
-  if (size < sizeof(e->local_values)) 
+  if (size < sizeof(e->local_values)) {
     e->value = (char *)e->local_values;
-  else
+  } else {
     e->value = malloc(size);
+  }
   assert(e->value);
 
   e->size = size;

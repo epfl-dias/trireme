@@ -6,6 +6,7 @@
 #include "smphashtable.h"
 #include "benchmark.h"
 #include "tpcc.h"
+#include "plmalloc.h"
 
 /** 
  * Hash Table Operations
@@ -32,7 +33,6 @@ extern struct hash_table *hash_table;
 void *hash_table_server(void* args);
 int is_value_ready(struct elem *e);
 void mp_release_value_(struct partition *p, struct elem *e);
-void atomic_release_value_(struct elem *e);
 void process_requests(struct hash_table *hash_table, int s);
 
 struct hash_table *create_hash_table(size_t nrecs, int nservers)
@@ -100,8 +100,7 @@ void destroy_hash_table(struct hash_table *hash_table)
 #endif
 
   for (i = 0; i < hash_table->nservers; i++) {
-    dbg_psize = destroy_hash_partition(&hash_table->partitions[i], 
-        atomic_release_value_);
+    dbg_psize = destroy_hash_partition(&hash_table->partitions[i]);
 
 #if SHARED_EVERYTHING
     /* we need to destory buckets for first partition only in case of se */
@@ -240,8 +239,10 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
    	    e->ref_count++;
 #endif
 
+#if GATHER_STATS
       p->nlookups_local++;
       p->nhits++;
+#endif
       break;
 
     case OPTYPE_UPDATE:
@@ -276,8 +277,11 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       e->ref_count = DATA_READY_MASK | 2; 
 #endif
 
+#if GATHER_STATS
       p->nupdates_local++;
+#endif
       break;
+
     default:
       assert(0);
       break;
@@ -335,10 +339,11 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
     octx->is_local = is_local;
 
     if (op->optype == OPTYPE_UPDATE) {
-      octx->old_value = memalign(CACHELINE, e->size);
-      assert(octx->old_value);
+      //octx->old_value = memalign(CACHELINE, e->size);
+      struct mem_tuple *m = plmalloc_alloc(p, e->size);
+      octx->old_value = m;
 
-      memcpy(octx->old_value, e->value, e->size);
+      //memcpy(m->data, e->value, e->size);
     } else {
       octx->old_value = NULL;
     }
@@ -391,13 +396,17 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
         assert((octx->e->key & TID_MASK) != ITEM_TID);
 
         if (mode == TXN_SINGLE) {
+          assert(octx->old_value);
+
+          size_t size = octx->e->size;
+
           // if this is a single txn that must be aborted, rollback
           if (status == TXN_ABORT) {
-            memcpy(octx->e->value, octx->old_value, octx->e->size);
+            struct mem_tuple *m = octx->old_value;
+            //memcpy(octx->e->value, m->data, size);
           }
 
-          assert(octx->old_value);
-          free(octx->old_value);
+          plmalloc_free(&hash_table->partitions[s], octx->old_value, size);
         }
 
         if (octx->is_local)
@@ -618,7 +627,9 @@ void process_requests(struct hash_table *hash_table, int s)
           }
         case HASHOP_INSERT:
           {
+#if GATHER_STATS
             p->ninserts++;
+#endif
             e[j] = hash_insert(p, localbuf[k] & (~HASHOP_MASK), 
               localbuf[k + 1], NULL);
 
@@ -855,12 +866,16 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
       case OPTYPE_LOOKUP:
         msg_data = (uint64_t)queries[i]->key | HASHOP_LOOKUP;
         buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
+#if GATHER_STATS
         hash_table->partitions[client_id].nlookups_remote++;
+#endif
         break;
       case OPTYPE_UPDATE:
         msg_data = (uint64_t)queries[i]->key | HASHOP_UPDATE;
         buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
+#if GATHER_STATS
         hash_table->partitions[client_id].nupdates_remote++;
+#endif
         break;
       default:
         assert(0);
@@ -942,32 +957,6 @@ void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr)
 #else
   mp_send_release_msg_(hash_table, client_id, ptr, 1 /* force_flush */);
 #endif
-}
-
-void atomic_release_value_(struct elem *e)
-{
-  uint64_t ref_count = __sync_sub_and_fetch(&(e->ref_count), 1);
-  if (ref_count == 0) {
-    if (e->value != (char *)e->local_values)
-      free(e->value);
-
-    free(e);
-  }
-}
-
-void atomic_release_value(void *ptr)
-{
-  struct elem *e = (struct elem *)(ptr - sizeof(struct elem));
-  atomic_release_value_(e);
-}
-
-void atomic_mark_ready(void *ptr)
-{
-  struct elem *e = (struct elem *)(ptr - sizeof(struct elem));
-  uint64_t ref_count = __sync_and_and_fetch(&(e->ref_count), (~DATA_READY_MASK));
-  if (ref_count == 0) {
-    free(e);
-  }
 }
 
 /**

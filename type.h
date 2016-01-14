@@ -53,6 +53,32 @@ typedef struct
 #define LATCH_RELEASE(latch, state)  pthread_mutex_unlock(latch)
 #endif
 
+/* plmalloc dses 
+ * Each partition, and hence each thread has a dedicated heap. Each heap
+ * contains an array of buckets. Each bucket is a linked list, one list per 
+ * tuple type. The max #tuple-types we have is 10 for TPCC. For microbench it is
+ * just 1. Each list links mem_tuple elements. Each mem_tuple
+ * 
+ */
+
+struct mem_tuple {
+  char *data;
+  LIST_ENTRY(mem_tuple) next;
+} __attribute__ ((aligned (CACHELINE)));
+
+LIST_HEAD(tlist, mem_tuple);
+
+struct mem_bucket {
+  size_t tsize; // size of tuples stored in this bucket
+  struct tlist list;
+};
+
+struct mem_heap {
+  int nslabs;
+  int npreallocs;
+  struct mem_bucket slab[MAX_TUPLE_TYPES];
+} __attribute__ ((aligned (CACHELINE)));
+
 /**
  * Hash Table Storage Data Structures
  * struct elem       - element in table
@@ -107,6 +133,16 @@ struct partition {
   size_t size;
   struct bucket *table;
 
+  // stats
+  int nhits;
+  int ninserts;
+  int nlookups_local;
+  int nupdates_local;
+  int naborts_local;
+  int nlookups_remote;
+  int nupdates_remote;
+  int naborts_remote;
+
   struct txn_ctx txn_ctx;
   unsigned int seed;
   uint64_t q_idx;
@@ -121,21 +157,13 @@ struct partition {
   LATCH_T latch;
 #endif
 
-  // stats
-  int nhits;
-  int ninserts;
-  int nlookups_local;
-  int nupdates_local;
-  int naborts_local;
-
-  int nlookups_remote;
-  int nupdates_remote;
-  int naborts_remote;
-
   uint64_t tps;
 
   uint64_t busyclock;
   uint64_t idleclock;
+
+  // partition-local heap
+  struct mem_heap heap;
 
 } __attribute__ ((aligned (CACHELINE)));
 
