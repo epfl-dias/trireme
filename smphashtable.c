@@ -774,7 +774,8 @@ void *hash_table_server(void* args)
 
       // see if we need to answer someone
 #if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
-      process_requests(hash_table, s);
+      if (i % REMOTE_SERVICE_THRESHOLD == 0)
+        process_requests(hash_table, s);
 #endif
 
       if (r == TXN_ABORT)

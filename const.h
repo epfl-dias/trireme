@@ -29,4 +29,6 @@
 
 #define MAX_TUPLE_TYPES 32
 
+#define REMOTE_SERVICE_THRESHOLD 10
+
 #endif
