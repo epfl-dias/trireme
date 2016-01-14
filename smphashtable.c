@@ -332,6 +332,11 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
     assert(value);
   }
 
+#if SHARED_NOTHING
+  /* in shared nothing case, aborts are impossible. So don't bother
+   * making copies of data as we wont need it
+   */
+#else
   if (value) {
     struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
     octx->optype = op->optype;
@@ -343,13 +348,14 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
       struct mem_tuple *m = plmalloc_alloc(p, e->size);
       octx->old_value = m;
 
-      //memcpy(m->data, e->value, e->size);
+      memcpy(m->data, e->value, e->size);
     } else {
       octx->old_value = NULL;
     }
 
     ctx->nops++;
   }
+#endif
 
   return value;
 }
@@ -403,7 +409,7 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
           // if this is a single txn that must be aborted, rollback
           if (status == TXN_ABORT) {
             struct mem_tuple *m = octx->old_value;
-            //memcpy(octx->e->value, m->data, size);
+            memcpy(octx->e->value, m->data, size);
           }
 
           plmalloc_free(&hash_table->partitions[s], octx->old_value, size);
@@ -440,6 +446,9 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
 
 void txn_abort(struct hash_table *hash_table, int s, int mode)
 {
+#if SHARED_NOTHING
+  assert(0);
+#endif
   return txn_finish(hash_table, s, TXN_ABORT, mode);
 }
 
