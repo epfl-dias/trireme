@@ -1,5 +1,7 @@
  /* 
   * Partition Local Malloc (PLMALLOC)
+  * Memory for struct elems is managed independently of memory for records as
+  * struct elems are small and it is a waste to wrap them with mem_tuples.
   */
 
 #include "headers.h"

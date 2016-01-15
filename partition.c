@@ -15,11 +15,11 @@ void init_hash_partition(struct partition *p, size_t nrecs,
   p->nrecs = nrecs;
   p->size = 0;
 
-  // below is a trick to make GCD of p->nhash and nservers equal to 1
-  // it can be proved that if GCD of nhash and nservers is 1 then, hash_get_server and
-  // hash_get_bucket will be unbiased when input is random
-  // assume each bucket on avg holds 2 elements
-  p->nhash = ceil((double)max(10.0, nrecs / 2) / nservers) * nservers - 1;
+  /* XXX: For now, we set #buckets = #recs. This is done to reduce the shared 
+   * everything case's index latching overhead. Later, we need to implement a
+   * proper hashtable.
+   */
+  p->nhash = nrecs;
 
   p->q_idx = 0;
   p->nhits = 0;
