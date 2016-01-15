@@ -11,7 +11,7 @@ ARCH   = INTEL64
 # compile trireme with nothing
 DFLAGS =
 CFLAGS := -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -fms-extensions -g -ggdb -O3 -fno-omit-frame-pointer -D$(ARCH) $(DFLAGS)
-LFLAGS = -lpthread -lm -lrt -ltcmalloc 
+LFLAGS = -lpthread -lm -lrt #-ltcmalloc 
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
 LIBSRC =  ycsb.c smphashtable.c onewaybuffer.c \

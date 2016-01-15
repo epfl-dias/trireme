@@ -118,9 +118,10 @@ void hash_remove(struct partition *p, struct elem *e)
   TAILQ_REMOVE(eh, e, chain);
 
   if (e->value != (char *)e->local_values) {
-    free(e->value);
+    //free(e->value);
+    plmalloc_free(p, e->value, e->size);
   }
-  free(e);
+  plmalloc_efree(p, e);
 
   dprint("Deleted %"PRId64"\n", e->key);
 
@@ -177,7 +178,8 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   struct elist *eh = &b->chain;
 
   // try to allocate space for new value
-  e = (struct elem *) memalign(CACHELINE, sizeof(struct elem));
+  //e = (struct elem *) memalign(CACHELINE, sizeof(struct elem));
+  e = plmalloc_ealloc(p);
   assert (e);
 
 #if SHARED_EVERYTHING
@@ -190,7 +192,8 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   if (size < sizeof(e->local_values)) {
     e->value = (char *)e->local_values;
   } else {
-    e->value = malloc(size);
+    //e->value = malloc(size);
+    e->value = plmalloc_alloc(p, size);
   }
   assert(e->value);
 

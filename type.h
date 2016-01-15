@@ -53,38 +53,7 @@ typedef struct
 #define LATCH_RELEASE(latch, state)  pthread_mutex_unlock(latch)
 #endif
 
-/* plmalloc dses 
- * Each partition, and hence each thread has a dedicated heap. Each heap
- * contains an array of buckets. Each bucket is a linked list, one list per 
- * tuple type. The max #tuple-types we have is 10 for TPCC. For microbench it is
- * just 1. Each list links mem_tuple elements. Each mem_tuple
- * 
- */
-
-struct mem_tuple {
-  char *data;
-  LIST_ENTRY(mem_tuple) next;
-} __attribute__ ((aligned (CACHELINE)));
-
-LIST_HEAD(tlist, mem_tuple);
-
-struct mem_bucket {
-  size_t tsize; // size of tuples stored in this bucket
-  struct tlist list;
-};
-
-struct mem_heap {
-  int nslabs;
-  int npreallocs;
-  struct mem_bucket slab[MAX_TUPLE_TYPES];
-} __attribute__ ((aligned (CACHELINE)));
-
-/**
- * Hash Table Storage Data Structures
- * struct elem       - element in table
- * struct bucket     - a bucket in a partition
- * struct partition  - hash table partition for server
- */
+/* base elem used to represent a tuple */
 struct elem {
   // size must be 64 bytes
   hash_key key;
@@ -100,6 +69,43 @@ struct elem {
 
 TAILQ_HEAD(elist, elem);
 
+/* plmalloc dses 
+ * Each partition, and hence each thread has a dedicated heap. Each heap
+ * contains an array of buckets. Each bucket is a linked list, one list per 
+ * tuple type. The max #tuple-types we have is 10 for TPCC. For microbench it is
+ * just 1. Each list links mem_tuple elements. Each mem_tuple
+ *
+ * We separate out storage of tuple data from space for storing elem structs
+ * as 1) elem structs are small and it is a waste of space to use an 
+ * additional mem_tuple metadata structure to wrap each elem struct, and
+ * 2) elem structs are cache aligned
+ * 
+ */
+struct mem_tuple {
+  char *data;
+  LIST_ENTRY(mem_tuple) next;
+} __attribute__ ((aligned (CACHELINE)));
+
+LIST_HEAD(tlist, mem_tuple);
+
+struct mem_bucket {
+  size_t tsize; // size of tuples stored in this bucket
+  int prealloc_cnt;
+  struct tlist list;
+};
+
+struct mem_heap {
+  int nslabs;
+  struct tlist base_ptrs;
+  struct elist efree_list; /* to hold elem structs */
+  struct mem_bucket slab[MAX_TUPLE_TYPES]; /* to hold actual tuples */
+} __attribute__ ((aligned (CACHELINE)));
+
+/**
+ * Hash Table Storage Data Structures
+ * struct bucket     - a bucket in a partition
+ * struct partition  - hash table partition for server
+ */
 struct bucket {
 #if SE_LATCH
   LATCH_T latch;

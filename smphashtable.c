@@ -93,23 +93,22 @@ void destroy_hash_table(struct hash_table *hash_table)
   act_psize = 0;
 
 #if SHARED_EVERYTHING
+  /* call destroy partition on first partition only for shared everything case
+   * In shared nothing and trireme, partition destruction happens in each 
+   * thread.
+   */
   for (i = 0; i < hash_table->nservers; i++) {
     act_psize += hash_table->partitions[i].size;
   }
 
+  dbg_psize = destroy_hash_partition(&hash_table->partitions[i]);
+  assert(act_psize == dbg_psize);
+
 #endif
 
-  for (i = 0; i < hash_table->nservers; i++) {
-    dbg_psize = destroy_hash_partition(&hash_table->partitions[i]);
-
-#if SHARED_EVERYTHING
-    /* we need to destory buckets for first partition only in case of se */
-    assert(act_psize == dbg_psize);
-    break;
-#endif
-
-  }
+  /* XXX: What about the global partition? */
   //destroy_hash_partition(&hash_table->g_partition, atomic_release_value_);
+
   free(hash_table->partitions);
   free(hash_table->g_partition);
 
@@ -128,7 +127,9 @@ void start_hash_table_servers(struct hash_table *hash_table, int first_core)
   int r;
   void *value;
   hash_table->quitting = 0;
-  int ncpus, coreid = 0;
+  int ncpus, coreid, ncores, socketid;
+
+  ncores = coreid = socketid = 0;
 
   ncpus = get_nprocs_conf() / 2;
   assert(ncpus >= hash_table->nservers);
@@ -143,9 +144,11 @@ void start_hash_table_servers(struct hash_table *hash_table, int first_core)
     r = pthread_create(&hash_table->threads[i], NULL, hash_table_server, (void *) (&hash_table->thread_data[i]));
     assert(r == 0);
 
-    coreid += 2;
-    if (coreid == ncpus) {
-      coreid = 1;
+    coreid += 4;
+    ncores++;
+    if (ncores == 18) {
+      ncores = 0;
+      coreid = ++socketid;
     }
   }
 
@@ -345,10 +348,11 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
 
     if (op->optype == OPTYPE_UPDATE) {
       //octx->old_value = memalign(CACHELINE, e->size);
-      struct mem_tuple *m = plmalloc_alloc(p, e->size);
-      octx->old_value = m;
-
-      memcpy(m->data, e->value, e->size);
+      //struct mem_tuple *m = plmalloc_alloc(p, e->size);
+      //octx->old_value = m;
+      //memcpy(m->data, e->value, e->size);
+      octx->old_value = plmalloc_alloc(p, e->size);
+      memcpy(octx->old_value, e->value, e->size);
     } else {
       octx->old_value = NULL;
     }
@@ -408,8 +412,9 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
 
           // if this is a single txn that must be aborted, rollback
           if (status == TXN_ABORT) {
-            struct mem_tuple *m = octx->old_value;
-            memcpy(octx->e->value, m->data, size);
+            //struct mem_tuple *m = octx->old_value;
+            //memcpy(octx->e->value, m->data, size);
+            memcpy(octx->e->value, octx->old_value, size);
           }
 
           plmalloc_free(&hash_table->partitions[s], octx->old_value, size);
@@ -811,6 +816,16 @@ void *hash_table_server(void* args)
 
   if (g_benchmark->verify_txn)
     g_benchmark->verify_txn(hash_table, s);
+
+  // destory out dses
+#if !defined (SHARED_EVERYTHING)
+  /* in shared nothing and trireme case, we can safely delete
+   * the partition now as no one else will be directly accessing
+   * data from the partition. In shared everything case, some other
+   * thread might still be doing verification. So we don't destroy now.
+   */
+  destroy_hash_partition(p);
+#endif
 
  #if 0
   // stay running until someone else needs us
