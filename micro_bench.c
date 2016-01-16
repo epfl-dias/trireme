@@ -160,7 +160,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
         // hot data
         delta = last_hot_rec * r;
         tserver = nhot_servers * r;
-        while (tserver == s) {
+        while (!is_local && tserver == s) {
           r = ((double)rand_r(&p->seed) / RAND_MAX);
           tserver = nhot_servers * r;
         }
@@ -168,7 +168,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
         // cold data
         delta = (p->nrecs - last_hot_rec) * r + last_hot_rec;
         tserver = ((hash_key) (nservers * r)) % nservers;
-        while (tserver == s) {
+        while (!is_local && tserver == s) {
           r = ((double)rand_r(&p->seed) / RAND_MAX);
           tserver = ((hash_key) (nservers * r)) % nservers;
         }
@@ -180,10 +180,10 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 #if ENABLE_SOCKET_LOCAL_TXN
       // hacked to be specific to diascld33
       int rem = hash_table->thread_data[s].core % 4;
-      while (tserver == s || 
+      while (!is_local && tserver == s || 
           ((hash_table->thread_data[tserver].core % 4) != rem)) {
 #else
-      while (tserver == s) {
+      while (!is_local && tserver == s) {
 #endif
         r = ((double)rand_r(&p->seed) / RAND_MAX);
         tserver = ((hash_key) (nservers * r)) % nservers;
