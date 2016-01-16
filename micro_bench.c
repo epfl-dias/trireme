@@ -10,7 +10,7 @@ extern double dist_threshold;
 extern double write_threshold;
 extern double alpha;
 extern double hot_fraction;
-extern double nhot_servers;
+extern int nhot_servers;
 
 int micro_hash_get_server(struct hash_table *hash_table, hash_key key)
 {
@@ -25,8 +25,8 @@ void micro_load_data(struct hash_table *hash_table, int id)
   uint64_t *value;
   struct partition *p = &hash_table->partitions[id];
 
-  size_t qid = id * p->nrecs;
-  size_t eqid = qid + p->nrecs;
+  uint64_t qid = id * p->nrecs;
+  uint64_t eqid = qid + p->nrecs;
   
   while (qid < eqid) {
     p->ninserts++;
@@ -53,19 +53,16 @@ void *micro_alloc_query()
 
 void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 {
-  char is_local;
   struct hash_query *query = (struct hash_query *) arg;
   struct partition *p = &hash_table->partitions[s];
-  double r = ((double)rand_r(&p->seed) / RAND_MAX);
   int nservers = hash_table->nservers;
-
-  is_local = (r < dist_threshold);
+  double r = ((double)rand_r(&p->seed) / RAND_MAX);
+  char is_local = (r < dist_threshold || nservers == 1);
 
   query->nops = ops_per_txn;
 
   for (int i = 0; i < ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
-
     r = ((double)rand_r(&p->seed) / RAND_MAX);
 
     if (r > write_threshold) {
@@ -88,19 +85,33 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
       // use alpha parameter as the probability
       if (alpha == 0) {
 
+        uint64_t nrecs_per_server = nrecs / nservers;
+
         /* dist_threshold can be used to logically afinitize thread to data. 
          * this will maximize cache utilization
          */
         if (dist_threshold == 1) {
           // always pick within this server's key range
-          uint64_t nrecs_per_server = nrecs / nservers;
           hash_key delta = nrecs_per_server * r;
           op->key = s * nrecs_per_server + delta;
 
         } else {
           // just pick randomly
+#if ENABLE_SOCKET_LOCAL_TXN
+          // hacked to be specific to diascld33
+          int socket = s / 18;
+          int neighbors = (socket * 18 + 18) > nservers ? 
+            (nservers - socket * 18) : 18;
+          uint64_t available_recs = neighbors * nrecs_per_server;
+          op->key = (r * available_recs);
+          op->key %= available_recs;
+          op->key += socket * 18 * nrecs_per_server;
+#else
           op->key = nrecs * r;
           op->key %= nrecs;
+
+#endif
+ 
         }
       } else {
         /* generate key based on bernoulli dist. alpha is probability
@@ -149,14 +160,34 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
         // hot data
         delta = last_hot_rec * r;
         tserver = nhot_servers * r;
+        while (tserver == s) {
+          r = ((double)rand_r(&p->seed) / RAND_MAX);
+          tserver = nhot_servers * r;
+        }
       } else {
         // cold data
         delta = (p->nrecs - last_hot_rec) * r + last_hot_rec;
         tserver = ((hash_key) (nservers * r)) % nservers;
+        while (tserver == s) {
+          r = ((double)rand_r(&p->seed) / RAND_MAX);
+          tserver = ((hash_key) (nservers * r)) % nservers;
+        }
+
       }
     } else {
       delta = (hash_key) p->nrecs * r;
       tserver = ((hash_key) (nservers * r)) % nservers;
+#if ENABLE_SOCKET_LOCAL_TXN
+      // hacked to be specific to diascld33
+      int rem = hash_table->thread_data[s].core % 4;
+      while (tserver == s || 
+          ((hash_table->thread_data[tserver].core % 4) != rem)) {
+#else
+      while (tserver == s) {
+#endif
+        r = ((double)rand_r(&p->seed) / RAND_MAX);
+        tserver = ((hash_key) (nservers * r)) % nservers;
+      }
     }
 
     if (!is_local) {
@@ -208,7 +239,9 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
 
   for (i = 0; i < hash_table->nservers; i++) {
     if (BITTEST(bits, i)) {
+      dprint("srv %d latching lock %d\n", s, i);
       LATCH_ACQUIRE(&hash_table->partitions[i].latch, &alock_state);
+      dprint("srv %d got lock %d\n", s, i);
       partitions[npartitions++] = i;
       nbits--;
     }
@@ -270,6 +303,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
     int t = partitions[i];
     assert (BITTEST(bits, t)); 
     LATCH_RELEASE(&hash_table->partitions[t].latch, &alock_state);
+    dprint("srv %d releasing lock %d\n", s, i);
   }
 #else
 

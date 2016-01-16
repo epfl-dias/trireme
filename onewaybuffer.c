@@ -54,9 +54,9 @@ int buffer_read_all(struct onewaybuffer* buffer, int max_read_count, uint64_t* d
   if (count == 0 && !blocking)
     return 0;
 
-  do {
+  while (!(count = buffer->wr_index - buffer->rd_index)) {
     _mm_pause();
-  } while (!(count = buffer->wr_index - buffer->rd_index));
+  } 
       
   if (max_read_count < count) count = max_read_count;
 
@@ -71,9 +71,7 @@ int buffer_read_all(struct onewaybuffer* buffer, int max_read_count, uint64_t* d
 int buffer_peek(struct onewaybuffer* buffer, int max_read_count, uint64_t* data)
 {
   int count = buffer->wr_index - buffer->rd_index;
-
-  if (count == 0)
-    return 0;
+  assert(count);
 
   if (max_read_count < count) count = max_read_count;
 

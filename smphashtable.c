@@ -563,19 +563,48 @@ void process_requests(struct hash_table *hash_table, int s)
   struct box_array *boxes = hash_table->boxes;
   uint64_t localbuf[ONEWAY_BUFFER_SIZE];
   struct partition *p = &hash_table->partitions[s];
+  int min = 0;
+  int max = hash_table->nservers;
 
-  int nclients = hash_table->nservers;
+#if ENABLE_SOCKET_LOCAL_TXN
+  /* Having cores check msg buffer incurs overhead in the cross socket case
+   * as cache coherence enforcement causes snooping. So to minimize the 
+   * overhead, we have a mode where we do only socket local txns. This can
+   * be easily enforced at runtime by using a scheduler that queues a txn
+   * in same socket as thread that has the data.
+   *
+   * XXX: This requires determining for a given core, all others in socket.
+   * This can be determined programatically. For now, we hack it in and 
+   * make it specific to diascld33 -- the 4 socket server where mapping is
+   * 0,4,8,...72: s0
+   * 1,5,9,...73: s1
+   * 2,6,10,...74: s3
+   * 3,7,11,...75: s4
+   *
+   * s will range from 0 to nservers. Given s, s/18 is socketid
+   * on which this server sits. Then, based on above mapping min clientid is 
+   * socketid * 18 the max clientid in that socket is min + 18.
+   */
+  int socketid = s / 18;
+  min = socketid * 18;
+  max = min + 18;
+  if (max > hash_table->nservers)
+    max = hash_table->nservers;
+#endif
 
-  for (int i = 0; i < nclients; i++) {
-      
+  //int nclients = hash_table->nservers;
+
+  //for (int i = 0; i < nclients; i++) {
+  for (int i = min; i < max; i++) {
     if (i == s)
       continue;
 
-    int count = buffer_peek(&boxes[i].boxes[s].in, ONEWAY_BUFFER_SIZE, 
-      localbuf);
+    struct onewaybuffer *b = &boxes[i].boxes[s].in; 
+    int count = b->wr_index - b->rd_index;
+    if (count == 0) 
+      continue;
 
-    if (count == 0) continue;
-
+    count = buffer_peek(b, ONEWAY_BUFFER_SIZE, localbuf);
     int k = 0;
     int j = 0;
     int abort = 0;

@@ -31,4 +31,6 @@
 
 #define REMOTE_SERVICE_THRESHOLD 10
 
+#define ENABLE_SOCKET_LOCAL_TXN 1
+
 #endif
