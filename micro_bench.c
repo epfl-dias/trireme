@@ -51,154 +51,176 @@ void *micro_alloc_query()
   return (void *)q;
 }
 
-void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
+static void make_operation(struct hash_table *hash_table, int s, 
+    struct hash_op *op, char is_local)
 {
-  struct hash_query *query = (struct hash_query *) arg;
   struct partition *p = &hash_table->partitions[s];
   int nservers = hash_table->nservers;
-  double r = ((double)rand_r(&p->seed) / RAND_MAX);
-  char is_local = (r < dist_threshold || nservers == 1);
-
-  query->nops = ops_per_txn;
-
-  for (int i = 0; i < ops_per_txn; i++) {
-    struct hash_op *op = &query->ops[i];
-    r = ((double)rand_r(&p->seed) / RAND_MAX);
-
-    if (r > write_threshold) {
-      op->optype = OPTYPE_UPDATE;
+  double r = (double)rand_r(&p->seed) / RAND_MAX;
+ 
+  if (r > write_threshold) {
+    op->optype = OPTYPE_UPDATE;
     } else {
       op->optype = OPTYPE_LOOKUP;
     }
     op->size = 0;
 
 #if SHARED_EVERYTHING
-    // use zipfian if available
-    if (hash_table->keys) {
-      p->q_idx++;
-      assert(p->q_idx * s < niters * nservers);
+  // use zipfian if available
+  if (hash_table->keys) {
+    p->q_idx++;
+    assert(p->q_idx * s < niters * nservers);
 
-      op->key = hash_table->keys[p->q_idx * s];
-    } else {
-      uint64_t nrecs = p->nrecs; 
-      
-      // use alpha parameter as the probability
-      if (alpha == 0) {
+    op->key = hash_table->keys[p->q_idx * s];
+  } else {
+    uint64_t nrecs = p->nrecs; 
+    
+    // use alpha parameter as the probability
+    if (alpha == 0) {
 
-        uint64_t nrecs_per_server = nrecs / nservers;
+      uint64_t nrecs_per_server = nrecs / nservers;
 
-        /* dist_threshold can be used to logically afinitize thread to data. 
-         * this will maximize cache utilization
-         */
-        if (dist_threshold == 1) {
-          // always pick within this server's key range
-          hash_key delta = nrecs_per_server * r;
-          op->key = s * nrecs_per_server + delta;
+      /* dist_threshold can be used to logically afinitize thread to data. 
+       * this will maximize cache utilization
+       */
+      if (dist_threshold == 1) {
+        // always pick within this server's key range
+        hash_key delta = nrecs_per_server * r;
+        op->key = s * nrecs_per_server + delta;
 
-        } else {
-          // just pick randomly
+      } else {
+        // just pick randomly
 #if ENABLE_SOCKET_LOCAL_TXN
-          // hacked to be specific to diascld33
-          int socket = s / 18;
-          int neighbors = (socket * 18 + 18) > nservers ? 
-            (nservers - socket * 18) : 18;
-          uint64_t available_recs = neighbors * nrecs_per_server;
-          op->key = (r * available_recs);
-          op->key %= available_recs;
-          op->key += socket * 18 * nrecs_per_server;
+        // hacked to be specific to diascld33
+        int socket = s / 18;
+        int neighbors = (socket * 18 + 18) > nservers ? 
+          (nservers - socket * 18) : 18;
+        uint64_t available_recs = neighbors * nrecs_per_server;
+        op->key = (r * available_recs);
+        op->key %= available_recs;
+        op->key += socket * 18 * nrecs_per_server;
 #else
-          op->key = nrecs * r;
-          op->key %= nrecs;
+        op->key = nrecs * r;
+        op->key %= nrecs;
 
 #endif
- 
-        }
+
+      }
+    } else {
+      /* generate key based on bernoulli dist. alpha is probability
+       * #items in one range = 0 to (nrecs * hot_fraction)
+       * Based on probability pick right range
+       */
+      hash_key last_hot_rec  = nrecs * hot_fraction / 100;
+      if (alpha > r) {
+        //hot range
+        op->key = last_hot_rec * r;
       } else {
-        /* generate key based on bernoulli dist. alpha is probability
-         * #items in one range = 0 to (nrecs * hot_fraction)
-         * Based on probability pick right range
-         */
-        hash_key last_hot_rec  = nrecs * hot_fraction / 100;
-        if (alpha > r) {
-          //hot range
-          op->key = last_hot_rec * r;
-        } else {
-          //cold range
-          op->key = (nrecs - last_hot_rec) * r + last_hot_rec;
-        }
+        //cold range
+        op->key = (nrecs - last_hot_rec) * r + last_hot_rec;
       }
     }
+  }
 
 #else
 
-    hash_key delta = 0;
-    int tserver = 0;
+  hash_key delta = 0;
+  int tserver = 0;
 
-    /* we can either do zipfian across all partitions or explicitly control
-     * local vs remote. Doing both is meaningless - zipfian within a partition
-     * is not zipfian globally
+  /* we can either do zipfian across all partitions or explicitly control
+   * local vs remote. Doing both is meaningless - zipfian within a partition
+   * is not zipfian globally
+   */
+  if (hash_table->keys) {
+    p->q_idx++;
+    assert(p->q_idx * s < niters * nservers);
+
+    op->key = hash_table->keys[p->q_idx * s];
+
+  } else if (alpha != 0) {
+
+    /* Get key based on bernoulli distribution. In case of shared nothing 
+     * and Trireme configs, there is one more parameter in addition to
+     * alpha - the probability, and hot_fraction, which is how hot and 
+     * cold records are spread out. 
+     * Under skew, we'll typically have just a few partitions store hot
+     * data. So we can use hot_fraction to limit #partitions for hot data.
+     * We assume cold data is always local
      */
-    if (hash_table->keys) {
-      p->q_idx++;
-      assert(p->q_idx * s < niters * nservers);
+    hash_key last_hot_rec  = p->nrecs * hot_fraction / 100;
 
-      op->key = hash_table->keys[p->q_idx * s];
-
-    } else if (alpha != 0) {
-
-      /* Get key based on bernoulli distribution. In case of shared nothing 
-       * and Trireme configs, there is one more parameter in addition to
-       * alpha - the probability, and hot_fraction, which is how hot and 
-       * cold records are spread out. 
-       * Under skew, we'll typically have just a few partitions store hot
-       * data. So we can use hot_fraction to limit #partitions for hot data.
-       * We assume cold data is always local
-       */
-      hash_key last_hot_rec  = p->nrecs * hot_fraction / 100;
-
-      if (alpha > r) {
-        // hot data
-        delta = last_hot_rec * r;
+    if (alpha > r) {
+      // hot data
+      delta = last_hot_rec * r;
+      tserver = nhot_servers * r;
+      while (!is_local && tserver == s) {
+        r = ((double)rand_r(&p->seed) / RAND_MAX);
         tserver = nhot_servers * r;
-        while (!is_local && tserver == s) {
-          r = ((double)rand_r(&p->seed) / RAND_MAX);
-          tserver = nhot_servers * r;
-        }
-      } else {
-        // cold data
-        delta = (p->nrecs - last_hot_rec) * r + last_hot_rec;
-        tserver = ((hash_key) (nservers * r)) % nservers;
-        while (!is_local && tserver == s) {
-          r = ((double)rand_r(&p->seed) / RAND_MAX);
-          tserver = ((hash_key) (nservers * r)) % nservers;
-        }
-
       }
     } else {
-      delta = (hash_key) p->nrecs * r;
+      // cold data
+      delta = (p->nrecs - last_hot_rec) * r + last_hot_rec;
       tserver = ((hash_key) (nservers * r)) % nservers;
-#if ENABLE_SOCKET_LOCAL_TXN
-      // hacked to be specific to diascld33
-      int rem = hash_table->thread_data[s].core % 4;
-      while (!is_local && tserver == s || 
-          ((hash_table->thread_data[tserver].core % 4) != rem)) {
-#else
       while (!is_local && tserver == s) {
-#endif
         r = ((double)rand_r(&p->seed) / RAND_MAX);
         tserver = ((hash_key) (nservers * r)) % nservers;
       }
-    }
 
-    if (!is_local) {
-      // remote op
-      op->key = delta + (tserver * p->nrecs);
-    } else {
-      //local op
-      op->key = delta + (s * p->nrecs);
     }
+  } else {
+    delta = (hash_key) p->nrecs * r;
+    tserver = ((hash_key) (nservers * r)) % nservers;
+#if ENABLE_SOCKET_LOCAL_TXN
+    // hacked to be specific to diascld33
+    int rem = hash_table->thread_data[s].core % 4;
+    while (!is_local && tserver == s || 
+        ((hash_table->thread_data[tserver].core % 4) != rem)) {
+#else
+    while (!is_local && tserver == s) {
+#endif
+      double r = ((double)rand_r(&p->seed) / RAND_MAX);
+      tserver = ((hash_key) (nservers * r)) % nservers;
+    }
+  }
+
+  if (!is_local) {
+    // remote op
+    op->key = delta + (tserver * p->nrecs);
+  } else {
+    //local op
+    op->key = delta + (s * p->nrecs);
+  }
 
 #endif
+
+}
+
+
+void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
+{
+  struct hash_query *query = (struct hash_query *) arg;
+  struct partition *p = &hash_table->partitions[s];
+  double r = (double)rand_r(&p->seed) / RAND_MAX;
+  char is_local = (r < dist_threshold || hash_table->nservers == 1);
+  char is_duplicate;
+  
+  query->nops = ops_per_txn;
+
+  for (int i = 0; i < ops_per_txn; i++) {
+    struct hash_op *op = &query->ops[i];
+
+    do {
+      make_operation(hash_table, s, op, is_local);
+      is_duplicate = FALSE;
+
+      for (int j = 0; j < i; j++) {
+        if (op->key == query->ops[j].key) {
+          is_duplicate = TRUE;
+          break;
+        }
+      }
+    } while(is_duplicate == TRUE);
+
   }
 }
 
