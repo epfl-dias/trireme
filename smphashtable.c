@@ -830,7 +830,11 @@ void *hash_table_server(void* args)
 
   p->tps = niters / (tend - tstart);
 
+  pthread_mutex_lock(&hash_table->create_client_lock); 
+
   nready--;
+
+  pthread_mutex_unlock(&hash_table->create_client_lock); 
 
   while (nready != 0)
 #if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
