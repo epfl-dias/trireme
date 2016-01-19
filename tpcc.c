@@ -33,7 +33,7 @@ struct tpcc_query {
   int o_entry_d;
 };
 
-extern double dist_threshold;
+extern int dist_threshold;
 
 static int set_last_name(int num, char* name)
 {
@@ -107,7 +107,7 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
 
   //XXX: For now, always home wh
   //if (1) {
-  if(x <= 85 || dist_threshold == 1) {
+  if(x <= 85 || dist_threshold == 100) {
     // home warehouse
     q->c_d_id = q->d_id;
     q->c_w_id = s + 1;
@@ -168,7 +168,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
     } while(dup);     
 
     int x = URand(&p->seed, 1, 100);
-    if (dist_threshold == 1)
+    if (dist_threshold == 100)
       x = 2;
 
     if (x > 1 || p->nservers == 1) {

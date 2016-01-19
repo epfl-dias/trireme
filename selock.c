@@ -43,12 +43,16 @@ int selock_nowait_acquire(struct elem *e, char optype)
   if (is_value_ready(e)) {
     if (optype == OPTYPE_LOOKUP) {
    	  e->ref_count++;
+      r = 1;
     } else {
       assert(optype == OPTYPE_UPDATE);
-      e->ref_count = DATA_READY_MASK | 2;
+      
+      if (e->ref_count == 1) {
+        e->ref_count = DATA_READY_MASK | 2;
+        r = 1;
+      }
     }
 
-    r = 1;
   }
 
   LATCH_RELEASE(&e->latch, &alock_state);

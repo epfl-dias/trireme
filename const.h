@@ -29,8 +29,10 @@
 
 #define MAX_TUPLE_TYPES 32
 
-#define REMOTE_SERVICE_THRESHOLD 10
-
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+// by default, disable socket local for shared everything/nothing
+#else
 #define ENABLE_SOCKET_LOCAL_TXN 1
+#endif
 
 #endif

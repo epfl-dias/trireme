@@ -34,9 +34,9 @@ int niters          = 1000000;
 size_t size         = 1000000;
 int query_mask      = (1 << 29) - 1;
 int query_shift     = 2;
-double write_threshold = ((double)0.2 * RAND_MAX);
-double dist_threshold = ((double) 0.1 * RAND_MAX);
-double alpha = 0;
+int write_threshold = 20;
+int dist_threshold = 10;
+int alpha = 0;
 double hot_fraction = 0;
 int nhot_servers = 0;
 
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
   while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:h:p:")) != -1) {
     switch (opt_char) {
       case 'a':
-        alpha = atof(optarg);
+        alpha = atoi(optarg);
         break;
       case 'h':
         hot_fraction = atof(optarg);
@@ -94,10 +94,10 @@ int main(int argc, char *argv[])
         size = atol(optarg);
         break;
       case 'w':
-        write_threshold = atof(optarg);
+        write_threshold = atoi(optarg);
         break;
       case 'd':
-        dist_threshold = atof(optarg);
+        dist_threshold = atoi(optarg);
         break;
       case 'b':
         batch_size = atoi(optarg);
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
   if (alpha) {
     assert(hot_fraction != 0);
     assert(nhot_servers != 0);
-    assert(nhot_servers <= nservers);
+    assert(nhot_servers <= nservers && nhot_servers >= 2);
   }
 
   // set benchmark to micro for now
@@ -152,7 +152,7 @@ void run_benchmark()
   printf(" # clients:    %d\n", nclients);
   printf(" # servers:    %d\n", nservers);
   printf(" Key range:    0..2^%d\n", 31-query_shift);
-  printf(" Write ratio:  %.3f\n", (double)write_threshold / (double)RAND_MAX);
+  printf(" Write ratio:  %d\n", write_threshold);
   printf(" Total #recs: %ld \n", size);
   printf(" Iterations:   %d\n", niters);
 

@@ -26,7 +26,7 @@ static volatile int nready = 0;
 extern struct benchmark *g_benchmark;
 extern double alpha;
 extern int niters;
-extern int ops_per_txn;
+extern int ops_per_txn, nhot_servers;
 extern struct hash_table *hash_table;
 
 // Forward declarations
@@ -253,7 +253,10 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       assert (p != hash_table->g_partition);
 
       e = hash_lookup(p, op->key);
-      assert(e);
+      if (!e) {
+        printf("srv(%d): lookup %"PRIu64" failed\n", p - &hash_table->partitions[0], op->key);
+        assert(e);
+      }
 
 #if SHARED_EVERYTHING
       if (!selock_acquire(e, OPTYPE_UPDATE)) {
@@ -325,14 +328,16 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
     // call the corresponding authority and block
     smp_hash_doall(hash_table, s, 1, &op, &value);
 
-    // the remote server blocks us until data is ready. We should never 
-    // have the situation where we get a NO notification from remote server
-    assert(value);
-
-    e = (struct elem *)value;
-
-    value = e->value;
-    assert(value);
+    // the remote server can fail to return us data if someone else has a lock
+    if (value) {
+      e = (struct elem *)value;
+      value = e->value;
+      assert(value);
+    } else {
+#if GATHER_STATS
+      p->naborts_remote++;
+#endif
+    }
   }
 
 #if SHARED_NOTHING
@@ -563,8 +568,11 @@ void process_requests(struct hash_table *hash_table, int s)
   struct box_array *boxes = hash_table->boxes;
   uint64_t localbuf[ONEWAY_BUFFER_SIZE];
   struct partition *p = &hash_table->partitions[s];
-  int min = 0;
-  int max = hash_table->nservers;
+  int nservers = hash_table->nservers;
+  int s_coreid = hash_table->thread_data[s].core;
+  char skip_list[BITNSLOTS(MAX_SERVERS)];
+
+  memset(skip_list, 0, sizeof(skip_list));
 
 #if ENABLE_SOCKET_LOCAL_TXN
   /* Having cores check msg buffer incurs overhead in the cross socket case
@@ -584,86 +592,96 @@ void process_requests(struct hash_table *hash_table, int s)
    * s will range from 0 to nservers. Given s, s/18 is socketid
    * on which this server sits. Then, based on above mapping min clientid is 
    * socketid * 18 the max clientid in that socket is min + 18.
+   *
    */
-  int socketid = s / 18;
-  min = socketid * 18;
-  max = min + 18;
-  if (max > hash_table->nservers)
-    max = hash_table->nservers;
+  
+  /* check only socket-local guys plus first core on other sockets
+   * Enforce this by setting appropriate bits in the skip list
+   */
+  for (int i = 0; i < nservers; i++) {
+      int t_coreid = hash_table->thread_data[i].core;
+
+      // check only cores in our own socket of leader cores in other sockets
+      if (s_coreid % 4 == t_coreid % 4 || t_coreid < 4) {
+        ;
+      } else {
+        BITSET(skip_list, i);
+      }
+  }
 #endif
 
   //int nclients = hash_table->nservers;
 
   //for (int i = 0; i < nclients; i++) {
-  for (int i = min; i < max; i++) {
+  for (int i = 0; i < nservers; i++) {
     if (i == s)
       continue;
+
+    if (BITTEST(skip_list, i)) {
+      continue;
+    }
 
     struct onewaybuffer *b = &boxes[i].boxes[s].in; 
     int count = b->wr_index - b->rd_index;
     if (count == 0) 
       continue;
 
-    count = buffer_peek(b, ONEWAY_BUFFER_SIZE, localbuf);
+    count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, localbuf, 0);
+    assert(count);
+
     int k = 0;
     int j = 0;
-    int abort = 0;
-    int nreleases = 0;
 
-    /* process all release messages first */
+    struct elem *e;
+
     while (k < count) {
-        if ((localbuf[k] & HASHOP_MASK) != HASHOP_RELEASE)
-          break;
-
-        struct elem *e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
-
-        dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
-            s, i, e->key, e->ref_count);
-
-        mp_release_value_(p, e);
-        k++;
-        nreleases++;
-
-        dprint("srv(%d): cl %d post release %" PRIu64 " rc %" PRIu64 "\n", 
-            s, i, e->key, e->ref_count);
-    }
-
-    buffer_seek(&boxes[i].boxes[s].in, k);
-
-    struct elem *e[ONEWAY_BUFFER_SIZE];
-
-    while (k < count && !abort) {
 
       switch (localbuf[k] & HASHOP_MASK) {
+        case HASHOP_RELEASE:
+          {
+            e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
+
+            dprint("srv(%d): cl %d before release %"PRIu64" rc %"PRIu64"\n",
+            s, i, e->key, e->ref_count);
+
+            mp_release_value_(p, e);
+            k++;
+
+            dprint("srv(%d): cl %d post release %" PRIu64 " rc %" PRIu64 "\n", 
+              s, i, e->key, e->ref_count);
+
+            break;
+          }
+           
         case HASHOP_LOOKUP:
           {
             dprint("srv (%d): cl %d lookup %" PRIu64 "\n", s, i, 
               localbuf[k] & (~HASHOP_MASK));
 
-            e[j] = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
-            if (!e[j]) {
+            e = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
+            if (!e) {
               dprint("srv (%d): cl %d lookup FAILED %" PRIu64 "\n", s, i, 
                 localbuf[k] & (~HASHOP_MASK));
 
-              assert(e[j]);
+              assert(0);
             }
 
-            dprint("srv (%d) cl %d lookup %" PRIu64 " rc %" PRIu64 "\n", s, i,
-              localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
+            dprint("srv (%d): cl %d lookup %" PRIu64 " rc %" PRIu64 "\n", s, i,
+              localbuf[k] & (~HASHOP_MASK), e->ref_count);
 
-            if (!is_value_ready(e[j])) {
-              assert(e[j]->ref_count == (DATA_READY_MASK | 2));
-              abort = 1;
+            if (!is_value_ready(e)) {
+              assert(e->ref_count == (DATA_READY_MASK | 2));
 
-              dprint("srv (%d) cl %d lookup %" PRIu64 " rc %" PRIu64 " aborted \n", s, i,
-                localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
+              dprint("srv (%d): cl %d lookup %" PRIu64 " rc %" PRIu64 " aborted \n", s, i,
+                localbuf[k] & (~HASHOP_MASK), e->ref_count);
 
-              break;
+              e = NULL;
+            } else {
+              p->nhits++;
+              e->ref_count++;
             }
 
-            p->nhits++;
-            e[j]->ref_count++;
-            localbuf[j] = (unsigned long)e[j];
+            localbuf[j] = (unsigned long)e;
             k++;
             j++;
             break;
@@ -673,15 +691,15 @@ void process_requests(struct hash_table *hash_table, int s)
 #if GATHER_STATS
             p->ninserts++;
 #endif
-            e[j] = hash_insert(p, localbuf[k] & (~HASHOP_MASK), 
+            e = hash_insert(p, localbuf[k] & (~HASHOP_MASK), 
               localbuf[k + 1], NULL);
 
-            if (e[j] != NULL) {
-              e[j]->ref_count = DATA_READY_MASK | 2; 
+            if (e != NULL) {
+              e->ref_count = DATA_READY_MASK | 2; 
             }
             k += INSERT_MSG_LENGTH;
 
-            localbuf[j] = (unsigned long) e[j];
+            localbuf[j] = (unsigned long) e;
             j++;
             break;
           }
@@ -690,28 +708,27 @@ void process_requests(struct hash_table *hash_table, int s)
             dprint("srv (%d): cl %d update %" PRIu64 "\n", s, i, 
               localbuf[k] & (~HASHOP_MASK));
 
-            e[j] = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
-            if (!e[j]) {
+            e = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
+            if (!e) {
               printf("srv (%d): cl %d update %" PRIu64 "\n", s, i, 
                 localbuf[k] & (~HASHOP_MASK));
-              assert (e[j]);
+              assert (0);
             }
 
-            dprint("cl %d update %" PRIu64 " rc %" PRIu64 "\n", i, 
-              localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
+            dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 "\n", s, 
+                i, localbuf[k] & (~HASHOP_MASK), e->ref_count);
 
             // if somebody has lock, we can't do anything
-            if (!is_value_ready(e[j]) || e[j]->ref_count > 1) {
-              abort = 1;
+            if (!is_value_ready(e) || e->ref_count > 1) {
+              dprint("srv(%d): cl %d update %"PRIu64" rc %"PRIu64" aborted \n", 
+                  s, i, localbuf[k] & (~HASHOP_MASK), e->ref_count);
 
-              dprint("cl %d update %" PRIu64 " rc %" PRIu64 " aborted \n", i,
-                localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
-
-              break;
+              e = NULL;
+            } else {
+              e->ref_count = DATA_READY_MASK | 2;
             }
 
-            e[j]->ref_count = DATA_READY_MASK | 2;
-            localbuf[j] = (unsigned long)e[j];
+            localbuf[j] = (unsigned long)e;
 
             k++;
             j++;
@@ -727,16 +744,7 @@ void process_requests(struct hash_table *hash_table, int s)
       }
     }
 
-    // if everything was successful, we move forward
-    if (!abort) {
-      buffer_seek(&boxes[i].boxes[s].in, count - nreleases);
-
-      buffer_write_all(&boxes[i].boxes[s].out, j, localbuf, 1);
-    } else if (j > 0) {
-      // abort: rollback all the reference counts
-      while (--j >= 0)
-        mp_release_value_(p, e[j]);
-    }
+    buffer_write_all(&boxes[i].boxes[s].out, j, localbuf, 1);
   }
 }
 
@@ -807,12 +815,12 @@ void *hash_table_server(void* args)
 
       // see if we need to answer someone
 #if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
-      if (i % REMOTE_SERVICE_THRESHOLD == 0)
-        process_requests(hash_table, s);
+      process_requests(hash_table, s);
 #endif
 
-      if (r == TXN_ABORT)
+      if (r == TXN_ABORT) {
         dprint("srv(%d): rerunning aborted txn %d\n", s, i);
+      }
 
     } while (r == TXN_ABORT);
 
