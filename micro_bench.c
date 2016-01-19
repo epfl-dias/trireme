@@ -199,7 +199,7 @@ static void se_make_operation(struct hash_table *hash_table, int s,
        */
       if (dist_threshold == 100) {
         // always pick within this server's key range
-        hash_key delta = URand(&p->seed, 0, nrecs_per_server);
+        hash_key delta = URand(&p->seed, 0, nrecs_per_server - 1);
         op->key = s * nrecs_per_server + delta;
       } else {
 #if ENABLE_SOCKET_LOCAL_TXN
