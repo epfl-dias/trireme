@@ -346,7 +346,12 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
     value = txn_op(hash_table, s, tpartition, op, is_local);
     assert(value);
 #else
-    value = txn_op(hash_table, s, NULL, op, is_local);
+    // try ith operation i+1 times before aborting
+    for (int j = 0; j < i + 1; j++) {
+      value = txn_op(hash_table, s, NULL, op, is_local);
+      if (value)
+        break;
+    }
 #endif
   
     if (!value) {

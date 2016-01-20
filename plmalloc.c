@@ -38,6 +38,7 @@ static struct mem_tuple *plmalloc_prealloc(struct partition *p, size_t size)
   int hsize = sizeof(struct mem_tuple);
   int tsize = hsize + size;
   int prealloc_cnt = b->prealloc_cnt * 2;
+  prealloc_cnt = prealloc_cnt > 1048576 ? 1048576 : prealloc_cnt;
 
   // allocate space for all memtuples + one extra for storing the base ptr
   char *buf = malloc(tsize * prealloc_cnt + sizeof(struct mem_tuple));

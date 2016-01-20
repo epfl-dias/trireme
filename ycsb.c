@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 void run_benchmark() 
 {
   srand(19890811);
-  iters_per_client = niters / nclients;
+  //iters_per_client = niters / nclients;
 
   printf(" # clients:    %d\n", nclients);
   printf(" # servers:    %d\n", nservers);
