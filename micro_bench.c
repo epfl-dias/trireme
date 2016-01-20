@@ -18,7 +18,6 @@ int micro_hash_get_server(struct hash_table *hash_table, hash_key key)
   return key / hash_table->nrecs;
 }
 
-
 void micro_load_data(struct hash_table *hash_table, int id)
 {
   struct elem *e;
@@ -58,7 +57,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
   int nservers = hash_table->nservers;
   uint64_t nrecs = p->nrecs; 
   uint64_t nrecs_per_server = nrecs / nservers;
-  int r = URand(&p->seed, 0, 99);
+  int r = URand(&p->seed, 1, 99);
  
   if (r > write_threshold) {
     op->optype = OPTYPE_UPDATE;
@@ -174,7 +173,7 @@ static void se_make_operation(struct hash_table *hash_table, int s,
   int nservers = hash_table->nservers;
   uint64_t nrecs = p->nrecs; 
   uint64_t nrecs_per_server = nrecs / nservers;
-  int r = URand(&p->seed, 0, 99);
+  int r = URand(&p->seed, 1, 99);
  
   if (r > write_threshold) {
     op->optype = OPTYPE_UPDATE;
@@ -245,12 +244,11 @@ static void se_make_operation(struct hash_table *hash_table, int s,
   }
 }
 
-
 void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 {
   struct hash_query *query = (struct hash_query *) arg;
   struct partition *p = &hash_table->partitions[s];
-  int r = URand(&p->seed, 0, 99);
+  int r = URand(&p->seed, 1, 99);
   char is_local = (r < dist_threshold || hash_table->nservers == 1);
   char is_duplicate;
   

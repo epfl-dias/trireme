@@ -47,7 +47,7 @@ void create_hash_table_client(struct hash_table *hash_table);
  * @key: hash key to lookup value for
  * @return: 1 for success, 0 on failure when the queue of pending requests is full
  */ 
-int smp_hash_lookup(struct hash_table *hash_table, int client_id, hash_key key);
+int smp_hash_lookup(struct hash_table *hash_table, int client_id, int server, hash_key key);
 
 /**
  * smp_hash_insert: Insert key/value pair in hash table
@@ -67,7 +67,7 @@ int smp_hash_insert(struct hash_table *hash_table, int client_id, hash_key key, 
  * @size: size of data to insert
  * @return: 1 for success, 0 on failure when the queue of pending requests is full
  */
-int smp_hash_update(struct hash_table *hash_table, int client_id, hash_key key);
+int smp_hash_update(struct hash_table *hash_table, int client_id, int server, hash_key key);
 
 /**
  * smp_hash_doall: Perform batch hash table queries

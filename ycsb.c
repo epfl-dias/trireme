@@ -102,6 +102,13 @@ int main(int argc, char *argv[])
       case 'b':
         batch_size = atoi(optarg);
         assert(batch_size < MAX_OPS_PER_QUERY);
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+        if (batch_size != 1) {
+          printf("batching not allowed in se/sn\n");
+          assert(0);
+        }
+#endif
+
         break;
       case 'o':
         ops_per_txn = atoi(optarg);

@@ -24,7 +24,7 @@ struct lock_item {
 #endif
 
 extern struct benchmark *g_benchmark;
-extern double write_threshold;
+extern int write_threshold;
 
 int selock_nowait_acquire(struct elem *e, char optype)
 {
@@ -57,7 +57,7 @@ int selock_nowait_acquire(struct elem *e, char optype)
 
   LATCH_RELEASE(&e->latch, &alock_state);
 #else
-  assert(g_benchmark == &micro_bench && write_threshold == 1);
+  assert(g_benchmark == &micro_bench && write_threshold == 100);
   r = 1;
 #endif
 
@@ -76,7 +76,7 @@ void selock_nowait_release(struct elem *e)
 
   LATCH_RELEASE(&e->latch, &alock_state);
 #else
-  assert(g_benchmark == &micro_bench && write_threshold == 1);
+  assert(g_benchmark == &micro_bench && write_threshold == 100);
 #endif
 }
 

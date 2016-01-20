@@ -26,6 +26,7 @@ static volatile int nready = 0;
 extern struct benchmark *g_benchmark;
 extern double alpha;
 extern int niters;
+extern int batch_size;
 extern int ops_per_txn, nhot_servers;
 extern struct hash_table *hash_table;
 
@@ -386,6 +387,12 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
     struct op_ctx *octx = &ctx->op_ctx[nops];
     int t = octx->optype;
 
+    if (!octx->e) {
+      // only possible in batch mode
+      assert(mode == TXN_BATCH);
+      continue;
+    }
+
     if ((octx->e->key & TID_MASK) == ITEM_TID) {
       assert(octx->optype == OPTYPE_LOOKUP);
       continue;
@@ -410,20 +417,18 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
         // should never get updates to item table
         assert((octx->e->key & TID_MASK) != ITEM_TID);
 
-        if (mode == TXN_SINGLE) {
-          assert(octx->old_value);
+        assert(octx->old_value);
 
-          size_t size = octx->e->size;
+        size_t size = octx->e->size;
 
-          // if this is a single txn that must be aborted, rollback
-          if (status == TXN_ABORT) {
-            //struct mem_tuple *m = octx->old_value;
-            //memcpy(octx->e->value, m->data, size);
-            memcpy(octx->e->value, octx->old_value, size);
-          }
-
-          plmalloc_free(&hash_table->partitions[s], octx->old_value, size);
+        // if this is a single txn that must be aborted, rollback
+        if (status == TXN_ABORT) {
+          //struct mem_tuple *m = octx->old_value;
+          //memcpy(octx->e->value, m->data, size);
+          memcpy(octx->e->value, octx->old_value, size);
         }
+
+        plmalloc_free(&hash_table->partitions[s], octx->old_value, size);
 
         if (octx->is_local)
           mp_release_value_(&hash_table->partitions[s], octx->e);
@@ -467,20 +472,24 @@ void txn_commit(struct hash_table *hash_table, int s, int mode)
   return txn_finish(hash_table, s, TXN_COMMIT, mode);
 }
 
-__attribute__ ((unused)) static int run_batch_txn(struct hash_table *hash_table, int s, 
-  struct hash_query *query)
+int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
 {
-  int i, r, nops, nremote, server;
-
-  void **values = (void **) memalign(CACHELINE, sizeof(void *) * query->nops);
-  assert(values);
+  struct hash_query *query = (struct hash_query *)arg;
+  struct partition *p = &hash_table->partitions[s];
+  int i, r = TXN_COMMIT;
+  int nops = query->nops;
+  int nremote = 0;
+  int server = -1;
+  //void **values = (void **) memalign(CACHELINE, sizeof(void *) * nops);
+  //assert(values);
+  void *values[MAX_OPS_PER_QUERY];
 
   txn_start(hash_table, s);
 
-  r = TXN_COMMIT;
-  nops = query->nops;
-
-  nremote = 0;
+  /* XXX: REWRITE THIS TO GATHER ALL REMOTE OPS AND SEND IT USING
+   * SMP_HASH_DO_ALL 
+   */
+  // do all local first. if any local fails, no point sending remote requests
   for (i = 0; i < nops; i++) {
     struct hash_op *op = &query->ops[i];    
     server = g_benchmark->hash_get_server(hash_table, op->key);
@@ -493,25 +502,33 @@ __attribute__ ((unused)) static int run_batch_txn(struct hash_table *hash_table,
         r = TXN_ABORT;
         goto final;
       }
-    } else {
-      // remote op. Just issue it. We'll collect later
-      if (op->optype == OPTYPE_LOOKUP)
-        smp_hash_lookup(hash_table, s, op->key);
-      else
-        smp_hash_update(hash_table, s, op->key);
+    }
+  }
+
+  // now send all remote requests
+  for (i = 0; i < nops; i++) {
+    struct hash_op *op = &query->ops[i];    
+    server = g_benchmark->hash_get_server(hash_table, op->key);
+
+    if (server != s) {
+      if (op->optype == OPTYPE_LOOKUP) {
+        smp_hash_lookup(hash_table, s, server, op->key);
+        p->nlookups_remote++;
+      } else {
+        smp_hash_update(hash_table, s, server, op->key);
+        p->nupdates_remote++;
+      }
 
       values[i] = NULL;
       nremote++;
     }
   }
 
-  hash_table->partitions[s].nlookups_remote += nremote;
-
+  // now get all remote values
   if (nremote) {
-    // now get all remote values
     smp_flush_all(hash_table, s);
 
-    struct txn_ctx *ctx = &hash_table->partitions[s].txn_ctx;
+    struct txn_ctx *ctx = &p->txn_ctx;
     struct box_array *boxes = hash_table->boxes;
 
     for (i = 0; i < nops; i++) {
@@ -521,6 +538,7 @@ __attribute__ ((unused)) static int run_batch_txn(struct hash_table *hash_table,
 
       uint64_t val;
       struct hash_op *op = &query->ops[i];
+      server = g_benchmark->hash_get_server(hash_table, op->key);
 
       // loop till we get the remote value
       while (buffer_read_all(&boxes[s].boxes[server].out, 1, &val, 0) == 0) {
@@ -534,13 +552,33 @@ __attribute__ ((unused)) static int run_batch_txn(struct hash_table *hash_table,
       octx->old_value = NULL;
       ctx->nops++;
 
-      values[i] = octx->e->value;
+      if (octx->e) {
+        int esize = octx->e->size;
+        values[i] = octx->e->value;
+
+        if (op->optype == OPTYPE_UPDATE) {
+          octx->old_value = plmalloc_alloc(p, esize);
+          memcpy(octx->old_value, values[i], esize);
+        } else {
+          octx->old_value = NULL;
+        }
+      } else {
+        values[i] = NULL;
+        r = TXN_ABORT;
+#if GATHER_STATS
+        p->naborts_remote++;
+#endif
+      }
 
       nremote--;
     }
 
     assert(nremote == 0);
   }
+
+  // if some remote request failed, just abort
+  if (r == TXN_ABORT)
+    goto final;
 
   // now we have all values. Verify them.
   for (i = 0; i < query->nops; i++) {
@@ -558,7 +596,7 @@ final:
   else
     txn_abort(hash_table, s, TXN_BATCH);
 
-  free(values);
+  //free(values);
 
   return r;
 }
@@ -805,13 +843,10 @@ void *hash_table_server(void* args)
     g_benchmark->get_next_query(hash_table, s, query);
 
     do {
-      r = g_benchmark->run_txn(hash_table, s, query);
-#if 0
       if (batch_size == 1)
-        r = run_txn(hash_table, s, &query);
+        r = g_benchmark->run_txn(hash_table, s, query);
       else
-        r = run_batch_txn(hash_table, s, &query);
-#endif
+        r = run_batch_txn(hash_table, s, query);
 
       // see if we need to answer someone
 #if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
@@ -878,12 +913,16 @@ void *hash_table_server(void* args)
   return NULL;
 }
 
-int smp_hash_lookup(struct hash_table *hash_table, int client_id, hash_key key)
+int smp_hash_lookup(struct hash_table *hash_table, int client_id, 
+    int server, hash_key key)
 {
   uint64_t msg_data = key | HASHOP_LOOKUP;
-  int s = g_benchmark->hash_get_server(hash_table, key);
 
-  buffer_write(&hash_table->boxes[client_id].boxes[s].in, msg_data);
+  assert(server >= 0 && server < hash_table->nservers);
+
+  dprint("srv(%d): sending lookup for key %"PRIu64" to srv %d\n", client_id, key, server);
+
+  buffer_write(&hash_table->boxes[client_id].boxes[server].in, msg_data);
 
   return 1;
 }
@@ -896,17 +935,22 @@ int smp_hash_insert(struct hash_table *hash_table, int client_id, hash_key key, 
   msg_data[0] = (unsigned long)key | HASHOP_INSERT;
   msg_data[1] = (unsigned long)size;
 
+  dprint("srv(%d): sending insert for key %"PRIu64" to srv %d\n", client_id, key, s);
+
   buffer_write_all(&hash_table->boxes[client_id].boxes[s].in, INSERT_MSG_LENGTH, msg_data, 0);
 
   return 1;
 }
 
-int smp_hash_update(struct hash_table *hash_table, int client_id, hash_key key)
+int smp_hash_update(struct hash_table *hash_table, int client_id, int server, hash_key key)
 {
   uint64_t msg_data = key | HASHOP_UPDATE;
-  int s = g_benchmark->hash_get_server(hash_table, key);
 
-  buffer_write(&hash_table->boxes[client_id].boxes[s].in, msg_data);
+  assert(server >= 0 && server < hash_table->nservers);
+
+  dprint("srv(%d): sending update for key %"PRIu64" to srv %d\n", client_id, key, server);
+
+  buffer_write(&hash_table->boxes[client_id].boxes[server].in, msg_data);
 
   return 1;
 }

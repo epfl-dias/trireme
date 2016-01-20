@@ -10,7 +10,7 @@ ARCH   = INTEL64
 # compile shared nothing with pthread_spinlock
 # compile trireme with nothing
 DFLAGS =
-CFLAGS := -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -fms-extensions -g -ggdb -O3 -fno-omit-frame-pointer -D$(ARCH) $(DFLAGS)
+CFLAGS := -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -g -ggdb -O3 -fno-omit-frame-pointer -D$(ARCH) $(DFLAGS)
 LFLAGS = -lpthread -lm -lrt #-ltcmalloc 
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
