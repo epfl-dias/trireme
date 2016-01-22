@@ -9,7 +9,7 @@ extern int niters;
 extern int dist_threshold;
 extern int write_threshold;
 extern int alpha;
-extern double hot_fraction;
+extern size_t nhot_recs;
 extern int nhot_servers;
 
 int micro_hash_get_server(struct hash_table *hash_table, hash_key key)
@@ -87,16 +87,15 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
     /* Get key based on bernoulli distribution. In case of shared nothing 
      * and Trireme configs, there is one more parameter in addition to
-     * alpha and hot_fraction, which is how hot records are spread out. 
+     * alpha and nhot_recs, which is how hot records are spread out. 
      * 
      * In reality, under skew, we'll typically have just a few partitions 
-     * store hot data. So we can use hot_fraction to limit #partitions for 
+     * store hot data. So we can use nhot_recs to limit #partitions for 
      * hot data.
      *
      * records 0 to hot_recs_per_server are hot in each hot server.
      *
      */
-    uint64_t nhot_recs = nservers * p->nrecs * hot_fraction / 100;
     uint64_t nhot_per_server = nhot_recs / nhot_servers;
 
     if (alpha > r) {
@@ -201,45 +200,21 @@ static void se_make_operation(struct hash_table *hash_table, int s,
         hash_key delta = URand(&p->seed, 0, nrecs_per_server - 1);
         op->key = s * nrecs_per_server + delta;
       } else {
-#if ENABLE_SOCKET_LOCAL_TXN
-        // hacked to be specific to diascld33
-        int socket = s / 18;
-        int neighbors = (socket * 18 + 18) > nservers ? 
-          (nservers - socket * 18) : 18;
-        uint64_t available_recs = neighbors * nrecs_per_server;
-        op->key = URand(&p->seed, 0, available_recs - 1);
-        op->key += socket * 18 * nrecs_per_server;
-#else
         // just pick randomly
         op->key = URand(&p->seed, 0, nrecs - 1);
-#endif
       }
     } else {
       /* generate key based on bernoulli dist. alpha is probability
        * #items in one range = 0 to (nrecs * hot_fraction)
        * Based on probability pick right range
        */
-#if ENABLE_SOCKET_LOCAL_TXN
-      // hacked to be specific to diascld33
-      int socket = s / 18;
-      int neighbors = (socket * 18 + 18) > nservers ? 
-        (nservers - socket * 18) : 18;
-      uint64_t available_recs = neighbors * nrecs_per_server;
-      hash_key last_hot_rec = available_recs * hot_fraction / 100;
-#else
-      hash_key last_hot_rec = nrecs * hot_fraction / 100;
-#endif
       if (alpha > r) {
         //hot range
-        op->key = URand(&p->seed, 0, last_hot_rec - 1);
+        op->key = URand(&p->seed, 0, nhot_recs - 1);
       } else {
         //cold range
-        op->key = URand(&p->seed, last_hot_rec + 1, nrecs - 1);
+        op->key = URand(&p->seed, nhot_recs + 1, nrecs - 1);
       }
-
-#if ENABLE_SOCKET_LOCAL_TXN
-      op->key += socket * 18 * nrecs_per_server;
-#endif
     }
   }
 }
@@ -276,13 +251,13 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   }
 }
 
-int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
+int micro_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
 {
   struct hash_query *query = (struct hash_query *) arg;
   int i, r;
   void *value;
 
-  txn_start(hash_table, s);
+  txn_start(hash_table, s, status);
 
 #if SHARED_NOTHING
   /* we have to acquire all partition locks in partition order. This protocol
@@ -346,13 +321,18 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg)
     value = txn_op(hash_table, s, tpartition, op, is_local);
     assert(value);
 #else
-    // try ith operation i+1 times before aborting
-    for (int j = 0; j < i + 1; j++) {
+    // try ith operation i+1 times before aborting only with NOWAIT CC
+#if ENABLE_WAIT_DIE_CC
+    int nretries = 1;
+#else
+    int nretries = i + 1;
+#endif
+    for (int j = 0; j < nretries; j++) {
       value = txn_op(hash_table, s, NULL, op, is_local);
       if (value)
         break;
     }
-#endif
+#endif //shared_nothing
   
     if (!value) {
       r = TXN_ABORT;

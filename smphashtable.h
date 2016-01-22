@@ -116,7 +116,7 @@ double stats_get_cpu_usage(struct hash_table *hash_table);
 double stats_get_tps(struct hash_table *hash_table);
 
 
-void txn_start(struct hash_table *hash_table, int s);
+void txn_start(struct hash_table *hash_table, int s, int status);
 void txn_commit(struct hash_table *hash_table, int s, int mode);
 void txn_abort(struct hash_table *hash_table, int s, int mode);
 void *txn_op(struct hash_table *hash_table, int s, struct partition *p, 

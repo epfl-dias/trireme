@@ -197,7 +197,8 @@ int is_local_op(struct hash_table *hash_table, int s, hash_key key)
   return g_benchmark->hash_get_server(hash_table, key) == s;
 }
 
-struct elem *local_txn_op(struct partition *p, struct hash_op *op)
+struct elem *local_txn_op(struct txn_ctx *ctx, struct partition *p, 
+    struct hash_op *op)
 {
   struct elem *e;
   uint32_t t = op->optype;
@@ -217,7 +218,7 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       assert(e);
 
 #if SHARED_EVERYTHING
-      if (!selock_acquire(e, OPTYPE_LOOKUP)) {
+      if (!selock_acquire(p, e, OPTYPE_LOOKUP, ctx->ts)) {
         p->naborts_local++;
         return NULL;
       }
@@ -260,7 +261,7 @@ struct elem *local_txn_op(struct partition *p, struct hash_op *op)
       }
 
 #if SHARED_EVERYTHING
-      if (!selock_acquire(e, OPTYPE_UPDATE)) {
+      if (!selock_acquire(p, e, OPTYPE_UPDATE, ctx->ts)) {
         p->naborts_local++;
         return NULL;
       }
@@ -317,7 +318,7 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
   if (is_local) {
     //assert(op->key >= s * l_p->nrecs && op->key < (s * l_p->nrecs + l_p->nrecs));
     
-    e = local_txn_op(l_p, op);
+    e = local_txn_op(ctx, l_p, op);
 
     // it is possible for a local txn to fail as someone else might have
     // acquired a lock before us
@@ -370,11 +371,15 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
   return value;
 }
 
-void txn_start(struct hash_table *hash_table, int s)
+void txn_start(struct hash_table *hash_table, int s, int status)
 {
   struct txn_ctx *ctx = &hash_table->partitions[s].txn_ctx;
 
   ctx->nops = 0;
+  
+  // if previous status was commit, this is a new txn. assign new ts.
+  if (status == TXN_COMMIT)
+    ctx->ts = read_tsc();
 }
 
 void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
@@ -484,7 +489,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
   //assert(values);
   void *values[MAX_OPS_PER_QUERY];
 
-  txn_start(hash_table, s);
+  txn_start(hash_table, s, TXN_COMMIT);
 
   /* XXX: REWRITE THIS TO GATHER ALL REMOTE OPS AND SEND IT USING
    * SMP_HASH_DO_ALL 
@@ -659,20 +664,23 @@ void process_requests(struct hash_table *hash_table, int s)
       continue;
     }
 
+    uint64_t req_ts = hash_table->partitions[i].txn_ctx.ts;
     struct onewaybuffer *b = &boxes[i].boxes[s].in; 
     int count = b->wr_index - b->rd_index;
     if (count == 0) 
       continue;
 
-    count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, localbuf, 0);
+    //count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, localbuf, 0);
+    count = buffer_peek(b, ONEWAY_BUFFER_SIZE, localbuf);
     assert(count);
 
     int k = 0;
     int j = 0;
+    char abort = 0;
 
     struct elem *e;
 
-    while (k < count) {
+    while (k < count && !abort) {
 
       switch (localbuf[k] & HASHOP_MASK) {
         case HASHOP_RELEASE:
@@ -684,8 +692,9 @@ void process_requests(struct hash_table *hash_table, int s)
 
             mp_release_value_(p, e);
             k++;
+            buffer_seek(b, 1);
 
-            dprint("srv(%d): cl %d post release %" PRIu64 " rc %" PRIu64 "\n", 
+           dprint("srv(%d): cl %d post release %" PRIu64 " rc %" PRIu64 "\n", 
               s, i, e->key, e->ref_count);
 
             break;
@@ -713,15 +722,72 @@ void process_requests(struct hash_table *hash_table, int s)
               dprint("srv (%d): cl %d lookup %" PRIu64 " rc %" PRIu64 " aborted \n", s, i,
                 localbuf[k] & (~HASHOP_MASK), e->ref_count);
 
+#if 0
+              /* If we return back NULL here, we're implementing NO_WAIT.
+               * 
+               * Instead we can check to see who owns the lock now. If the 
+               * requestor's timestamp is < lock timestamp, then we block
+               * the requestor. Later, when the value is released, we unblock
+               * the requestor. However, if timestamp is > lock timestamp
+               * we return back NULL and the requestor aborts the txn. This is
+               * NO_WAIT.
+               *
+               * XXX: For now, we assume we directly access the txn timestamp
+               * from the partition structure. This assumes that each core will
+               * be running only one txn. We need to change this when we 
+               * introduce context switching with fibers
+               *
+               * XXX: For now, we don't store waiter list explicitly. We will
+               * be testing this only when all transactions are updates or 
+               * all are reads. Either way, we won't have a scenario where
+               * an update arrives which a shared read lock is held.
+               * In read-only case, we never end up here. In update-only
+               * case, we end up here if there is already an exclusive lock.
+               * So we don't need a explicit list of owners as there is only
+               * one owner. We dont need an explicit list of waiters as 
+               * waiters implicitly block on messaging. This will change
+               * if we have mixed reads and writes. So we check for this
+               * below and leave actual list maintenance work for later.
+               */
+              assert((e->ref_count & DATA_READY_MASK) || 
+                  ((e->ref_count & ~DATA_READY_MASK) == 2));
+             
+              /* determine if we should make the requestor wait.
+               * Only one guy has an exclusive lock. We're here because
+               * someone else has the lock in conflicting mode. WAIT_DIE 
+               * rule says caller can wait if it is older the txn 
+               * currently holding the lock. That is, if the lock owner's
+               * ts > txn's ts, then we can wait.
+               */
+              if (req_ts < e->last_ts) {
+                /* by setting abort to 1, buffer_seek will not be called.
+                 * Next time this server checks again, it'll pull out the
+                 * same message and retry the op for the txn.
+                 */
+                abort = 1;
+              } else {
+                // this will result in NULL being replied to the caller 
+                // which in turn will abort the txn
+                ;
+              }
+#endif
+
               e = NULL;
+
             } else {
               p->nhits++;
               e->ref_count++;
+              //assert(e->last_ts == 0);
+              //e->last_ts = req_ts;
             }
 
-            localbuf[j] = (unsigned long)e;
-            k++;
-            j++;
+            if (!abort) {
+              localbuf[j] = (unsigned long)e;
+              k++;
+              buffer_seek(b, 1);
+              j++;
+            }
+
             break;
           }
         case HASHOP_INSERT:
@@ -736,6 +802,7 @@ void process_requests(struct hash_table *hash_table, int s)
               e->ref_count = DATA_READY_MASK | 2; 
             }
             k += INSERT_MSG_LENGTH;
+            buffer_seek(b, INSERT_MSG_LENGTH);
 
             localbuf[j] = (unsigned long) e;
             j++;
@@ -761,15 +828,40 @@ void process_requests(struct hash_table *hash_table, int s)
               dprint("srv(%d): cl %d update %"PRIu64" rc %"PRIu64" aborted \n", 
                   s, i, localbuf[k] & (~HASHOP_MASK), e->ref_count);
 
+
+              /* NOWAIT LOGIC
+               * In nowait case, we should never get an excl lock request for
+               * an item which has a shared mode lock in place as we will then
+               * have to maintain a list of owners and check the ts of the
+               * requesting txn with all owners, and maintain a list of 
+               * waiters and check ts with waiter with highest ts. We have
+               * not done that yet (see above). So check that we are ok.
+               */
+              assert(e->ref_count & DATA_READY_MASK);
+
+#if 0
+              /* NO_WAIT logic. Check comments above */
+              if (req_ts < e->last_ts) {
+                abort = 1; // wait
+              } else {
+                ; // reply NULL back
+              }
+#endif
+
               e = NULL;
+
             } else {
               e->ref_count = DATA_READY_MASK | 2;
+              //assert(e->last_ts == 0);
+              //e->last_ts = req_ts;
             }
 
-            localbuf[j] = (unsigned long)e;
-
-            k++;
-            j++;
+            if (!abort) {
+              localbuf[j] = (unsigned long)e;
+              k++;
+              buffer_seek(b, 1);
+              j++;
+            }
 
             break;
 
@@ -782,7 +874,8 @@ void process_requests(struct hash_table *hash_table, int s)
       }
     }
 
-    buffer_write_all(&boxes[i].boxes[s].out, j, localbuf, 1);
+    if (j) 
+      buffer_write_all(&boxes[i].boxes[s].out, j, localbuf, 1);
   }
 }
 
@@ -842,9 +935,11 @@ void *hash_table_server(void* args)
     // run query as txn
     g_benchmark->get_next_query(hash_table, s, query);
 
+    r = TXN_COMMIT;
+
     do {
       if (batch_size == 1)
-        r = g_benchmark->run_txn(hash_table, s, query);
+        r = g_benchmark->run_txn(hash_table, s, query, r);
       else
         r = run_batch_txn(hash_table, s, query);
 
@@ -860,7 +955,8 @@ void *hash_table_server(void* args)
     } while (r == TXN_ABORT);
 
 #if PRINT_PROGRESS
-    if (i % 100000 == 0)
+    //if (i % 100000 == 0)
+    if (i % 1000 == 0)
       printf("srv(%d): completed txn %d\n", s, i);
 #endif
 
@@ -1028,7 +1124,7 @@ int is_value_ready(struct elem *e)
 void mp_release_value_(struct partition *p, struct elem *e)
 {
 #if SHARED_EVERYTHING
-  selock_release(e);
+  selock_release(p, e);
 #else
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 #endif

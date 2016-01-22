@@ -37,7 +37,7 @@ int query_shift     = 2;
 int write_threshold = 20;
 int dist_threshold = 10;
 int alpha = 0;
-double hot_fraction = 0;
+size_t nhot_recs = 0;
 int nhot_servers = 0;
 
 int track_cpu_usage = 0;
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
         alpha = atoi(optarg);
         break;
       case 'h':
-        hot_fraction = atof(optarg);
+        nhot_recs = atol(optarg);
         break;
       case 'p':
         nhot_servers = atoi(optarg);
@@ -139,10 +139,14 @@ int main(int argc, char *argv[])
   if (first_core == -1) first_core = nclients;
 
   if (alpha) {
-    assert(hot_fraction != 0);
+    assert(nhot_recs != 0 && nhot_recs > 10);
     assert(nhot_servers != 0);
     assert(nhot_servers <= nservers && nhot_servers >= 2);
   }
+
+#if defined(ENABLE_WAIT_DIE_CC) && !defined(PTHREAD_MUTEX)
+#error "Wait die only works with mutex"
+#endif
 
   // set benchmark to micro for now
   //g_benchmark = &tpcc_bench;

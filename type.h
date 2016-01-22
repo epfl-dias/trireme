@@ -9,9 +9,18 @@
  */
 typedef uint64_t hash_key;
 
+/* lock used to implement 2pl wait die */
+struct lock_entry {
+  int s;
+  uint64_t ts;
+  char optype;
+  volatile char ready;
+  TAILQ_ENTRY(lock_entry) next;
+};
+
+TAILQ_HEAD(lock_list, lock_entry);
+
 /* lock type used to implement latching */
-
-
 #if ANDERSON_LOCK
 
 // anderson lock
@@ -61,9 +70,13 @@ struct elem {
   uint64_t ref_count;
   TAILQ_ENTRY(elem) chain;
   char *value;
-  uint64_t local_values[2];
+  uint64_t local_values[1];
 #if SHARED_EVERYTHING
   LATCH_T latch;
+#if ENABLE_WAIT_DIE_CC
+  struct lock_list waiters; 
+  struct lock_list owners;
+#endif
 #endif
 } __attribute__ ((aligned (CACHELINE)));
 
@@ -121,6 +134,7 @@ struct op_ctx {
 };
 
 struct txn_ctx {
+  uint64_t ts;
   int nops;
   struct op_ctx op_ctx[MAX_OPS_PER_QUERY];
 };

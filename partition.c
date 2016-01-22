@@ -189,7 +189,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   e->key = key;
 
   // if size fits locally, store locally. Else alloc
-  if (size < sizeof(e->local_values)) {
+  if (size <= sizeof(e->local_values)) {
     e->value = (char *)e->local_values;
   } else {
     //e->value = malloc(size);
@@ -200,12 +200,17 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   e->size = size;
   p->size += sizeof(struct elem) + size;
 
+#if ENABLE_WAIT_DIE_CC
+  TAILQ_INIT(&e->owners);
+  TAILQ_INIT(&e->waiters);
+#endif
+
   TAILQ_INSERT_TAIL(eh, e, chain);
 
 #if SE_LATCH
   LATCH_RELEASE(&b->latch, &alock_state); 
 #endif
-  
+
   return e;
 }
 

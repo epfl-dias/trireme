@@ -4,6 +4,7 @@ ARCH   = INTEL64
 # 								configs: SHARED_EVERYTHING, SHARED_NOTHING
 # 								latching: SE_LATCH (enables latching in shared everything)
 # 								lock types:  PTHREAD_SPINLOCK, PTHREAD_MUTEX, ANDERSON_LOCK, TICKET_LOCK
+# 								CC types: ENABLE_WAIT_DIE_CC
 # compile shared everything with se_latch and pthread_spinlock.
 # non se_latch config is only for microbenchmark readonly case
 # 

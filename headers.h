@@ -13,8 +13,8 @@
 #include <inttypes.h>
 
 #include "const.h"
-#include "type.h"
 #include "util.h"
+#include "type.h"
 
 #ifdef ANDERSON_LOCK
 #include "alock.h"
