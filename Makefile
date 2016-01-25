@@ -16,7 +16,7 @@ LFLAGS = -lpthread -lm -lrt #-ltcmalloc
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
 LIBSRC =  ycsb.c smphashtable.c onewaybuffer.c \
-				 partition.c util.c zipf.c tpcc.c micro_bench.c \
+				 partition.c util.c zipf.c tpcc.c micro_bench.c twopl.c \
 				 ia32msr.c ia32perf.c selock.c alock.c tlock.c plmalloc.c
 
 LIBOBJS = $(LIBSRC:.c=.o)

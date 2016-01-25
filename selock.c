@@ -1,6 +1,8 @@
 #include "headers.h"
 #include "smphashtable.h"
 #include "benchmark.h"
+#include "twopl.h"
+#include "plmalloc.h"
 
 #if 0
 enum lock_t {LOCK_EXCL, LOCK_SHRD, LOCK_NONE};
@@ -28,6 +30,7 @@ extern struct hash_table *hash_table;
 extern struct benchmark *g_benchmark;
 extern int write_threshold;
 
+#if ENABLE_WAIT_DIE_CC
 int selock_wait_die_acquire(struct partition *p, struct elem *e, 
     char optype, uint64_t req_ts)
 {
@@ -92,7 +95,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
     }
 
     // insert a lock in the owners list
-    target = malloc(sizeof(struct lock_entry));
+    target = plmalloc_alloc(p, sizeof(struct lock_entry));
     assert(target);
     target->ts = req_ts;
     target->s = s;
@@ -125,7 +128,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
           break;
       }
 
-      target = malloc(sizeof(struct lock_entry));
+      target = plmalloc_alloc(p, sizeof(struct lock_entry));
       assert(target);
       target->ts = req_ts;
       target->s = s;
@@ -175,7 +178,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
 #else
   assert(g_benchmark == &micro_bench && write_threshold == 100);
   r = 1;
-#endif
+#endif // SE_LATCH
 
   return r;
 
@@ -206,7 +209,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
   // decrement ref count as a owner is releasing a lock
   e->ref_count = (e->ref_count & ~DATA_READY_MASK) - 1;
 
-  free(lock_entry);
+  plmalloc_free(p, lock_entry, sizeof(*lock_entry));
 
   // if there are no more owners, then refcount should be 1
   if (TAILQ_EMPTY(&e->owners))
@@ -266,9 +269,10 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
 
 #else
   assert(g_benchmark == &micro_bench && write_threshold == 100);
-#endif
+#endif // SE_LATCH
 
 }
+#endif // ENABLE_WAIT_DIE_CC
 
 int selock_nowait_acquire(struct partition *p, struct elem *e, char optype, 
     uint64_t req_ts)

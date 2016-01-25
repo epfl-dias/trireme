@@ -144,10 +144,6 @@ int main(int argc, char *argv[])
     assert(nhot_servers <= nservers && nhot_servers >= 2);
   }
 
-#if defined(ENABLE_WAIT_DIE_CC) && !defined(PTHREAD_MUTEX)
-#error "Wait die only works with mutex"
-#endif
-
   // set benchmark to micro for now
   //g_benchmark = &tpcc_bench;
   g_benchmark = &micro_bench;
@@ -298,7 +294,6 @@ void run_benchmark()
   printf("== results ==\n");
   printf(" Loading time:      %.3f\n", insert_time);
   printf(" Lookup time:      %.3f\n", tend - tstart);
-  printf(" Lookup hit rate: %.3f(%d,%d)\n", (double)stats_get_nhits(hash_table) / stats_get_nlookups(hash_table), stats_get_nhits(hash_table), stats_get_nlookups(hash_table));
   printf(" Abort rate: %.3f(%d,%d)\n", (double)stats_get_naborts(hash_table) / stats_get_nlookups(hash_table), stats_get_naborts(hash_table), stats_get_nlookups(hash_table));
   printf(" Update ratio: %.3f(%d,%d)\n", (double)stats_get_nupdates(hash_table) / stats_get_nlookups(hash_table), stats_get_nupdates(hash_table), stats_get_nlookups(hash_table));
 
@@ -320,7 +315,6 @@ void run_benchmark()
 
   printf("== results ==\n");
   printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
-  //printf(" Lookup hit rate: %.3f\n", (double)stats_get_nhits(hash_table) / stats_get_nlookups(hash_table));
 #if GATHER_STATS
   stats_get_nlookups(hash_table);
   stats_get_ninserts(hash_table);

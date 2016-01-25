@@ -73,10 +73,10 @@ struct elem {
   uint64_t local_values[1];
 #if SHARED_EVERYTHING
   LATCH_T latch;
+#endif
 #if ENABLE_WAIT_DIE_CC
   struct lock_list waiters; 
   struct lock_list owners;
-#endif
 #endif
 } __attribute__ ((aligned (CACHELINE)));
 
@@ -154,7 +154,6 @@ struct partition {
   struct bucket *table;
 
   // stats
-  int nhits;
   int ninserts;
   int nlookups_local;
   int nupdates_local;

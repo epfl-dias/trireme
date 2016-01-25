@@ -35,4 +35,8 @@
 #define ENABLE_SOCKET_LOCAL_TXN 1
 #endif
 
+#define LOCK_SUCCESS 0
+#define LOCK_ABORT 1
+#define LOCK_WAIT 2
+
 #endif

@@ -92,6 +92,11 @@ void smp_flush_all(struct hash_table *hash_table, int client_id);
 void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr);
 void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr);
 
+/*XXX: For now, exposing local op as well as it is used by twopl. Refactor 
+ * later
+ */
+void mp_release_value_(struct partition *p, struct elem *e);
+
 
 /* is_value_ready check ref counts to see if there is a write lock held
  * on a data item. write lock can be held during insertion or during update
@@ -104,7 +109,6 @@ int is_value_ready(struct elem *e);
  * Stats functions
  */
 void stats_reset(struct hash_table *hash_table);
-int stats_get_nhits(struct hash_table *hash_table);
 int stats_get_nlookups(struct hash_table *hash_table);
 int stats_get_nupdates(struct hash_table *hash_table);
 int stats_get_naborts(struct hash_table *hash_table);
