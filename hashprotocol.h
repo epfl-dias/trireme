@@ -9,7 +9,9 @@
 enum optype {
   OPTYPE_LOOKUP = 0,
   OPTYPE_INSERT = 1,
-  OPTYPE_UPDATE = 2
+  OPTYPE_UPDATE = 2,
+  OPTYPE_PLOCK_ACQUIRE = 3,
+  OPTYPE_PLOCK_RELEASE = 4,
 };
 
 struct hash_op {
@@ -35,5 +37,4 @@ struct hash_query {
   struct hash_op ops[MAX_OPS_PER_QUERY];
   int nops;
 };
-
 #endif

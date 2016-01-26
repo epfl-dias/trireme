@@ -65,6 +65,12 @@ int main(int argc, char *argv[])
 {
   int opt_char;
 
+#if PARTITION_LOCK_MODE
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+#error "Shared everthing or nothing cannot be compiled in partition lock mode"
+#endif
+#endif
+
   while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:h:p:")) != -1) {
     switch (opt_char) {
       case 'a':
@@ -102,9 +108,9 @@ int main(int argc, char *argv[])
       case 'b':
         batch_size = atoi(optarg);
         assert(batch_size < MAX_OPS_PER_QUERY);
-#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING) || defined(PARTITION_LOCK_MODE)
         if (batch_size != 1) {
-          printf("batching not allowed in se/sn\n");
+          printf("batching not allowed in se/sn or partition lock modes\n");
           assert(0);
         }
 #endif
@@ -141,7 +147,7 @@ int main(int argc, char *argv[])
   if (alpha) {
     assert(nhot_recs != 0 && nhot_recs > 10);
     assert(nhot_servers != 0);
-    assert(nhot_servers <= nservers && nhot_servers >= 2);
+    assert(nhot_servers <= nservers);
   }
 
   // set benchmark to micro for now

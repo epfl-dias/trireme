@@ -55,6 +55,18 @@ void init_hash_partition(struct partition *p, size_t nrecs,
 
   /* initialize partition-local heap */
   plmalloc_init(p);
+
+#if PARTITION_LOCK_MODE
+  /* initialize partition ref count */
+  struct elem *e = &p->magic_elem;
+  e->key = UINT_MAX;
+  e->size = 0;
+  e->ref_count = 1;
+#if ENABLE_WAIT_DIE_CC
+  TAILQ_INIT(&e->owners);
+  TAILQ_INIT(&e->waiters);
+#endif
+#endif
 }
 
 size_t destroy_hash_partition(struct partition *p)

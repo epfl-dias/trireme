@@ -12,11 +12,13 @@
 /** 
  * Hash Table Operations
  */
-#define HASHOP_MASK       0xF000000000000000
-#define HASHOP_LOOKUP     0x1000000000000000 
-#define HASHOP_INSERT     0x2000000000000000 
-#define HASHOP_UPDATE     0x3000000000000000 
-#define HASHOP_RELEASE    0x4000000000000000 
+#define HASHOP_MASK           0xF000000000000000
+#define HASHOP_LOOKUP         0x1000000000000000 
+#define HASHOP_INSERT         0x2000000000000000 
+#define HASHOP_UPDATE         0x3000000000000000 
+#define HASHOP_RELEASE        0x4000000000000000 
+#define HASHOP_PLOCK_ACQUIRE  0x5000000000000000 
+#define HASHOP_PLOCK_RELEASE  0x6000000000000000 
 
 #define INSERT_MSG_LENGTH 2
 
@@ -34,7 +36,6 @@ extern struct hash_table *hash_table;
 // Forward declarations
 void *hash_table_server(void* args);
 int is_value_ready(struct elem *e);
-void process_requests(struct hash_table *hash_table, int s);
 
 struct hash_table *create_hash_table(size_t nrecs, int nservers)
 {
@@ -197,7 +198,7 @@ int is_local_op(struct hash_table *hash_table, int s, hash_key key)
   return g_benchmark->hash_get_server(hash_table, key) == s;
 }
 
-struct elem *local_txn_op(struct txn_ctx *ctx, struct partition *p, 
+struct elem *local_txn_op(int s, struct txn_ctx *ctx, struct partition *p, 
     struct hash_op *op)
 {
   struct elem *e;
@@ -214,11 +215,12 @@ struct elem *local_txn_op(struct txn_ctx *ctx, struct partition *p,
       break;
 
     case OPTYPE_LOOKUP:
+    case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
       assert(e);
 
 #if SHARED_EVERYTHING
-      if (!selock_acquire(p, e, OPTYPE_LOOKUP, ctx->ts)) {
+      if (!selock_acquire(p, e, t, ctx->ts)) {
         p->naborts_local++;
         return NULL;
       }
@@ -229,71 +231,46 @@ struct elem *local_txn_op(struct txn_ctx *ctx, struct partition *p,
        */
 #else
 
-      // if value is not ready, lookup and updates fail
-      if (!is_value_ready(e)) {
-        assert(e->ref_count == (DATA_READY_MASK | 2));
-
-        dprint("lookup %" PRIu64 " rc %" PRIu64 " aborted \n", op->key, 
-            e->ref_count);
-
-        p->naborts_local++;
-        return NULL;
-      }
-
-      if (p != hash_table->g_partition)
-   	    e->ref_count++;
-#endif
-
-#if GATHER_STATS
-      p->nlookups_local++;
-#endif
-      break;
-
-    case OPTYPE_UPDATE:
-      // should not get a update to item partition
-      assert (p != hash_table->g_partition);
-
-      e = hash_lookup(p, op->key);
-      if (!e) {
-        printf("srv(%d): lookup %"PRIu64" failed\n", p - &hash_table->partitions[0], op->key);
-        assert(e);
-      }
-
-#if SHARED_EVERYTHING
-      if (!selock_acquire(p, e, OPTYPE_UPDATE, ctx->ts)) {
-        p->naborts_local++;
-        return NULL;
-      }
-#elif SHARED_NOTHING
-      /* Do absolutely nothing for shared nothing as it proceeds by first
-       * getting partition locks. So there is no need to get record locks
-       * as access to the whole partition itself is serialized
-       */
+      struct lock_entry *l = NULL;
+#if ENABLE_WAIT_DIE_CC
+      int r = wait_die_acquire(s, p, s, e, t, ctx->ts, &l);
 #else
+      int r = no_wait_acquire(e, t);
+#endif
+    
+      if (r == LOCK_SUCCESS) {
+        ; // great we have the lock
+      } else if (r == LOCK_WAIT) {
+        /* we have to spin now until value is ready. But we also need to
+         * service other requests
+         */
+#if !defined(ENABLE_WAIT_DIE_CC)
+        assert(0);
+#endif
+        assert(l);
+        while (!l->ready)
+          process_requests(hash_table, s);
 
-      // if pending lookups are there, updates fail
-      if (!is_value_ready(e) || e->ref_count > 1) {
-        dprint("update %" PRIu64 " rc %" PRIu64 " aborted \n", op->key,
-            e->ref_count);
-
+      } else {
+        // busted
+        assert(r == LOCK_ABORT);
         p->naborts_local++;
-
         return NULL;
       }
 
-      e->ref_count = DATA_READY_MASK | 2; 
-#endif
-
 #if GATHER_STATS
-      p->nupdates_local++;
+      if (t == OPTYPE_LOOKUP)
+        p->nlookups_local++;
+      else
+        p->nupdates_local++;
 #endif
       break;
 
     default:
       assert(0);
       break;
+#endif
   }
-
   return e;
 }
 
@@ -317,7 +294,7 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
   if (is_local) {
     //assert(op->key >= s * l_p->nrecs && op->key < (s * l_p->nrecs + l_p->nrecs));
     
-    e = local_txn_op(ctx, l_p, op);
+    e = local_txn_op(s, ctx, l_p, op);
 
     // it is possible for a local txn to fail as someone else might have
     // acquired a lock before us
@@ -411,10 +388,19 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
         assert(octx->old_value == NULL);
 
         // release element
-        if (octx->is_local)
+        if (octx->is_local) {
+#if SHARED_EVERYTHING
           mp_release_value_(&hash_table->partitions[s], octx->e);
-        else
+#else
+#if ENABLE_WAIT_DIE_CC
+          wait_die_release(s, &hash_table->partitions[s], s, octx->e);
+#else
+          no_wait_release(&hash_table->partitions[s], octx->e);
+#endif //ENABLE_WAIT_DIE_cc
+#endif //SHARED_EVERYTHING
+        } else {
           mp_release_value(hash_table, s, octx->e);
+        }
 
         break;
       case OPTYPE_UPDATE:
@@ -434,10 +420,19 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
 
         plmalloc_free(&hash_table->partitions[s], octx->old_value, size);
 
-        if (octx->is_local)
+        if (octx->is_local) {
+#if SHARED_EVERYTHING
           mp_release_value_(&hash_table->partitions[s], octx->e);
-        else
+#else
+#if ENABLE_WAIT_DIE_CC
+          wait_die_release(s, &hash_table->partitions[s], s, octx->e);
+#else
+          no_wait_release(&hash_table->partitions[s], octx->e);
+#endif //ENABLE_WAIT_DIE_CC
+#endif //SHARED_EVERYTHING
+        } else {
           mp_mark_ready(hash_table, s, octx->e);
+        }
 
         break;
 
@@ -676,112 +671,35 @@ void process_requests(struct hash_table *hash_table, int s)
 
     /* process all release messages first */
     while (k < count) {
-      if ((localbuf[k] & HASHOP_MASK) != HASHOP_RELEASE)
-        break;
+      uint64_t op = localbuf[k] & HASHOP_MASK;
+      if (op == HASHOP_RELEASE) {
+        struct elem *e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
 
-      struct elem *e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
-
-      dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
-          s, i, e->key, e->ref_count);
+        dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
+            s, i, e->key, e->ref_count);
 
 #if ENABLE_WAIT_DIE_CC
-      wait_die_release(s, p, i, e);
+        wait_die_release(s, p, i, e);
 #else
-      no_wait_release(p, e);
+        no_wait_release(p, e);
 #endif
 
-#if 0
-      // find out lock on the owners list
-      struct lock_entry *l;
-      TAILQ_FOREACH(l, &e->owners, next) {
-        if (l->s == i)
-          break;
-      }
-
-      if (l) {
-        // free lock
-        dprint("srv(%d): cl %d key %" PRIu64 " rc %" PRIu64 
-          " being removed from owners\n", s, i, e->key, e->ref_count);
-
-        TAILQ_REMOVE(&e->owners, l, next);
-
-        mp_release_value_(p, e);
-      } else {
-        // it is possible that lock is on waiters list. Imagine a scenario
-        // where we send requests in bulk to 2 servers, one waits and other
-        // aborts. In this case, we will get release message for a request
-        // that is currently waiting
-        TAILQ_FOREACH(l, &e->waiters, next) {
-          if (l->s == i)
-            break;
-        }
-
-        // can't be on neither owners nor waiters!
-        assert(l);
-        TAILQ_REMOVE(&e->waiters, l, next);
-      }
-
-      plmalloc_free(p, l, sizeof(struct lock_entry));
-
-      dprint("srv(%d): cl %d post release %" PRIu64 " rc %" PRIu64 "\n", 
-          s, i, e->key, e->ref_count);
-
-      // if there are no more owners, then refcount should be 1
-      if (TAILQ_EMPTY(&e->owners)) {
-        if (e->ref_count != 1) {
-          printf("found key %"PRIu64" with ref count %d\n", e->key, e->ref_count);
-          fflush(stdout);
-        }
-
-        assert(e->ref_count == 1);
-      }
-
-      /* If lock_free is set, that means the new lock mode is decided by 
-       * the head of waiter list. If lock_free is not set, we still have
-       * some readers. So only pending readers can be allowed. Keep 
-       * popping items from wait list as long as we have readers.
-       */
-      l = TAILQ_FIRST(&e->waiters);
-      while (l) {
-        char conflict = 0;
-
-        if (l->optype == OPTYPE_LOOKUP) {
-          conflict = !is_value_ready(e);
-        } else {
-          conflict = (!is_value_ready(e)) || ((e->ref_count & ~DATA_READY_MASK) > 1);
-        }
-
-        if (conflict) {
-          break;
-        } else {
-          /* there's no conflict only if there is a shared lock and we're 
-           * requesting a shared lock, or if there's no lock
-           */
-          assert((e->ref_count & DATA_READY_MASK) == 0);
-
-          if (l->optype == OPTYPE_LOOKUP) {
-            assert((e->ref_count & ~DATA_READY_MASK) >= 1);
-            e->ref_count++;
-          } else {
-            assert((e->ref_count & ~DATA_READY_MASK) == 1);
-            e->ref_count = DATA_READY_MASK | 2;
-          }
-        }
-
-        // remove from waiters, add to owners, mark as ready
-        TAILQ_REMOVE(&e->waiters, l, next);
-        TAILQ_INSERT_HEAD(&e->owners, l, next);
-
-        dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n", 
-            s, e->key, l->s);
-
-        // go to next element
-        l = TAILQ_FIRST(&e->waiters);
-      }
+      } 
+#if PARTITION_LOCK_MODE
+      else if (op == HASHOP_PLOCK_RELEASE) {
+#if ENABLE_WAIT_DIE_CC
+        wait_die_release(s, p, i, &p->magic_elem);
+#else
+        no_wait_release(p, &p->magic_elem);
 #endif
+      } 
+#endif // PARTITION_LOCK_MODE
+      else {
+        break;
+      }
+
       k++;
       nreleases++;
-
     }
 
     buffer_seek(&boxes[i].boxes[s].in, k);
@@ -799,42 +717,6 @@ void process_requests(struct hash_table *hash_table, int s)
       uint64_t optype = localbuf[k] & HASHOP_MASK;
 
       switch (optype) {
-#if 0
-        case HASHOP_LOOKUP:
-          {
-            dprint("srv (%d): cl %d lookup %" PRIu64 "\n", s, i, 
-              localbuf[k] & (~HASHOP_MASK));
-
-            e[j] = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
-            if (!e[j]) {
-              dprint("srv (%d): cl %d lookup FAILED %" PRIu64 "\n", s, i, 
-                localbuf[k] & (~HASHOP_MASK));
-
-              assert(0);
-            }
-
-            dprint("srv (%d): cl %d lookup %" PRIu64 " rc %" PRIu64 "\n", s, i,
-              localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
-
-            if (!is_value_ready(e[j])) {
-              assert(e[j]->ref_count == (DATA_READY_MASK | 2));
-
-              dprint("srv (%d): cl %d lookup %" PRIu64 " rc %" PRIu64 " aborted \n", s, i,
-                localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
-
-              break;
-
-            } 
-
-            e[j]->ref_count++;
-
-            localbuf[j] = (unsigned long)e[j];
-            k++;
-            j++;
-
-            break;
-          }
-#endif
         case HASHOP_INSERT:
           {
 #if GATHER_STATS
@@ -859,13 +741,17 @@ void process_requests(struct hash_table *hash_table, int s)
             struct lock_entry *l;
             char conflict = 0;
 
-            dprint("srv (%d): cl %d update %" PRIu64 "\n", s, i, 
+            dprint("srv (%d): cl %d %s %" PRIu64 "\n", s, i, 
+              optype == HASHOP_LOOKUP ? "lookup" : "update",
               localbuf[k] & (~HASHOP_MASK));
 
             e[j] = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
             if (!e[j]) {
-              printf("srv (%d): cl %d update %" PRIu64 "\n", s, i, 
-                localbuf[k] & (~HASHOP_MASK));
+              printf("srv (%d): cl %d %s %" PRIu64 "\n", s, i, 
+                  optype == HASHOP_LOOKUP ? "lookup" : "update",
+                  localbuf[k] & (~HASHOP_MASK));
+
+
               assert (0);
             }
 
@@ -893,159 +779,41 @@ void process_requests(struct hash_table *hash_table, int s)
               break;
             }
 
-#if 0
-            /* If we are on the owner's list, we have the element, ref counts are all
-             * set, just save it and move along 
-             */
-            TAILQ_FOREACH(l, &e[j]->owners, next) {
-              if (l->s == i)
-                break;
-            }
-
-            if (l) {
-              dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 
-                  " found in owner\n", s, i, localbuf[k] & (~HASHOP_MASK), 
-                  e[j]->ref_count);
-
-              localbuf[j] = (unsigned long)e[j];
-
-              locks[j] = l;
-
-              goto have_data; 
-            }
-
-            dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 "\n", s, 
-                i, localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
-
-            conflict = !is_value_ready(e[j]) || e[j]->ref_count > 1;
-
-            /* with wait die, we also have a conflict if there is a waiting list
-             * and if head of waiting list is a newer txn than incoming one
-             */
-            if (!conflict) {
-              if (!TAILQ_EMPTY(&e[j]->waiters)) {
-                l = TAILQ_FIRST(&e[j]->waiters);
-                if (req_ts <= l->ts)
-                  conflict = 1;
-              }
-            }
-              
-            /* if somebody has lock or wait die is signaling a conflict
-             * we need to check if this txn must wait or abort. If it must 
-             * wait, then we should add it to waiters list and continue. 
-             * SOmetime later, someone will move us to the owner list. At
-             * that point, when we retry getting lock again, we will succeed.
-             * So we will reply back only at that time. For now, we should
-             * leave messages in queue and not remove them.
-             *
-             * If it must abort, then we should unlock all locks acquired,
-             * then return back a NULL for each message.
-             
-             * XXX: We rely on state maintained in messaging system to ensure
-             * that same ops are retried later. Given that we maintain an
-             * explicit waiter list, another option would be to use async
-             * messaging to send out a lock acquired response when the lock
-             * is released. But doing this means that requests can get replied
-             * to out of order. This is something messaging system cannot
-             * handle now. 
-             */
-            if (conflict) {
-              /* There was a conflict. In wait die case, we can wait if 
-               * req_ts is < ts of all owner txns 
-               */
-              char wait = 1;
-              TAILQ_FOREACH(l, &e[j]->owners, next) {
-                if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < i))) {
-                  wait = 0;
-                  break;
-                }
-              }
-
-              if (wait) {
-
-                waiting = 1;
-
-                dprint("srv(%d): cl %d update %"PRIu64" rc %"PRIu64" waiting \n", 
-                  s, i, localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
-
-                // if we are allowed to wait, make a new lock entry and add it to
-                // waiters list. Its possible that the request is being
-                // retriedin which case it would already be on the waiters list
-                char already_waiting = 0;
-                TAILQ_FOREACH(l, &e[j]->waiters, next) {
-                  // break if we're already waiting
-                  if (l->ts == req_ts && l->s == i) {
-                    assert(l->optype == OPTYPE_UPDATE);
-                    already_waiting = 1;
-                    locks[j] = l;
-                    break;
-                  }
-
-                  // break if this is where we have to insert ourself 
-                  if (l->ts < req_ts || (l->ts == req_ts && l->s < i))
-                    break;
-                }
-
-                if (!already_waiting) {
-                  struct lock_entry *target = plmalloc_alloc(p, sizeof(struct lock_entry));
-                  assert(target);
-                  target->ts = req_ts;
-                  target->s = i;
-                  target->optype = OPTYPE_UPDATE;
-                  target->ready = 0;
-                  locks[j] = target;
-
-                  if (l) {
-                    TAILQ_INSERT_BEFORE(l, target, next);
-                  } else {
-                    if (TAILQ_EMPTY(&e[j]->waiters)) {
-                      TAILQ_INSERT_HEAD(&e[j]->waiters, target, next);
-                    } else {
-                      TAILQ_INSERT_TAIL(&e[j]->waiters, target, next);
-                    }
-                  }
-                }
-
-                localbuf[j] = 0;
-
-              } else {
-                dprint("srv(%d): cl %d update %"PRIu64" rc %"PRIu64" aborted \n", 
-                  s, i, localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
-
-                continue_loop = 0;
-
-                // stop processing loop. We have an abort case
-                break;
-              }
-            } else {
-
-              e[j]->ref_count = DATA_READY_MASK | 2;
-
-              // insert a lock in the owners list
-              struct lock_entry *target = plmalloc_alloc(p, sizeof(struct lock_entry));
-              assert(target);
-              target->ts = req_ts;
-              target->s = i;
-              target->optype = OPTYPE_UPDATE;
-              target->ready = 1;
-              locks[j] = target;
-
-              dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 
-                  " adding to owners\n", s, i, localbuf[k] & (~HASHOP_MASK), 
-                  e[j]->ref_count);
-
-              TAILQ_INSERT_HEAD(&e[j]->owners, target, next);
-
-              localbuf[j] = (unsigned long)e[j];
-            }
-
-have_data:
-#endif
             assert(r != LOCK_ABORT);
             k++;
             j++;
             break;
           }
+#if PARTITION_LOCK_MODE
+        case HASHOP_PLOCK_ACQUIRE:
+          {
+            struct lock_entry *l;
+
+#if ENABLE_WAIT_DIE_CC
+            r = wait_die_acquire(s, p, i, &p->magic_elem, OPTYPE_UPDATE, 
+                req_ts, &l);
+#else
+            r = no_wait_acquire(&p->magic_elem, OPTYPE_UPDATE);
+#endif
+            if (r == LOCK_SUCCESS) {
+              localbuf[j] = (unsigned long)p->magic_elem.ref_count;
+              locks[j] = l;
+            } else if (r == LOCK_WAIT) {
+              waiting = 1;
+              localbuf[j] = 0;
+              locks[j] = l;
+            } else {
+              continue_loop = 0;
+              assert(r == LOCK_ABORT);
+              break;
+            }
+
+            assert(r != LOCK_ABORT);
+            k++;
+            j++;
+            break;
+          }
+#endif
         default:
           printf("cl %d invalid message type %lx\n", i, (localbuf[k] & HASHOP_MASK) >> 32); 
           fflush(stdout);
@@ -1279,21 +1047,21 @@ int smp_hash_update(struct hash_table *hash_table, int client_id, int server, ha
 void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
   struct hash_op **queries, void **values)
 {
-  int r, i;
+  int r, i, s;
   uint64_t val;
 
   struct box_array *boxes = hash_table->boxes;
   uint64_t msg_data;
 
   for(int i = 0; i < nqueries; i++) {
-    int s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
-
-    dprint("srv(%d): issue remote op %s key %" PRIu64 " to %d\n", 
-      client_id, queries[i]->optype == OPTYPE_LOOKUP ? "lookup":"update", 
-      queries[i]->key, s);
 
     switch (queries[i]->optype) {
       case OPTYPE_LOOKUP:
+        s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
+
+        dprint("srv(%d): issue remote lookup op key %" PRIu64 " to %d\n", 
+          client_id, queries[i]->key, s);
+
         msg_data = (uint64_t)queries[i]->key | HASHOP_LOOKUP;
         buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
 #if GATHER_STATS
@@ -1301,12 +1069,29 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
 #endif
         break;
       case OPTYPE_UPDATE:
+        s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
+
+        dprint("srv(%d): issue remote update op key %" PRIu64 " to %d\n", 
+          client_id, queries[i]->key, s);
+
         msg_data = (uint64_t)queries[i]->key | HASHOP_UPDATE;
         buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
 #if GATHER_STATS
         hash_table->partitions[client_id].nupdates_remote++;
 #endif
         break;
+
+#if PARTITION_LOCK_MODE
+      case OPTYPE_PLOCK_ACQUIRE:
+        s = queries[i]->key;
+
+        dprint("srv(%d): issue remote plock op key to %d\n", client_id, s);
+
+        msg_data = HASHOP_PLOCK_ACQUIRE;
+        buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
+        break;
+
+#endif
       default:
         assert(0);
         break;
@@ -1319,7 +1104,13 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
 
   i = 0;
   while (i < nqueries) {
-    int ps = g_benchmark->hash_get_server(hash_table, queries[i]->key);
+    int ps;
+
+    if (queries[i]->optype == OPTYPE_PLOCK_ACQUIRE)
+      ps = queries[i]->key;
+    else
+      ps = g_benchmark->hash_get_server(hash_table, queries[i]->key);
+
     r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 0);
 
     if (r) {
@@ -1360,7 +1151,6 @@ void mp_release_value_(struct partition *p, struct elem *e)
 
   if (e->ref_count == 0) {
     //printf("key %" PRIu64 " 0 rc\n", e->key);
-    assert(0);
     hash_remove(p, e);
   }
 }
@@ -1394,6 +1184,12 @@ void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr)
 #endif
 }
 
+void mp_release_plock(int s, int c)
+{
+  uint64_t msg_data = HASHOP_PLOCK_RELEASE;
+
+  buffer_write_all(&hash_table->boxes[s].boxes[c].in, 1, &msg_data, 1);
+}
 /**
  * Hash Table Counters and Stats
  */

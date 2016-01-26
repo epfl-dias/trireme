@@ -152,6 +152,9 @@ struct partition {
   size_t nrecs;
   size_t size;
   struct bucket *table;
+#if PARTITION_LOCK_MODE
+  struct elem magic_elem;
+#endif
 
   // stats
   int ninserts;

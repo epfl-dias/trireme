@@ -91,6 +91,7 @@ void smp_flush_all(struct hash_table *hash_table, int client_id);
  */
 void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr);
 void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr);
+void mp_release_plock(int s, int c);
 
 /*XXX: For now, exposing local op as well as it is used by twopl. Refactor 
  * later
@@ -126,5 +127,8 @@ void txn_abort(struct hash_table *hash_table, int s, int mode);
 void *txn_op(struct hash_table *hash_table, int s, struct partition *p, 
     struct hash_op *op, int is_local);
 int hash_get_server(const struct hash_table *hash_table, hash_key key);
+
+/* used in microbench for partition-lock-mode */
+void process_requests(struct hash_table *hash_table, int s);
 
 #endif

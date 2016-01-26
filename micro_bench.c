@@ -2,6 +2,7 @@
 #include "partition.h"
 #include "smphashtable.h"
 #include "benchmark.h"
+#include "twopl.h"
 
 extern int ops_per_txn;
 extern int batch_size;
@@ -195,7 +196,7 @@ static void se_make_operation(struct hash_table *hash_table, int s,
       /* dist_threshold can be used to logically afinitize thread to data. 
        * this will maximize cache utilization
        */
-      if (dist_threshold == 100) {
+      if (is_local) {
         // always pick within this server's key range
         hash_key delta = URand(&p->seed, 0, nrecs_per_server - 1);
         op->key = s * nrecs_per_server + delta;
@@ -250,6 +251,128 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
   }
 }
+
+#if PARTITION_LOCK_MODE
+int micro_run_txn_with_plock(struct hash_table *hash_table, int s, void *arg, 
+    int status)
+{
+  struct hash_query *query = (struct hash_query *) arg;
+  int i, r;
+  void *value;
+  struct lock_entry *l;
+  char bits[BITNSLOTS(MAX_SERVERS)], nbits;
+  struct hash_op op, *p_op;
+  int nservers = hash_table->nservers;
+  struct partition *p = &hash_table->partitions[s];
+
+  op.optype = OPTYPE_PLOCK_ACQUIRE;
+  op.key = 0;
+  op.size = 0;
+  p_op = &op;
+
+  memset(bits, 0, sizeof(bits));
+
+  txn_start(hash_table, s, status);
+
+  for (i = 0; i < query->nops; i++) {
+    struct hash_op *op = &query->ops[i];
+    int tserver = micro_hash_get_server(hash_table, op->key);
+    struct partition *tpartition = &hash_table->partitions[tserver];
+    r = TXN_COMMIT;
+
+    // if we already have partition lock, skip to getting data
+    if (BITTEST(bits, tserver))
+      goto process_op;
+        
+    /* we dont have partition lock. try to get it */
+    if (tserver == s) {
+      // local access
+#if ENABLE_WAIT_DIE_CC
+      r = wait_die_acquire(s, p, s, &p->magic_elem, OPTYPE_UPDATE, 
+          p->txn_ctx.ts, &l);
+#else
+      r = no_wait_acquire(&p->magic_elem, OPTYPE_UPDATE);
+#endif
+    
+      if (r == LOCK_SUCCESS) {
+        r = TXN_COMMIT; // great we have the lock
+      } else if (r == LOCK_WAIT) {
+        /* we have to spin now until value is ready. But we also need to
+         * service other requests
+         */
+#if !defined(ENABLE_WAIT_DIE_CC)
+        assert(0);
+#endif
+        assert(l);
+        while (!l->ready)
+          process_requests(hash_table, s);
+
+        r = TXN_COMMIT;
+      } else {
+        // busted
+        assert(r == LOCK_ABORT);
+        r = TXN_ABORT;
+        p->naborts_local++;
+        break;
+      }
+
+    } else {
+      // remote partn. send msg
+      p_op->key = tserver;
+      smp_hash_doall(hash_table, s, 1, &p_op, &value);
+      if (!value) {
+        p->naborts_remote++;
+        r = TXN_ABORT;
+        break;
+      } else {
+        assert((((uint64_t)value) & ~DATA_READY_MASK) == 2);
+      }
+    }
+
+    assert (r == TXN_COMMIT);
+
+    // mark server's partition as locked so that we can free later 
+    BITSET(bits, tserver);
+
+process_op:
+    /* now that we have the lock, we can issue the actual operation as though 
+     * its local
+     */
+    value = txn_op(hash_table, s, tpartition, op, 1);
+    assert(value);
+
+    // in both lookup and update, we just check the value
+    uint64_t *int_val = (uint64_t *)value;
+
+    for (int j = 0; j < YCSB_NFIELDS; j++) {
+      assert (int_val[j] == op->key);
+    }
+  }
+
+  if (r == TXN_COMMIT) {
+    txn_commit(hash_table, s, TXN_SINGLE);
+  } else {
+    txn_abort(hash_table, s, TXN_SINGLE);
+  }
+
+  // release all partition locks
+  for (i = 0; i < nservers; i++) {
+    if (BITTEST(bits, i)) {
+      if (i == s) {
+#if ENABLE_WAIT_DIE_CC
+        wait_die_release(s, p, s, &p->magic_elem);
+#else
+        no_wait_release(&hash_table->partitions[s], &p->magic_elem);
+#endif
+      } else {
+        mp_release_plock(s, i);
+      }
+    }
+  }
+
+  return r;
+}
+#endif
 
 int micro_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
 {
@@ -380,7 +503,11 @@ struct benchmark micro_bench = {
   .load_data = micro_load_data,
   .alloc_query = micro_alloc_query,
   .get_next_query = micro_get_next_query,
+#if PARTITION_LOCK_MODE
+  .run_txn = micro_run_txn_with_plock,
+#else
   .run_txn = micro_run_txn,
+#endif
   .verify_txn = NULL,
   .hash_get_server = micro_hash_get_server,
 };

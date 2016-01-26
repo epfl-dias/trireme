@@ -131,7 +131,7 @@ int wait_die_acquire(int s, struct partition *p, // necessary dses
       r = LOCK_WAIT;
     } else {
       dprint("srv(%d): cl %d update %"PRIu64" rc %"PRIu64" aborted \n", 
-          s, c, localbuf[k] & (~HASHOP_MASK), e[j]->ref_count);
+          s, c, e->key, e->ref_count);
 
       r = LOCK_ABORT;
     }
@@ -239,6 +239,9 @@ void wait_die_release(int s, struct partition *p, int c, struct elem *e)
     TAILQ_REMOVE(&e->waiters, l, next);
     TAILQ_INSERT_HEAD(&e->owners, l, next);
 
+    // mark as ready
+    l->ready = 1;
+
     dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n", 
         s, e->key, l->s);
 
@@ -256,9 +259,6 @@ void no_wait_release(struct partition *p, struct elem *e)
 int no_wait_acquire(struct elem *e, char optype)
 {
   int r;
-
-  dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 "\n", s, 
-      c, e->key, e->ref_count);
 
   if (optype == OPTYPE_LOOKUP) {
     if (!is_value_ready(e)) {

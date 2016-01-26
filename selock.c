@@ -202,6 +202,11 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
     if (lock_entry->s == s)
       break;
   }
+  
+  if (!lock_entry) {
+    dprint("srv(%d): FAILED releasing lock request for key %"PRIu64"\n", s, e->key);
+  }
+
   assert(lock_entry);
 
   TAILQ_REMOVE(&e->owners, lock_entry, next);
