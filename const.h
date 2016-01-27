@@ -22,7 +22,7 @@
 #define YCSB_REC_SZ (YCSB_NFIELDS * YCSB_FIELD_SZ)
 
 /* commn. buffer constants */
-#define ONEWAY_BUFFER_SIZE  (16 * (CACHELINE >> 3)) 
+#define ONEWAY_BUFFER_SIZE  (2 * (CACHELINE >> 3)) 
 #define BUFFER_FLUSH_COUNT  8
 
 #define MAX_OPS_PER_QUERY 64

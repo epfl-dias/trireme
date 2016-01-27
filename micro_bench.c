@@ -100,45 +100,64 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
     uint64_t nhot_per_server = nhot_recs / nhot_servers;
 
     if (alpha > r) {
+
       // hot data
-      delta = URand(&p->seed, 0, nhot_per_server);
+      delta = URand(&p->seed, 0, nhot_recs - 1);
+      tserver = delta / nhot_per_server;
+      
+#if ENABLE_SOCKET_LOCAL_TXN
+      delta = URand(&p->seed, 0, nhot_per_server - 1);
       tserver = URand(&p->seed, 0, nhot_servers - 1);
       int t_coreid = hash_table->thread_data[tserver].core; 
-#if ENABLE_SOCKET_LOCAL_TXN
+
       // hacked to be specific to diascld33
       // allow first core of each socket to do cross-socket txns
-      while ((!is_local && tserver == s) || 
-        (!is_first_core && t_coreid % 4 != s_coreid % 4)) {
-#else
-      while (!is_local && tserver == s) {
-#endif
+      while (!is_first_core && t_coreid % 4 != s_coreid % 4) {
+        delta = URand(&p->seed, 0, nhot_per_server - 1);
         tserver = URand(&p->seed, 0, nhot_servers - 1);
         t_coreid = hash_table->thread_data[tserver].core; 
       }
-      //printf("srv(%d): hot nhotrecs=%"PRIu64" - nhot/server=%"PRIu64" - r=%d - delta=%"PRIu64" - tserver=%d\n", s, nhot_recs, nhot_per_server, r, delta, tserver);
+#endif
     } else {
       // cold data
+      size_t ncold_recs = p->nrecs * nservers - nhot_recs;
+      uint64_t ncold_per_server = p->nrecs - nhot_per_server;
+      
+      // pick random cold record
+      delta = URand(&p->seed, nhot_per_server + 1, p->nrecs - 1);
+
+      // pick random server
+      tserver = URand(&p->seed, 0, nservers - 1);
+
+#if ENABLE_SOCKET_LOCAL_TXN
       delta = URand(&p->seed, nhot_per_server + 1, p->nrecs - 1);
       tserver = URand(&p->seed, 0, nservers - 1);
+
       int t_coreid = hash_table->thread_data[tserver].core; 
-#if ENABLE_SOCKET_LOCAL_TXN
+
       // hacked to be specific to diascld33
-      while ((!is_local && tserver == s) || 
-        (!is_first_core && t_coreid % 4 != s_coreid % 4)) {
-#else
-      while (!is_local && tserver == s) {
-#endif
+      while (!is_first_core && t_coreid % 4 != s_coreid % 4) {
         tserver = URand(&p->seed, 0, nservers - 1);
         t_coreid = hash_table->thread_data[tserver].core; 
       }
-      //printf("srv(%d): cold nhotrecs=%"PRIu64" - nhot/server=%"PRIu64" - r=%d - delta=%"PRIu64" - tserver=%d\n", s, nhot_recs, nhot_per_server, r, delta, tserver);
+#endif
     }
+
+#if ENABLE_SOCKET_LOCAL_TXN
+    op->key = delta + (tserver * p->nrecs);
+#else
+    op->key = delta;
+#endif
+
+    //printf("srv(%d): nhps: %"PRIu64" - delta:%"PRIu64" - tserver:%d - opkey:%"PRIu64"\n", s, nhot_per_server, delta, tserver, op->key);
 
   } else {
     delta = URand(&p->seed, 0, p->nrecs - 1);
     tserver = URand(&p->seed, 0, nservers - 1);
     int t_coreid = hash_table->thread_data[tserver].core; 
+
 #if ENABLE_SOCKET_LOCAL_TXN
+
     // hacked to be specific to diascld33
     while ((!is_local && tserver == s) || 
         (!is_first_core && t_coreid % 4 != s_coreid % 4)) {
@@ -148,21 +167,21 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
       tserver = URand(&p->seed, 0, nservers - 1);
       t_coreid = hash_table->thread_data[tserver].core; 
     }
-  }
 
-  if (!is_local) {
-    // remote op
-    op->key = delta + (tserver * p->nrecs);
+    if (!is_local) {
+      // remote op
+      op->key = delta + (tserver * p->nrecs);
 
 #if !defined (SHARED_NOTHING) && !defined(SHARED_EVERYTHING) && ENABLE_SOCKET_LOCAL_TXN == 1
-    if (hash_table->thread_data[tserver].core % 4 !=  s_coreid % 4) {
-      assert(is_first_core);
-    }
+      if (hash_table->thread_data[tserver].core % 4 !=  s_coreid % 4) {
+        assert(is_first_core);
+      }
 #endif
 
-  } else {
-    //local op
-    op->key = delta + (s * p->nrecs);
+    } else {
+      //local op
+      op->key = delta + (s * p->nrecs);
+    }
   }
 }
 
