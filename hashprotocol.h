@@ -35,6 +35,8 @@ struct hash_op {
  */
 struct hash_query {
   struct hash_op ops[MAX_OPS_PER_QUERY];
-  int nops;
+  short nops;
+  short pending_ops[MAX_OPS_PER_QUERY];
+  short npending;
 };
 #endif

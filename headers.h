@@ -12,9 +12,12 @@
 #include <math.h>
 #include <inttypes.h>
 
+#include <ucontext.h>
 #include "const.h"
 #include "util.h"
 #include "type.h"
+#include "task.h"
+#include "ucontext_i.h"
 
 #ifdef ANDERSON_LOCK
 #include "alock.h"

@@ -146,6 +146,21 @@ typedef enum sethread_state {
 } sethread_state_t;
 #endif
 
+/* task/fiber types */
+typedef enum {
+  TASK_STATE_READY, TASK_STATE_WAITING, TASK_STATE_FINISH
+} task_state;
+
+struct task {
+  int tid;
+  task_state state;
+  ucontext_t ctx;
+  int s;
+  struct txn_ctx txn_ctx;
+  struct hash_query *query;
+  TAILQ_ENTRY(task) next;
+} __attribute__ ((aligned (CACHELINE)));
+
 struct partition {
   int nservers;
   int nhash;
@@ -155,6 +170,16 @@ struct partition {
 #if PARTITION_LOCK_MODE
   struct elem magic_elem;
 #endif
+
+  // tasks
+  struct task unblock_task;
+  struct task root_task;
+  ucontext_t main_ctx;
+  struct task *current_task;
+
+  TAILQ_HEAD(ready_list, task) ready_list; 
+  TAILQ_HEAD(wait_list, task) wait_list; 
+  TAILQ_HEAD(free_list, task) free_list; 
 
   // stats
   int ninserts;

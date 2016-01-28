@@ -22,7 +22,7 @@
 #define YCSB_REC_SZ (YCSB_NFIELDS * YCSB_FIELD_SZ)
 
 /* commn. buffer constants */
-#define ONEWAY_BUFFER_SIZE  (2 * (CACHELINE >> 3)) 
+#define ONEWAY_BUFFER_SIZE  (16 * (CACHELINE >> 3)) 
 #define BUFFER_FLUSH_COUNT  8
 
 #define MAX_OPS_PER_QUERY 64
@@ -32,11 +32,13 @@
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
 // by default, disable socket local for shared everything/nothing
 #else
-//#define ENABLE_SOCKET_LOCAL_TXN 1
+#define ENABLE_SOCKET_LOCAL_TXN 1
 #endif
 
 #define LOCK_SUCCESS 0
 #define LOCK_ABORT 1
 #define LOCK_WAIT 2
+
+#define NREMOTE_OPS 2
 
 #endif

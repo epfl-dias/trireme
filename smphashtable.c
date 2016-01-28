@@ -217,7 +217,10 @@ struct elem *local_txn_op(int s, struct txn_ctx *ctx, struct partition *p,
     case OPTYPE_LOOKUP:
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
-      assert(e);
+      if (!e) {
+        dprint("srv(%d): lookup key %"PRIu64"failed\n", s, op->key);
+        assert(0);
+      }
 
 #if SHARED_EVERYTHING
       if (!selock_acquire(p, e, t, ctx->ts)) {
@@ -275,12 +278,11 @@ struct elem *local_txn_op(int s, struct txn_ctx *ctx, struct partition *p,
 }
 
 void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p, 
-    struct hash_op *op, int is_local)
+    struct hash_op *op, int is_local, struct txn_ctx *ctx)
 {
   void *value = NULL;
   struct elem *e = NULL;
   struct partition *p = &hash_table->partitions[s];
-  struct txn_ctx *ctx = &p->txn_ctx;
   //int is_local = is_local_op(hash_table, s, op->key);
 
   if (!l_p)
@@ -347,10 +349,9 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
   return value;
 }
 
-void txn_start(struct hash_table *hash_table, int s, int status)
+void txn_start(struct hash_table *hash_table, int s, int status, 
+    struct txn_ctx *ctx)
 {
-  struct txn_ctx *ctx = &hash_table->partitions[s].txn_ctx;
-
   ctx->nops = 0;
   
   // if previous status was commit, this is a new txn. assign new ts.
@@ -358,9 +359,9 @@ void txn_start(struct hash_table *hash_table, int s, int status)
     ctx->ts = read_tsc();
 }
 
-void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
+void txn_finish(struct hash_table *hash_table, int s, int status, int mode, 
+    struct txn_ctx *ctx)
 {
-  struct txn_ctx *ctx = &hash_table->partitions[s].txn_ctx;
   int nops = ctx->nops;
   int nrels;
 
@@ -458,20 +459,21 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode)
   ctx->nops = 0;
 }
 
-void txn_abort(struct hash_table *hash_table, int s, int mode)
+void txn_abort(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx)
 {
 #if SHARED_NOTHING
   assert(0);
 #endif
-  return txn_finish(hash_table, s, TXN_ABORT, mode);
+  return txn_finish(hash_table, s, TXN_ABORT, mode, ctx);
 }
 
-void txn_commit(struct hash_table *hash_table, int s, int mode)
+void txn_commit(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx)
 {
-  return txn_finish(hash_table, s, TXN_COMMIT, mode);
+  return txn_finish(hash_table, s, TXN_COMMIT, mode, ctx);
 }
 
-int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
+int run_batch_txn(struct hash_table *hash_table, int s, void *arg, 
+    struct txn_ctx *ctx, int status)
 {
   struct hash_query *query = (struct hash_query *)arg;
   struct partition *p = &hash_table->partitions[s];
@@ -483,7 +485,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
   //assert(values);
   void *values[MAX_OPS_PER_QUERY];
 
-  txn_start(hash_table, s, TXN_COMMIT);
+  txn_start(hash_table, s, status, ctx);
 
   /* XXX: REWRITE THIS TO GATHER ALL REMOTE OPS AND SEND IT USING
    * SMP_HASH_DO_ALL 
@@ -495,7 +497,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
 
     // if local, get it
     if (server == s) {
-      values[i] = txn_op(hash_table, s, NULL, &query->ops[i], 1);
+      values[i] = txn_op(hash_table, s, NULL, &query->ops[i], 1, ctx);
 
       if (!values[i]) {
         r = TXN_ABORT;
@@ -519,15 +521,19 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
       }
 
       values[i] = NULL;
+      query->pending_ops[nremote] = i;
       nremote++;
     }
   }
+
+  query->npending = nremote;
 
   // now get all remote values
   if (nremote) {
     smp_flush_all(hash_table, s);
 
-    struct txn_ctx *ctx = &p->txn_ctx;
+    task_yield(&hash_table->partitions[s], TASK_STATE_WAITING);
+
     struct box_array *boxes = hash_table->boxes;
 
     for (i = 0; i < nops; i++) {
@@ -539,10 +545,19 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
       struct hash_op *op = &query->ops[i];
       server = g_benchmark->hash_get_server(hash_table, op->key);
 
+      /* Set current op we are waiting on and yield */
+
       // loop till we get the remote value
-      while (buffer_read_all(&boxes[s].boxes[server].out, 1, &val, 0) == 0) {
-        process_requests(hash_table, s);
-      } 
+      //while (buffer_read_all(&boxes[s].boxes[server].out, 1, &val, 0) == 0) {
+      //  process_requests(hash_table, s);
+      //} 
+      struct onewaybuffer *buffer = &boxes[s].boxes[server].out;
+      int count = buffer->wr_index - buffer->rd_index;
+      if (!count)
+        task_yield(&hash_table->partitions[s], TASK_STATE_WAITING);
+
+      count = buffer_read_all(buffer, 1, &val, 0);
+      assert(count);
 
       struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
       octx->optype = op->optype;
@@ -591,9 +606,9 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg)
 
 final:
   if (r == TXN_COMMIT)
-    txn_commit(hash_table, s, TXN_BATCH);
+    txn_commit(hash_table, s, TXN_BATCH, ctx);
   else
-    txn_abort(hash_table, s, TXN_BATCH);
+    txn_abort(hash_table, s, TXN_BATCH, ctx);
 
   //free(values);
 
@@ -669,6 +684,7 @@ void process_requests(struct hash_table *hash_table, int s)
     count = buffer_peek(b, ONEWAY_BUFFER_SIZE, localbuf);
     assert(count);
 
+#if 0
     /* process all release messages first */
     while (k < count) {
       uint64_t op = localbuf[k] & HASHOP_MASK;
@@ -703,6 +719,8 @@ void process_requests(struct hash_table *hash_table, int s)
     }
 
     buffer_seek(&boxes[i].boxes[s].in, k);
+#endif
+
     continue_loop = 1;
     waiting = 0;
 
@@ -717,6 +735,25 @@ void process_requests(struct hash_table *hash_table, int s)
       uint64_t optype = localbuf[k] & HASHOP_MASK;
 
       switch (optype) {
+        case HASHOP_RELEASE:
+          {
+            struct elem *e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
+
+            dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
+                s, i, e->key, e->ref_count);
+
+#if ENABLE_WAIT_DIE_CC
+            wait_die_release(s, p, i, e);
+#else
+            no_wait_release(p, e);
+#endif
+
+            k++;
+            nreleases++;
+            buffer_seek(b, 1);
+
+            break;
+          }
         case HASHOP_INSERT:
           {
 #if GATHER_STATS
@@ -823,6 +860,9 @@ void process_requests(struct hash_table *hash_table, int s)
     }
 
     if (continue_loop == 0) {// abort case
+      //XXX: THIS WILL BE BROKEN WITH FIBERS. FIX IT
+      assert(0);
+
       // unlock everything acquired
       if (j > 0) {
         while (--j >= 0) {
@@ -924,6 +964,9 @@ void *hash_table_server(void* args)
 
   tstart = now();
 
+  task_libinit(s);
+
+#if 0
   for (i = 0; i < niters; i++) {
     // run query as txn
     g_benchmark->get_next_query(hash_table, s, query);
@@ -954,6 +997,7 @@ void *hash_table_server(void* args)
 #endif
 
   }
+#endif
 
   tend = now();
 
@@ -1098,9 +1142,10 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
     }
   }
 
-
   // after queueing all the queries we flush all buffers and read all remaining values
   smp_flush_all(hash_table, client_id);
+
+  task_yield(&hash_table->partitions[client_id], TASK_STATE_WAITING);
 
   i = 0;
   while (i < nqueries) {
@@ -1112,19 +1157,26 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
       ps = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
     r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 0);
+    assert(r);
 
     if (r) {
       values[i] = (void *)(unsigned long)val;
       i++;
     }
 
-    process_requests(hash_table, client_id);
+    //process_requests(hash_table, client_id);
   }
 }
 
 void smp_flush_all(struct hash_table *hash_table, int client_id)
 {
   for (int i = 0; i < hash_table->nservers; i++) {
+    /* printf("srv(%d): flushing buffer %d rd count %d wcount %d twcount %d\n", 
+        client_id, i, hash_table->boxes[client_id].boxes[i].in.rd_index, 
+        hash_table->boxes[client_id].boxes[i].in.wr_index,
+        hash_table->boxes[client_id].boxes[i].in.tmp_wr_index);
+    */
+
     buffer_flush(&hash_table->boxes[client_id].boxes[i].in);
   }
 }
@@ -1162,8 +1214,16 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id, void *pt
   assert((uint64_t)e == (msg_data & (~HASHOP_MASK)));
 
   int s = g_benchmark->hash_get_server(hash_table, e->key);
+
   buffer_write_all(&hash_table->boxes[client_id].boxes[s].in, 1, &msg_data, 
           force_flush);
+
+  /* printf("srv(%d): buffer %d post release rd count %d wcount %d twcount %d\n", 
+      client_id, s, hash_table->boxes[client_id].boxes[s].in.rd_index, 
+      hash_table->boxes[client_id].boxes[s].in.wr_index,
+      hash_table->boxes[client_id].boxes[s].in.tmp_wr_index);
+      */
+
 }
 
 void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr)

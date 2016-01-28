@@ -121,14 +121,18 @@ double stats_get_cpu_usage(struct hash_table *hash_table);
 double stats_get_tps(struct hash_table *hash_table);
 
 
-void txn_start(struct hash_table *hash_table, int s, int status);
-void txn_commit(struct hash_table *hash_table, int s, int mode);
-void txn_abort(struct hash_table *hash_table, int s, int mode);
+void txn_start(struct hash_table *hash_table, int s, int status, struct txn_ctx *ctx);
+void txn_commit(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx);
+void txn_abort(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx);
 void *txn_op(struct hash_table *hash_table, int s, struct partition *p, 
-    struct hash_op *op, int is_local);
+    struct hash_op *op, int is_local, struct txn_ctx *ctx);
 int hash_get_server(const struct hash_table *hash_table, hash_key key);
 
 /* used in microbench for partition-lock-mode */
 void process_requests(struct hash_table *hash_table, int s);
+
+
+int run_batch_txn(struct hash_table *hash_table, int s, void *arg, 
+    struct txn_ctx *ctx, int status);
 
 #endif

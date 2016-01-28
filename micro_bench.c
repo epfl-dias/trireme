@@ -56,8 +56,13 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   int nservers = hash_table->nservers;
+#if SHARED_EVERYTHING
   uint64_t nrecs = p->nrecs; 
   uint64_t nrecs_per_server = nrecs / nservers;
+#else
+  uint64_t nrecs_per_server = p->nrecs; 
+  uint64_t nrecs = nrecs_per_server * nservers;
+#endif
   int r = URand(&p->seed, 1, 99);
  
   if (r > write_threshold) {
@@ -100,6 +105,9 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
     uint64_t nhot_per_server = nhot_recs / nhot_servers;
 
     if (alpha > r) {
+
+      // XXX: BROKEN FIX
+      assert(0);
 
       // hot data
       delta = URand(&p->seed, 0, nhot_recs - 1);
@@ -152,7 +160,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
     //printf("srv(%d): nhps: %"PRIu64" - delta:%"PRIu64" - tserver:%d - opkey:%"PRIu64"\n", s, nhot_per_server, delta, tserver, op->key);
 
   } else {
-    delta = URand(&p->seed, 0, p->nrecs - 1);
+    delta = URand(&p->seed, 0, nrecs_per_server - 1);
     tserver = URand(&p->seed, 0, nservers - 1);
     int t_coreid = hash_table->thread_data[tserver].core; 
 
@@ -170,7 +178,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
     if (!is_local) {
       // remote op
-      op->key = delta + (tserver * p->nrecs);
+      op->key = delta + (tserver * nrecs_per_server);
 
 #if !defined (SHARED_NOTHING) && !defined(SHARED_EVERYTHING) && ENABLE_SOCKET_LOCAL_TXN == 1
       if (hash_table->thread_data[tserver].core % 4 !=  s_coreid % 4) {
@@ -180,7 +188,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
     } else {
       //local op
-      op->key = delta + (s * p->nrecs);
+      op->key = delta + (s * nrecs_per_server);
     }
   }
 }
@@ -248,16 +256,21 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   char is_duplicate;
   
   query->nops = ops_per_txn;
+  query->npending = 0;
 
   for (int i = 0; i < ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
 
     do {
-#if SHARED_EVERYTHING
-      se_make_operation(hash_table, s, op, is_local);
-#else
-      sn_make_operation(hash_table, s, op, is_local);
-#endif
+//#if SHARED_EVERYTHING
+//      se_make_operation(hash_table, s, op, is_local);
+//#else
+      // if txn is distributed, then first NREMOTE_OPS are remote
+      if (is_local || i >= 2)
+        sn_make_operation(hash_table, s, op, 1 /* local op */);
+      else
+        sn_make_operation(hash_table, s, op, 0 /* remote op */);
+//#endif
       is_duplicate = FALSE;
 
       for (int j = 0; j < i; j++) {
@@ -269,6 +282,8 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
     } while(is_duplicate == TRUE);
 
   }
+
+  p->q_idx++;
 }
 
 #if PARTITION_LOCK_MODE
@@ -393,13 +408,14 @@ process_op:
 }
 #endif
 
-int micro_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
+int micro_run_txn(struct hash_table *hash_table, int s, void *arg, struct txn_ctx *txn_ctx, 
+    int status)
 {
   struct hash_query *query = (struct hash_query *) arg;
   int i, r;
   void *value;
 
-  txn_start(hash_table, s, status);
+  txn_start(hash_table, s, status, txn_ctx);
 
 #if SHARED_NOTHING
   /* we have to acquire all partition locks in partition order. This protocol
@@ -445,6 +461,9 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
 
   r = TXN_COMMIT;
   for (i = 0; i < query->nops; i++) {
+    query->npending = 1;
+    query->pending_ops[0] = i;
+
     struct hash_op *op = &query->ops[i];
     int is_local;
 #if defined SHARED_EVERYTHING || defined SHARED_NOTHING
@@ -460,7 +479,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
     tserver = micro_hash_get_server(hash_table, op->key);
     struct partition *tpartition = &hash_table->partitions[tserver];
 
-    value = txn_op(hash_table, s, tpartition, op, is_local);
+    value = txn_op(hash_table, s, tpartition, op, is_local, txn_ctx);
     assert(value);
 #else
     // try ith operation i+1 times before aborting only with NOWAIT CC
@@ -470,7 +489,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
     int nretries = i + 1;
 #endif
     for (int j = 0; j < nretries; j++) {
-      value = txn_op(hash_table, s, NULL, op, is_local);
+      value = txn_op(hash_table, s, NULL, op, is_local, txn_ctx);
       if (value)
         break;
     }
@@ -509,9 +528,9 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
 #else
 
   if (r == TXN_COMMIT) {
-    txn_commit(hash_table, s, TXN_SINGLE);
+    txn_commit(hash_table, s, TXN_SINGLE, txn_ctx);
   } else {
-    txn_abort(hash_table, s, TXN_SINGLE);
+    txn_abort(hash_table, s, TXN_SINGLE, txn_ctx);
   }
 #endif
 
