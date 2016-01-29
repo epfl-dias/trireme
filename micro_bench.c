@@ -93,69 +93,37 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
     /* Get key based on bernoulli distribution. In case of shared nothing 
      * and Trireme configs, there is one more parameter in addition to
-     * alpha and nhot_recs, which is how hot records are spread out. 
+     * nhot_recs, which is how hot records are spread out. 
      * 
      * In reality, under skew, we'll typically have just a few partitions 
      * store hot data. So we can use nhot_recs to limit #partitions for 
      * hot data.
      *
-     * records 0 to hot_recs_per_server are hot in each hot server.
+     * records 0 to nhot_recs are hot in each hot server.
+     * nhot_servers are number of hot servers
      *
      */
-    uint64_t nhot_per_server = nhot_recs / nhot_servers;
 
-    if (alpha > r) {
+    /* The two records we access remotely are hot records. The rest
+     * are cold accesses
+     */
+    if (!is_local) {
 
-      // XXX: BROKEN FIX
-      assert(0);
-
-      // hot data
+      // pick random hot record
       delta = URand(&p->seed, 0, nhot_recs - 1);
-      tserver = delta / nhot_per_server;
-      
-#if ENABLE_SOCKET_LOCAL_TXN
-      delta = URand(&p->seed, 0, nhot_per_server - 1);
+
+      // pick random hot server
       tserver = URand(&p->seed, 0, nhot_servers - 1);
-      int t_coreid = hash_table->thread_data[tserver].core; 
-
-      // hacked to be specific to diascld33
-      // allow first core of each socket to do cross-socket txns
-      while (!is_first_core && t_coreid % 4 != s_coreid % 4) {
-        delta = URand(&p->seed, 0, nhot_per_server - 1);
-        tserver = URand(&p->seed, 0, nhot_servers - 1);
-        t_coreid = hash_table->thread_data[tserver].core; 
-      }
-#endif
-    } else {
-      // cold data
-      size_t ncold_recs = p->nrecs * nservers - nhot_recs;
-      uint64_t ncold_per_server = p->nrecs - nhot_per_server;
       
+    } else {
       // pick random cold record
-      delta = URand(&p->seed, nhot_per_server + 1, p->nrecs - 1);
+      delta = URand(&p->seed, nhot_recs + 1, nrecs_per_server - 1);
 
-      // pick random server
-      tserver = URand(&p->seed, 0, nservers - 1);
-
-#if ENABLE_SOCKET_LOCAL_TXN
-      delta = URand(&p->seed, nhot_per_server + 1, p->nrecs - 1);
-      tserver = URand(&p->seed, 0, nservers - 1);
-
-      int t_coreid = hash_table->thread_data[tserver].core; 
-
-      // hacked to be specific to diascld33
-      while (!is_first_core && t_coreid % 4 != s_coreid % 4) {
-        tserver = URand(&p->seed, 0, nservers - 1);
-        t_coreid = hash_table->thread_data[tserver].core; 
-      }
-#endif
+      // cold is always local
+      tserver = s;
     }
 
-#if ENABLE_SOCKET_LOCAL_TXN
-    op->key = delta + (tserver * p->nrecs);
-#else
-    op->key = delta;
-#endif
+    op->key = delta + (tserver * nrecs_per_server);
 
     //printf("srv(%d): nhps: %"PRIu64" - delta:%"PRIu64" - tserver:%d - opkey:%"PRIu64"\n", s, nhot_per_server, delta, tserver, op->key);
 
@@ -219,24 +187,14 @@ static void se_make_operation(struct hash_table *hash_table, int s,
     
     // use alpha parameter as the probability
     if (alpha == 0) {
-
-      /* dist_threshold can be used to logically afinitize thread to data. 
-       * this will maximize cache utilization
-       */
-      if (is_local) {
-        // always pick within this server's key range
-        hash_key delta = URand(&p->seed, 0, nrecs_per_server - 1);
-        op->key = s * nrecs_per_server + delta;
-      } else {
-        // just pick randomly
+       // Just pick random key
         op->key = URand(&p->seed, 0, nrecs - 1);
-      }
     } else {
       /* generate key based on bernoulli dist. alpha is probability
        * #items in one range = 0 to (nrecs * hot_fraction)
        * Based on probability pick right range
        */
-      if (alpha > r) {
+      if (!is_local) {
         //hot range
         op->key = URand(&p->seed, 0, nhot_recs - 1);
       } else {
@@ -262,15 +220,20 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
     struct hash_op *op = &query->ops[i];
 
     do {
+      // only first NREMOTE_OPS are remote in cross-partition txns
+      if (is_local || i >= NREMOTE_OPS) {
 //#if SHARED_EVERYTHING
-//      se_make_operation(hash_table, s, op, is_local);
+//        se_make_operation(hash_table, s, op, 1);
 //#else
-      // if txn is distributed, then first NREMOTE_OPS are remote
-      if (is_local || i >= 2)
         sn_make_operation(hash_table, s, op, 1 /* local op */);
-      else
+//#endif
+      } else {
+//#if SHARED_EVERYTHING
+//        se_make_operation(hash_table, s, op, 0);
+//#else
         sn_make_operation(hash_table, s, op, 0 /* remote op */);
 //#endif
+      }
       is_duplicate = FALSE;
 
       for (int j = 0; j < i; j++) {

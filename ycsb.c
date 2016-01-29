@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
   if (first_core == -1) first_core = nclients;
 
   if (alpha) {
-    assert(nhot_recs != 0 && nhot_recs > 10);
+    assert(nhot_recs != 0);
     assert(nhot_servers != 0);
     assert(nhot_servers <= nservers);
   }

@@ -32,7 +32,7 @@
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
 // by default, disable socket local for shared everything/nothing
 #else
-#define ENABLE_SOCKET_LOCAL_TXN 1
+//#define ENABLE_SOCKET_LOCAL_TXN 1
 #endif
 
 #define LOCK_SUCCESS 0
