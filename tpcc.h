@@ -1,7 +1,7 @@
 #ifndef __TPCC_H_
 #define __TPCC_H_
 
-#define TID_MASK 0x0F00000000000000
+#define TID_MASK 0x0000F00000000000
 #define MAKE_HASH_KEY(tid,rid)  (tid | rid)
 #define GET_TID(key) (key & TID_MASK)
 
@@ -19,7 +19,7 @@
 #define FIRST_NAME_LEN 16
 #define LAST_NAME_LEN 16
 
-#define WAREHOUSE_TID 0x0100000000000000
+#define WAREHOUSE_TID 0x0000100000000000
 
 struct tpcc_warehouse {
 	int64_t w_id;
@@ -32,7 +32,7 @@ struct tpcc_warehouse {
 	double w_ytd;
 };
 
-#define DISTRICT_TID 0x0200000000000000
+#define DISTRICT_TID 0x0000200000000000
 
 struct tpcc_district {
 	int64_t d_id;
@@ -47,7 +47,7 @@ struct tpcc_district {
 	int64_t d_next_o_id;
 };
 
-#define CUSTOMER_TID 0x0300000000000000
+#define CUSTOMER_TID 0x0000300000000000
 
 struct tpcc_customer {
 	int64_t c_id;
@@ -72,7 +72,7 @@ struct tpcc_customer {
 	char c_data[500];
 };
 
-#define HISTORY_TID 0x0400000000000000
+#define HISTORY_TID 0x0000400000000000
 
 struct tpcc_history {
 	int64_t h_c_id;
@@ -85,7 +85,7 @@ struct tpcc_history {
 	char h_data[24];
 };
 
-#define NEW_ORDER_TID 0x0500000000000000
+#define NEW_ORDER_TID 0x0000500000000000
 
 struct tpcc_new_order {
 	int64_t no_o_id;
@@ -93,7 +93,7 @@ struct tpcc_new_order {
 	int64_t no_w_id;
 };
 
-#define ORDER_TID 0x0600000000000000
+#define ORDER_TID 0x0000600000000000
 
 struct tpcc_order {
 	int64_t o_id;
@@ -106,7 +106,7 @@ struct tpcc_order {
 	int64_t o_all_local;
 };
 
-#define ORDER_LINE_TID 0x0700000000000000
+#define ORDER_LINE_TID 0x0000700000000000
 
 struct tpcc_order_line {
 	int64_t ol_o_id;
@@ -121,7 +121,7 @@ struct tpcc_order_line {
 	char ol_dist_info[24];
 };
 
-#define ITEM_TID 0x0800000000000000
+#define ITEM_TID 0x0000800000000000
 
 struct tpcc_item {
 	int64_t i_id;
@@ -131,7 +131,7 @@ struct tpcc_item {
 	char i_data[50];
 };
 
-#define STOCK_TID 0x0900000000000000
+#define STOCK_TID 0x0000900000000000
 
 struct tpcc_stock {
 	int64_t s_i_id;
@@ -151,6 +151,6 @@ struct secondary_record {
 #define NDEFAULT_RIDS 16
 };
 
-#define CUSTOMER_SIDX_TID 0x0A00000000000000
+#define CUSTOMER_SIDX_TID 0x0000A00000000000
 
 #endif

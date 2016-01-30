@@ -113,6 +113,8 @@ int wait_die_acquire(int s, struct partition *p, // necessary dses
         assert(target);
         target->ts = req_ts;
         target->s = c;
+        //XXX: Need to set taskid, opid here
+        assert(0);
         target->optype = OPTYPE_UPDATE;
         target->ready = 0;
         *pl = target;
@@ -239,8 +241,9 @@ void wait_die_release(int s, struct partition *p, int c, struct elem *e)
     TAILQ_REMOVE(&e->waiters, l, next);
     TAILQ_INSERT_HEAD(&e->owners, l, next);
 
-    // mark as ready
+    // mark as ready and send message to server
     l->ready = 1;
+    mp_send_reply(s, l->s, l->task_id, e);
 
     dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n", 
         s, e->key, l->s);
@@ -256,7 +259,7 @@ void no_wait_release(struct partition *p, struct elem *e)
   mp_release_value_(p, e);
 }
 
-int no_wait_acquire(struct elem *e, char optype)
+int no_wait_check_acquire(struct elem *e, char optype)
 {
   int r;
 
@@ -264,7 +267,6 @@ int no_wait_acquire(struct elem *e, char optype)
     if (!is_value_ready(e)) {
       r = LOCK_ABORT;
     } else {
-      e->ref_count++;
       r = LOCK_SUCCESS;
     }
   } else {
@@ -272,11 +274,27 @@ int no_wait_acquire(struct elem *e, char optype)
     if (!is_value_ready(e) || e->ref_count > 1) {
       r = LOCK_ABORT;
     } else {
-      e->ref_count = DATA_READY_MASK | 2;
       r = LOCK_SUCCESS;
     }
   }
 
   return r;
+}
+
+int no_wait_acquire(struct elem *e, char optype)
+{
+  int r = no_wait_check_acquire(e, optype);
+
+  if (r == LOCK_ABORT)
+    return r;
+
+  if (optype == OPTYPE_LOOKUP) {
+    e->ref_count++;
+  } else {
+    assert(optype == OPTYPE_UPDATE);
+    e->ref_count = DATA_READY_MASK | 2;
+  }
+
+  return LOCK_SUCCESS;
 }
  

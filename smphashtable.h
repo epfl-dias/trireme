@@ -3,108 +3,19 @@
 
 #include "hashprotocol.h"
 
-/**
- * create_hash_table - Create new smp hash table
- * @max_size: maximum size in bytes that hash table can occupy
- * @nservers: number of servers that serve hash content
- * @return: pointer to the created hash table
- */
 struct hash_table *create_hash_table(size_t max_size, int nservers);
-
-/**
- * destroy_hash_table - Destroy smp hash table
- * @hash_table: pointer to the hash table structure
- */
 void destroy_hash_table(struct hash_table *hash_table);
-
-/*
- * start_hash_table_servers - Start up hash table server threads
- * @hash_table: pointer to the hash table structure
- * @first_core: specifies what cores to run servers on [first_core..firt_core+nservers-1]
- *
- * start_hash_table_servers and stop_hash_table_servers must be called from the
- * same thread.
- */
 void start_hash_table_servers(struct hash_table *hash_table, int first_core);
-
-/*
- * stop_hash_table_servers - Stop hash table server threads
- * @hash_table: pointer to the hash table structure
- */
 void stop_hash_table_servers(struct hash_table *hash_table);
-
-/*
- * create_hash_table_client - Create client to perform hash table operations
- * @hash_table: pointer to the hash table structure
- * @return: created client id
- */
 void create_hash_table_client(struct hash_table *hash_table);
-
-/**
- * smp_hash_lookup: Lookup key/value pair in hash table
- * @hash_table: pointer to the hash table structure
- * @client_id: client id to use to communicate with hash table servers
- * @key: hash key to lookup value for
- * @return: 1 for success, 0 on failure when the queue of pending requests is full
- */ 
-int smp_hash_lookup(struct hash_table *hash_table, int client_id, int server, hash_key key);
-
-/**
- * smp_hash_insert: Insert key/value pair in hash table
- * @hash_table: pointer to the hash table structure
- * @client_id: client id to use to communicate with hash table servers
- * @key: hash key
- * @size: size of data to insert
- * @return: 1 for success, 0 on failure when the queue of pending requests is full
- */
-int smp_hash_insert(struct hash_table *hash_table, int client_id, hash_key key, int size);
-
-/**
- * smp_hash_update: Update key/value pair in hash table
- * @hash_table: pointer to the hash table structure
- * @client_id: client id to use to communicate with hash table servers
- * @key: hash key
- * @size: size of data to insert
- * @return: 1 for success, 0 on failure when the queue of pending requests is full
- */
-int smp_hash_update(struct hash_table *hash_table, int client_id, int server, hash_key key);
-
-/**
- * smp_hash_doall: Perform batch hash table queries
- * @hash_table: pointer to the hash table structure
- * @client_id: client id to use to communicate with hash table servers
- * @nqueries: number of queries
- * @queries: hash table quries
- * @values: array to return results of queries
- *
- * NOTE: this has become basically obsolete, it can be substituted by using 
- * smp_hash_lookup, smp_hash_insert, AND get_next or try_get_next
- */
-void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, struct hash_op **queries, void **values);
-
 
 void smp_flush_all(struct hash_table *hash_table, int client_id);
 
-/**
- * mp_release_value, mp_mark_ready: Release given value pointer or mark it ready
- * using message passing. Only works in server/client version
- */
 void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr);
 void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr);
 void mp_release_plock(int s, int c);
-
-/*XXX: For now, exposing local op as well as it is used by twopl. Refactor 
- * later
- */
 void mp_release_value_(struct partition *p, struct elem *e);
-
-
-/* is_value_ready check ref counts to see if there is a write lock held
- * on a data item. write lock can be held during insertion or during update
- * During both times, no other read or write is allowed. 
- * This is used by both messaging and shared everything designs
- */
-int is_value_ready(struct elem *e);
+void mp_send_reply(int s, int c, short task_id, short opid, struct elem *e);
 
 /**
  * Stats functions
@@ -120,19 +31,18 @@ void stats_set_track_cpu_usage(struct hash_table *hash_table, int track_cpu_usag
 double stats_get_cpu_usage(struct hash_table *hash_table);
 double stats_get_tps(struct hash_table *hash_table);
 
-
+/* txn functions */
 void txn_start(struct hash_table *hash_table, int s, int status, struct txn_ctx *ctx);
 void txn_commit(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx);
 void txn_abort(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx);
-void *txn_op(struct hash_table *hash_table, int s, struct partition *p, 
-    struct hash_op *op, int is_local, struct txn_ctx *ctx);
+void *txn_op(struct task *t, struct hash_table *hash_table, int s, 
+    struct partition *p, struct hash_op *op, int is_local);
 int hash_get_server(const struct hash_table *hash_table, hash_key key);
 
-/* used in microbench for partition-lock-mode */
+/* misc */
 void process_requests(struct hash_table *hash_table, int s);
-
-
+int is_value_ready(struct elem *e);
 int run_batch_txn(struct hash_table *hash_table, int s, void *arg, 
-    struct txn_ctx *ctx, int status);
+    struct task *t, int status);
 
 #endif

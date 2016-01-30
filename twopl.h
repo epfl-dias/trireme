@@ -1,5 +1,6 @@
 #pragma once
 
+int no_wait_check_acquire(struct elem *e, char optype);
 int no_wait_acquire(struct elem *e, char optype);
 void no_wait_release(struct partition *p, struct elem *e);
 

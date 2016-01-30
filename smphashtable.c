@@ -9,21 +9,6 @@
 #include "plmalloc.h"
 #include "twopl.h"
 
-/** 
- * Hash Table Operations
- */
-#define HASHOP_MASK           0xF000000000000000
-#define HASHOP_LOOKUP         0x1000000000000000 
-#define HASHOP_INSERT         0x2000000000000000 
-#define HASHOP_UPDATE         0x3000000000000000 
-#define HASHOP_RELEASE        0x4000000000000000 
-#define HASHOP_PLOCK_ACQUIRE  0x5000000000000000 
-#define HASHOP_PLOCK_RELEASE  0x6000000000000000 
-
-#define INSERT_MSG_LENGTH 2
-
-#define MAX_PENDING_PER_SERVER  (ONEWAY_BUFFER_SIZE - (CACHELINE >> 3))
-
 static volatile int nready = 0;
 
 extern struct benchmark *g_benchmark;
@@ -36,6 +21,12 @@ extern struct hash_table *hash_table;
 // Forward declarations
 void *hash_table_server(void* args);
 int is_value_ready(struct elem *e);
+void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
+    int client_id, int nqueries, struct hash_op **queries, void **values);
+int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table, 
+    int client_id, int server, hash_key key, short opid);
+int smp_hash_update(struct task *ctask, struct hash_table *hash_table, 
+    int client_id, int server, hash_key key, short opid);
 
 struct hash_table *create_hash_table(size_t nrecs, int nservers)
 {
@@ -277,11 +268,12 @@ struct elem *local_txn_op(int s, struct txn_ctx *ctx, struct partition *p,
   return e;
 }
 
-void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p, 
-    struct hash_op *op, int is_local, struct txn_ctx *ctx)
+void *txn_op(struct task *ctask, struct hash_table *hash_table, int s, 
+    struct partition *l_p, struct hash_op *op, int is_local)
 {
   void *value = NULL;
   struct elem *e = NULL;
+  struct txn_ctx *ctx = &ctask->txn_ctx;
   struct partition *p = &hash_table->partitions[s];
   //int is_local = is_local_op(hash_table, s, op->key);
 
@@ -306,7 +298,7 @@ void *txn_op(struct hash_table *hash_table, int s, struct partition *l_p,
   } else {
 
     // call the corresponding authority and block
-    smp_hash_doall(hash_table, s, 1, &op, &value);
+    smp_hash_doall(ctask, hash_table, s, 1, &op, &value);
 
     // the remote server can fail to return us data if someone else has a lock
     if (value) {
@@ -456,6 +448,8 @@ void txn_finish(struct hash_table *hash_table, int s, int status, int mode,
     }
   }
 
+  smp_flush_all(hash_table, s);
+
   ctx->nops = 0;
 }
 
@@ -473,10 +467,11 @@ void txn_commit(struct hash_table *hash_table, int s, int mode, struct txn_ctx *
 }
 
 int run_batch_txn(struct hash_table *hash_table, int s, void *arg, 
-    struct txn_ctx *ctx, int status)
+    struct task *ctask, int status)
 {
   struct hash_query *query = (struct hash_query *)arg;
   struct partition *p = &hash_table->partitions[s];
+  struct txn_ctx *ctx = &ctask->txn_ctx;
   int i, r = TXN_COMMIT;
   int nops = query->nops;
   int nremote = 0;
@@ -497,7 +492,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
 
     // if local, get it
     if (server == s) {
-      values[i] = txn_op(hash_table, s, NULL, &query->ops[i], 1, ctx);
+      values[i] = txn_op(ctask, hash_table, s, NULL, &query->ops[i], 1);
 
       if (!values[i]) {
         r = TXN_ABORT;
@@ -513,20 +508,26 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
 
     if (server != s) {
       if (op->optype == OPTYPE_LOOKUP) {
-        smp_hash_lookup(hash_table, s, server, op->key);
+        smp_hash_lookup(ctask, hash_table, s, server, op->key, i);
         p->nlookups_remote++;
       } else {
-        smp_hash_update(hash_table, s, server, op->key);
+        smp_hash_update(ctask, hash_table, s, server, op->key, i);
         p->nupdates_remote++;
       }
 
       values[i] = NULL;
-      query->pending_ops[nremote] = i;
+
       nremote++;
     }
   }
 
-  query->npending = nremote;
+  /* we can have a max of 16 simultaneous ops from a single task as the opid
+   * field is only 4 bits wide
+   */
+  assert(nremote < 16);
+
+  ctask->npending = nremote;
+  ctask->nresponses = 0;
 
   // now get all remote values
   if (nremote) {
@@ -534,60 +535,45 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
 
     task_yield(&hash_table->partitions[s], TASK_STATE_WAITING);
 
-    struct box_array *boxes = hash_table->boxes;
+    // when we are scheduled again, we will have all data
+    assert(ctask->npending == ctask->nresponses);
 
-    for (i = 0; i < nops; i++) {
-      // skip local values we already have
-      if (values[i])
-        continue;
+    // match data to actual operation now
+    for (i = 0; i < nremote; i++) {
+      uint64_t val = ctask->received_responses[i];
+      assert(HASHOP_GET_TID(val) == ctask->tid);
 
-      uint64_t val;
-      struct hash_op *op = &query->ops[i];
-      server = g_benchmark->hash_get_server(hash_table, op->key);
+      short opid = HASHOP_GET_OPID(val);
+      assert(opid < nops);
 
-      /* Set current op we are waiting on and yield */
+      assert(values[opid] == NULL);
 
-      // loop till we get the remote value
-      //while (buffer_read_all(&boxes[s].boxes[server].out, 1, &val, 0) == 0) {
-      //  process_requests(hash_table, s);
-      //} 
-      struct onewaybuffer *buffer = &boxes[s].boxes[server].out;
-      int count = buffer->wr_index - buffer->rd_index;
-      if (!count)
-        task_yield(&hash_table->partitions[s], TASK_STATE_WAITING);
-
-      count = buffer_read_all(buffer, 1, &val, 0);
-      assert(count);
-
+      struct hash_op *op = &query->ops[opid];    
       struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
       octx->optype = op->optype;
-      octx->e = (struct elem *)val;
+      octx->e = (struct elem *)HASHOP_GET_VAL(val);
       octx->is_local = 0;
       octx->old_value = NULL;
       ctx->nops++;
 
-      if (octx->e) {
+       if (octx->e) {
         int esize = octx->e->size;
-        values[i] = octx->e->value;
+        values[opid] = octx->e->value;
 
         if (op->optype == OPTYPE_UPDATE) {
           octx->old_value = plmalloc_alloc(p, esize);
-          memcpy(octx->old_value, values[i], esize);
+          memcpy(octx->old_value, values[opid], esize);
         } else {
           octx->old_value = NULL;
         }
       } else {
-        values[i] = NULL;
+        values[opid] = NULL;
         r = TXN_ABORT;
 #if GATHER_STATS
         p->naborts_remote++;
 #endif
       }
-
-      nremote--;
     }
-
-    assert(nremote == 0);
   }
 
   // if some remote request failed, just abort
@@ -618,13 +604,11 @@ final:
 void process_requests(struct hash_table *hash_table, int s)
 {
   struct box_array *boxes = hash_table->boxes;
-  uint64_t localbuf[ONEWAY_BUFFER_SIZE];
+  uint64_t inbuf[ONEWAY_BUFFER_SIZE];
   struct partition *p = &hash_table->partitions[s];
   int nservers = hash_table->nservers;
   int s_coreid = hash_table->thread_data[s].core;
   char skip_list[BITNSLOTS(MAX_SERVERS)];
-  char waiting = 0;
-  char continue_loop = 0;
 
   memset(skip_list, 0, sizeof(skip_list));
 
@@ -672,244 +656,198 @@ void process_requests(struct hash_table *hash_table, int s)
       continue;
     }
 
-    int k = 0;
-    int nreleases = 0;
-    uint64_t req_ts = hash_table->partitions[i].txn_ctx.ts;
     struct onewaybuffer *b = &boxes[i].boxes[s].in; 
     int count = b->wr_index - b->rd_index;
     if (count == 0) 
       continue;
 
-    //count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, localbuf, 0);
-    count = buffer_peek(b, ONEWAY_BUFFER_SIZE, localbuf);
+    /* We can get many requests from one server as there can be many tasks.
+     * We process it as follows
+     * 1) get all requests and retrieve all elements
+     * 2) group elements into sets, one set per unique task
+     * 3) process task groups one at a time.
+     *
+     * Within task group, there are 3 cases for each request depending on CC:
+     * 1) abort 2) success 3) wait 
+     * 1) Even if 1 request aborts, whole txn will abort. So no point in sending
+     * back any other request. So just fail all requests
+     * 2) if success, send back data to caller
+     * 3) if wait, don't do anything. data will be sent back later
+     */
+    count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, inbuf, 0);
     assert(count);
 
-#if 0
-    /* process all release messages first */
-    while (k < count) {
-      uint64_t op = localbuf[k] & HASHOP_MASK;
-      if (op == HASHOP_RELEASE) {
-        struct elem *e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
-
-        dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
-            s, i, e->key, e->ref_count);
-
-#if ENABLE_WAIT_DIE_CC
-        wait_die_release(s, p, i, e);
-#else
-        no_wait_release(p, e);
-#endif
-
-      } 
-#if PARTITION_LOCK_MODE
-      else if (op == HASHOP_PLOCK_RELEASE) {
-#if ENABLE_WAIT_DIE_CC
-        wait_die_release(s, p, i, &p->magic_elem);
-#else
-        no_wait_release(p, &p->magic_elem);
-#endif
-      } 
-#endif // PARTITION_LOCK_MODE
-      else {
-        break;
-      }
-
-      k++;
-      nreleases++;
-    }
-
-    buffer_seek(&boxes[i].boxes[s].in, k);
-#endif
-
-    continue_loop = 1;
-    waiting = 0;
-
     struct elem *e[ONEWAY_BUFFER_SIZE];
-    struct lock_entry *locks[ONEWAY_BUFFER_SIZE];
-    int j = 0;
-    int r = 0;
+    short tids[ONEWAY_BUFFER_SIZE];
+    short opids[ONEWAY_BUFFER_SIZE];
+    short r[ONEWAY_BUFFER_SIZE];
 
-    while (k < count && continue_loop) {
+    // get all elems
+    for (int j = 0; j < count; j++) {
+      uint64_t optype = inbuf[j] & HASHOP_MASK;
+      tids[j] = HASHOP_GET_TID(inbuf[j]);
+      opids[j] = HASHOP_GET_OPID(inbuf[j]);
 
-      locks[j] = NULL;
-      uint64_t optype = localbuf[k] & HASHOP_MASK;
-
-      switch (optype) {
+      switch(optype) {
         case HASHOP_RELEASE:
-          {
-            struct elem *e = (struct elem *)(localbuf[k] & (~HASHOP_MASK));
+        {
+          struct elem *t = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
 
-            dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
-                s, i, e->key, e->ref_count);
+          dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
+              s, i, t->key, t->ref_count);
 
 #if ENABLE_WAIT_DIE_CC
-            wait_die_release(s, p, i, e);
+          wait_die_release(s, p, i, t);
 #else
-            no_wait_release(p, e);
+          no_wait_release(p, t);
 #endif
 
-            k++;
-            nreleases++;
-            buffer_seek(b, 1);
+          e[j] = NULL;
 
-            break;
-          }
-        case HASHOP_INSERT:
-          {
-#if GATHER_STATS
-            p->ninserts++;
-#endif
-            e[j] = hash_insert(p, localbuf[k] & (~HASHOP_MASK), 
-              localbuf[k + 1], NULL);
-
-            if (e[j] != NULL) {
-              e[j]->ref_count = DATA_READY_MASK | 2; 
-            }
-            k += INSERT_MSG_LENGTH;
-            buffer_seek(b, INSERT_MSG_LENGTH);
-
-            localbuf[j] = (unsigned long) e[j];
-            j++;
-            break;
-          }
+          break;
+        }
         case HASHOP_LOOKUP:
         case HASHOP_UPDATE:
-          {
-            struct lock_entry *l;
-            char conflict = 0;
+        {
+          struct lock_entry *l;
+          hash_key key = HASHOP_GET_VAL(inbuf[j]);
 
-            dprint("srv (%d): cl %d %s %" PRIu64 "\n", s, i, 
-              optype == HASHOP_LOOKUP ? "lookup" : "update",
-              localbuf[k] & (~HASHOP_MASK));
+          dprint("srv (%d): cl %d %s %" PRIu64 "\n", s, i, 
+              optype == HASHOP_LOOKUP ? "lookup" : "update", key);
 
-            e[j] = hash_lookup(p, localbuf[k] & (~HASHOP_MASK));
-            if (!e[j]) {
-              printf("srv (%d): cl %d %s %" PRIu64 "\n", s, i, 
-                  optype == HASHOP_LOOKUP ? "lookup" : "update",
-                  localbuf[k] & (~HASHOP_MASK));
-
-
-              assert (0);
-            }
-
-#if ENABLE_WAIT_DIE_CC
-            r = wait_die_acquire(s, p, i, e[j], 
-                optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE, 
-                req_ts, &l);
-#else
-            r = no_wait_acquire(e[j], 
-                optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
-#endif
-            if (r == LOCK_SUCCESS) {
-              localbuf[j] = (unsigned long)e[j];
-              locks[j] = l;
-            } else if (r == LOCK_WAIT) {
-#if !defined(ENABLE_WAIT_DIE_CC)
-              assert(0);
-#endif
-              waiting = 1;
-              localbuf[j] = 0;
-              locks[j] = l;
-            } else {
-              continue_loop = 0;
-              assert(r == LOCK_ABORT);
-              break;
-            }
-
-            assert(r != LOCK_ABORT);
-            k++;
-            j++;
-            break;
+          e[j] = hash_lookup(p, key);
+          if (!e[j]) {
+            dprint("srv (%d): cl %d %s %" PRIu64 "  failed\n", s, i, 
+                optype == HASHOP_LOOKUP ? "lookup" : "update", key);
           }
-#if PARTITION_LOCK_MODE
-        case HASHOP_PLOCK_ACQUIRE:
-          {
-            struct lock_entry *l;
 
-#if ENABLE_WAIT_DIE_CC
-            r = wait_die_acquire(s, p, i, &p->magic_elem, OPTYPE_UPDATE, 
-                req_ts, &l);
-#else
-            r = no_wait_acquire(&p->magic_elem, OPTYPE_UPDATE);
-#endif
-            if (r == LOCK_SUCCESS) {
-              localbuf[j] = (unsigned long)p->magic_elem.ref_count;
-              locks[j] = l;
-            } else if (r == LOCK_WAIT) {
-              waiting = 1;
-              localbuf[j] = 0;
-              locks[j] = l;
-            } else {
-              continue_loop = 0;
-              assert(r == LOCK_ABORT);
-              break;
-            }
+          assert(e[j]);
 
-            assert(r != LOCK_ABORT);
-            k++;
-            j++;
-            break;
-          }
-#endif
+          break;
+        }
         default:
-          printf("cl %d invalid message type %lx\n", i, (localbuf[k] & HASHOP_MASK) >> 32); 
+        {
+          printf("cl %d invalid message type %lx\n", i, optype); 
           fflush(stdout);
           assert(0);
           break;
-      }
-    }
-
-    if (continue_loop == 0) {// abort case
-      //XXX: THIS WILL BE BROKEN WITH FIBERS. FIX IT
-      assert(0);
-
-      // unlock everything acquired
-      if (j > 0) {
-        while (--j >= 0) {
-          dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64" "
-              " non owner releasing\n", s, i, e[j]->key,
-              e[j]->ref_count);
-
-#if ENABLE_WAIT_DIE_CC
-          assert(locks[j]);
-
-          if (localbuf[j]) { // owning case 
-            TAILQ_REMOVE(&e[j]->owners, locks[j], next);
-            mp_release_value_(p, e[j]);
-          } else { // waiting case
-            TAILQ_REMOVE(&e[j]->waiters, locks[j], next);
-          }
-
-          plmalloc_free(p, locks[j], sizeof(struct lock_entry));
-#else
-          mp_release_value_(p, e[j]);
-#endif
         }
       }
 
-      // fill up localbuf will NULL
-      for (k = 0; k < count - nreleases; k++)
-        localbuf[k] = 0;
-
-      j = count - nreleases;
+      r[j] = LOCK_INVALID;
     }
 
-    /* both in case of aborts and success, send back data to the caller and 
-    * mark all messages as read.
-    * If we are waiting on even one message, then don't do either.
-    */
-    if ((waiting == 0 || continue_loop == 0) && j > 0) {
+    // do trial task at a time
+    for (int j = 0; j < count; j++) {
+      uint64_t optype = inbuf[j] & HASHOP_MASK;
 
-      if (!(localbuf[0] || continue_loop == 0)) {
-        dprint("YIKES srv(%d): cl %d\n", s, i);
+      // skip all release messages
+      if (!e[j] || r[j] != LOCK_INVALID)
+        continue;
+
+#if ENABLE_WAIT_DIE_CC
+      // in wait die, timestamp is a payload
+      uint64_t req_ts = inbuf[++j];
+
+      char abort = 0;
+
+      r[j] = wait_die_check_acquire(s, p, i, e[j], 
+          optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE, 
+          req_ts);
+#else
+      // try acquring j's lock
+      r[j] = no_wait_check_acquire(e[j], 
+          optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#endif
+      char abort = 0;
+
+      if (r[j] == LOCK_ABORT)
+        abort = 1;
+
+      /* now try acquring locks of all other requests from same task
+       * in case j aborted, set all others to abort as well
+       */
+      for (int k = j + 1; k < count; k++) {
+        if (tids[j] == tids[k]) {
+          assert(opids[j] != opids[k]);
+
+          if (r[j] == LOCK_ABORT) {
+            r[k] = LOCK_ABORT;
+          } else {
+            assert (r[j] != LOCK_INVALID);
+
+#if ENABLE_WAIT_DIE_CC
+            uint64_t req_ts = inbuf[++j];
+
+            r[k] = wait_die_check_acquire(s, p, i, e[k], 
+                optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE, 
+                req_ts);
+#else
+            r[k] = no_wait_check_acquire(e[k], 
+                optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#endif
+            // if k failed, fail j as well
+            if (r[k] == LOCK_ABORT) {
+              r[j] = r[k] = LOCK_ABORT;
+              abort = 1;
+            }
+          }
+        }
       }
 
-      assert(localbuf[0] || continue_loop == 0);
+      //actually acquire the locks for all requests from j's task
+      if (!abort) {
+        for (int k = j; k < count; k++) {
+          if (tids[j] != tids[k])
+            continue;
+          else
+            assert(r[k] != LOCK_INVALID);
 
-      buffer_seek(&boxes[i].boxes[s].in, j);
-      buffer_write_all(&boxes[i].boxes[s].out, j, localbuf, 1);
+#if ENABLE_WAIT_DIE_CC
+          struct lock_entry *l = NULL;
+
+          int res = wait_die_acquire(s, p, s, e[k], 
+              optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE, 
+              req_ts, &l);
+
+          l->task_id = tids[k];
+          l->op_id = opids[k];
+#else
+          int res = no_wait_acquire(e[k], optype == HASHOP_LOOKUP ? 
+              OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#endif
+          assert(res == r[k]);
+        }
+      }
+    }
+
+    // now send back the responses
+    for (int j = 0; j < count; j++) {
+      uint64_t out_msg;
+      uint64_t optype = inbuf[j] & HASHOP_MASK;
+
+      // skip all release messages
+      if (!e[j])
+        continue;
+
+      assert(r[j] != LOCK_INVALID);
+
+      /* now, skip waits, respond back for success and aborts and get the locks
+       * for real
+       */
+      if (r[j] == LOCK_ABORT) {
+        out_msg = MAKE_HASH_MSG(tids[j], opids[j], 0, 0);
+        buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
+      } else if (r[j] == LOCK_SUCCESS) {
+        out_msg = MAKE_HASH_MSG(tids[j], opids[j], 0, (unsigned long)e[j]);
+        buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
+      } else
+        assert(0);
     }
   }
+
+  for (int i = 0; i < nservers; i++)
+    buffer_flush(&boxes[i].boxes[s].out);
 }
 
 void *hash_table_server(void* args)
@@ -1046,10 +984,10 @@ void *hash_table_server(void* args)
   return NULL;
 }
 
-int smp_hash_lookup(struct hash_table *hash_table, int client_id, 
-    int server, hash_key key)
+int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table, 
+    int client_id, int server, hash_key key, short op_id)
 {
-  uint64_t msg_data = key | HASHOP_LOOKUP;
+  uint64_t msg_data = MAKE_HASH_MSG(ctask->tid, op_id, key, HASHOP_LOOKUP);
 
   assert(server >= 0 && server < hash_table->nservers);
 
@@ -1060,6 +998,7 @@ int smp_hash_lookup(struct hash_table *hash_table, int client_id,
   return 1;
 }
 
+#if 0
 int smp_hash_insert(struct hash_table *hash_table, int client_id, hash_key key, int size)
 {
   uint64_t msg_data[INSERT_MSG_LENGTH];
@@ -1074,10 +1013,12 @@ int smp_hash_insert(struct hash_table *hash_table, int client_id, hash_key key, 
 
   return 1;
 }
+#endif
 
-int smp_hash_update(struct hash_table *hash_table, int client_id, int server, hash_key key)
+int smp_hash_update(struct task *ctask, struct hash_table *hash_table, 
+    int client_id, int server, hash_key key, short op_id)
 {
-  uint64_t msg_data = key | HASHOP_UPDATE;
+  uint64_t msg_data = MAKE_HASH_MSG(ctask->tid, op_id, key, HASHOP_UPDATE);
 
   assert(server >= 0 && server < hash_table->nservers);
 
@@ -1088,14 +1029,14 @@ int smp_hash_update(struct hash_table *hash_table, int client_id, int server, ha
   return 1;
 }
 
-void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries, 
-  struct hash_op **queries, void **values)
+void smp_hash_doall(struct task *ctask, struct hash_table *hash_table, 
+    int client_id, int nqueries, struct hash_op **queries, void **values)
 {
   int r, i, s;
   uint64_t val;
 
   struct box_array *boxes = hash_table->boxes;
-  uint64_t msg_data;
+  uint64_t msg_data[2];
 
   for(int i = 0; i < nqueries; i++) {
 
@@ -1106,8 +1047,17 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
         dprint("srv(%d): issue remote lookup op key %" PRIu64 " to %d\n", 
           client_id, queries[i]->key, s);
 
-        msg_data = (uint64_t)queries[i]->key | HASHOP_LOOKUP;
-        buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
+        msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key, 
+            HASHOP_LOOKUP);
+
+#if ENABLE_WAIT_DIE_CC
+        // send timestamp as a payload in case of wait die cc
+        msg_data[1] = ctask->txn_ctx.ts;
+        buffer_write_all(&boxes[client_id].boxes[s].in, 2, msg_data, 0);
+#else
+        buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
+#endif
+
 #if GATHER_STATS
         hash_table->partitions[client_id].nlookups_remote++;
 #endif
@@ -1118,8 +1068,16 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
         dprint("srv(%d): issue remote update op key %" PRIu64 " to %d\n", 
           client_id, queries[i]->key, s);
 
-        msg_data = (uint64_t)queries[i]->key | HASHOP_UPDATE;
-        buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
+        msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key, 
+            HASHOP_UPDATE);
+
+#if ENABLE_WAIT_DIE_CC
+        msg_data[1] = ctask->txn_ctx.ts;
+        buffer_write_all(&boxes[client_id].boxes[s].in, 2, msg_data, 0);
+#else
+        buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
+#endif
+
 #if GATHER_STATS
         hash_table->partitions[client_id].nupdates_remote++;
 #endif
@@ -1142,10 +1100,16 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
     }
   }
 
+  ctask->npending = nqueries;
+  ctask->nresponses = 0;
+
   // after queueing all the queries we flush all buffers and read all remaining values
   smp_flush_all(hash_table, client_id);
 
   task_yield(&hash_table->partitions[client_id], TASK_STATE_WAITING);
+
+  // we should have data when we return
+  assert(ctask->npending == ctask->nresponses);
 
   i = 0;
   while (i < nqueries) {
@@ -1156,13 +1120,13 @@ void smp_hash_doall(struct hash_table *hash_table, int client_id, int nqueries,
     else
       ps = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
-    r = buffer_read_all(&boxes[client_id].boxes[ps].out, 1, &val, 0);
-    assert(r);
+    val = ctask->received_responses[i];
 
-    if (r) {
-      values[i] = (void *)(unsigned long)val;
-      i++;
-    }
+    assert(HASHOP_GET_TID(val) == ctask->tid);
+    assert(HASHOP_GET_OPID(val) == i);
+
+    values[i] = (void *)(unsigned long)HASHOP_GET_VAL(val);
+    i++;
 
     //process_requests(hash_table, client_id);
   }
@@ -1228,7 +1192,7 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id, void *pt
 
 void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr)
 {
-  mp_send_release_msg_(hash_table, client_id, ptr, 1 /* force_flush */);
+  mp_send_release_msg_(hash_table, client_id, ptr, 0 /* force_flush */);
 }
 
 void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr)
@@ -1240,7 +1204,7 @@ void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr)
   dprint("srv(%d): sending release msg key %" PRIu64 " rc %" PRIu64 " \n", 
       client_id, ((struct elem *)ptr)->key, ((struct elem*)ptr)->ref_count);
 
-  mp_send_release_msg_(hash_table, client_id, ptr, 1 /* force_flush */);
+  mp_send_release_msg_(hash_table, client_id, ptr, 0 /* force_flush */);
 #endif
 }
 
@@ -1250,6 +1214,14 @@ void mp_release_plock(int s, int c)
 
   buffer_write_all(&hash_table->boxes[s].boxes[c].in, 1, &msg_data, 1);
 }
+
+void mp_send_reply(int s, int c, short task_id, short op_id, struct elem *e)
+{
+  uint64_t msg_data = MAKE_HASH_MSG(task_id, op_id, (unsigned long)e, 0);
+
+  buffer_write_all(&hash_table->boxes[s].boxes[c].out, 1, &msg_data, 1);
+}
+
 /**
  * Hash Table Counters and Stats
  */

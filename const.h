@@ -38,7 +38,33 @@
 #define LOCK_SUCCESS 0
 #define LOCK_ABORT 1
 #define LOCK_WAIT 2
+#define LOCK_INVALID 3
 
 #define NREMOTE_OPS 2
+
+/** 
+ * Hash Table Operations
+ */
+/* exploit the fact that we have 48-bit address space and use the upper
+ * 16-bits to encode operation type and msg tag
+ */
+#define HASHOP_MASK           0xF000000000000000
+#define HASHOP_TID_MASK       0x0FF0000000000000
+#define HASHOP_OPID_MASK      0x000F000000000000
+#define MAKE_HASH_MSG(tid,opid,key,optype)\
+  ((optype) | ((unsigned long)(tid) << 52UL) | ((unsigned long)opid << 48UL) | (key))
+
+#define HASHOP_GET_TID(msg)   (((msg) & HASHOP_TID_MASK) >> 52)
+#define HASHOP_GET_OPID(msg)   (((msg) & HASHOP_OPID_MASK) >> 48)
+#define HASHOP_GET_VAL(msg)   ((msg) & ~HASHOP_TID_MASK & ~HASHOP_MASK & ~HASHOP_OPID_MASK)
+
+#define HASHOP_LOOKUP         0x1000000000000000 
+#define HASHOP_INSERT         0x2000000000000000 
+#define HASHOP_UPDATE         0x3000000000000000 
+#define HASHOP_RELEASE        0x4000000000000000 
+#define HASHOP_PLOCK_ACQUIRE  0x5000000000000000 
+#define HASHOP_PLOCK_RELEASE  0x6000000000000000 
+
+#define INSERT_MSG_LENGTH 2
 
 #endif

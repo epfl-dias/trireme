@@ -11,6 +11,8 @@ typedef uint64_t hash_key;
 
 /* lock used to implement 2pl wait die */
 struct lock_entry {
+  short task_id;
+  short op_id;
   int s;
   uint64_t ts;
   char optype;
@@ -158,6 +160,9 @@ struct task {
   int s;
   struct txn_ctx txn_ctx;
   struct hash_query *query;
+  short npending;
+  uint64_t received_responses[MAX_OPS_PER_QUERY];
+  short nresponses;
   TAILQ_ENTRY(task) next;
 } __attribute__ ((aligned (CACHELINE)));
 

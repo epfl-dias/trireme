@@ -633,11 +633,12 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
 }
 
 int tpcc_run_neworder_txn(struct hash_table *hash_table, int id, 
-    struct tpcc_query *q, int status)
+    struct tpcc_query *q, struct task *ctask, int status)
 {
   uint64_t key, pkey;
   struct hash_op op;
   struct partition *item_p = hash_table->g_partition;
+  struct txn_ctx *ctx = &ctask->txn_ctx;
   char remote = q->remote;
   int w_id = q->w_id;
   int d_id = q->d_id;
@@ -680,7 +681,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
 
 #endif
 
-  txn_start(hash_table, id, status);
+  txn_start(hash_table, id, status, ctx);
 
   /*
    * EXEC SQL SELECT c_discount, c_last, c_credit, w_tax
@@ -691,17 +692,25 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
   MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
   struct tpcc_warehouse *w_r = 
-    (struct tpcc_warehouse *) txn_op(hash_table, id, NULL, &op, 1 /*local*/);
-  assert(w_r);
-
+    (struct tpcc_warehouse *) txn_op(ctask, hash_table, id, NULL, &op, 1 /*local*/);
+  if (!w_r) {
+    dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+    r = TXN_ABORT;
+    goto final;
+  }
+ 
   double w_tax = w_r->w_tax;
   key = MAKE_CUST_KEY(w_id, d_id, c_id);
   pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
   MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
   struct tpcc_customer *c_r = 
-    (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, 1);
-  assert(c_r);
-
+    (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, 1);
+  if (!c_r) {
+    dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+    r = TXN_ABORT;
+    goto final;
+  }
+ 
   uint64_t c_discount = c_r->c_discount;
 
   /*
@@ -713,8 +722,12 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
   struct tpcc_district *d_r = 
-    (struct tpcc_district *) txn_op(hash_table, id, NULL, &op, 1);
-  assert(d_r);
+    (struct tpcc_district *) txn_op(ctask, hash_table, id, NULL, &op, 1);
+  if (!d_r) {
+    dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+    r = TXN_ABORT;
+    goto final;
+  }
 
   uint64_t o_id = d_r->d_next_o_id;
   double d_tax = d_r->d_tax;
@@ -735,7 +748,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(ORDER_TID, key);
   MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order)), pkey);
   struct tpcc_order *o_r = 
-    (struct tpcc_order *) txn_op(hash_table, id, NULL, &op, 1);
+    (struct tpcc_order *) txn_op(ctask, hash_table, id, NULL, &op, 1);
   assert(o_r);
 
   //dprint("srv(%d): inserted %"PRId64"\n", id, pkey);
@@ -758,7 +771,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
   MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_new_order)), pkey);
   struct tpcc_new_order *no_r = 
-    (struct tpcc_new_order *) txn_op(hash_table, id, NULL, &op, 1);
+    (struct tpcc_new_order *) txn_op(ctask, hash_table, id, NULL, &op, 1);
   assert(no_r);
 
   dprint("srv(%d): inserted %"PRId64"\n", id, pkey);
@@ -780,9 +793,14 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     pkey = MAKE_HASH_KEY(ITEM_TID, ol_i_id);
     MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
     struct tpcc_item *i_r = 
-      (struct tpcc_item *) txn_op(hash_table, id, 
+      (struct tpcc_item *) txn_op(ctask, hash_table, id, 
         item_p, &op, 1);
     assert(i_r);
+    if (!i_r) {
+      dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+      r = TXN_ABORT;
+      goto final;
+    }
 
     uint64_t i_price = i_r->i_price;
     //char *i_name = i_r->i_name;
@@ -805,18 +823,18 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     struct tpcc_stock *s_r = NULL;
 #if SHARED_EVERYTHING
     /* in shared everything mode, we always do local lookup */
-    s_r = (struct tpcc_stock *) txn_op(hash_table, id, NULL, &op, 1);
+    s_r = (struct tpcc_stock *) txn_op(ctask, hash_table, id, NULL, &op, 1);
 #elif SHARED_NOTHING
 
     /* directly pass the partition corresponding to supply wh */
-    s_r = (struct tpcc_stock *) txn_op(hash_table, id, 
+    s_r = (struct tpcc_stock *) txn_op(ctask, hash_table, id, 
         &hash_table->partitions[ol_supply_w_id - 1], &op, 1);
 
     /* since we acquire partition latch, we can't have failure */
     assert(s_r);
 
 #else
-    s_r = (struct tpcc_stock *) txn_op(hash_table, id, NULL, &op, 
+    s_r = (struct tpcc_stock *) txn_op(ctask, hash_table, id, NULL, &op, 
         w_id == ol_supply_w_id);
 #endif
     if (!s_r) {
@@ -859,7 +877,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
     MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order_line)), pkey);
     struct tpcc_order_line *ol_r = 
-      (struct tpcc_order_line *) txn_op(hash_table, id, NULL, &op, 1);
+      (struct tpcc_order_line *) txn_op(ctask, hash_table, id, NULL, &op, 1);
     assert(ol_r);
 
     dprint("srv(%d): inserted %"PRId64"\n", id, pkey);
@@ -896,16 +914,16 @@ final:
   }
 #else
   if (r == TXN_COMMIT)
-    txn_commit(hash_table, id, TXN_SINGLE);
+    txn_commit(hash_table, id, TXN_SINGLE, ctx);
   else
-    txn_abort(hash_table, id, TXN_SINGLE);
+    txn_abort(hash_table, id, TXN_SINGLE, ctx);
 #endif
   
   return r;
 }
 
 int tpcc_run_payment_txn (struct hash_table *hash_table, int id, 
-    struct tpcc_query *q, int status)
+    struct tpcc_query *q, struct task *ctask, int status)
 {
   struct hash_op op;
   uint64_t key, pkey;
@@ -915,12 +933,13 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   int c_d_id = q->c_d_id;
   int c_id = q->c_id;
   double h_amount = q->h_amount;
+  struct txn_ctx *ctx = &ctask->txn_ctx;
 
   int r = TXN_COMMIT;
 
   assert(q->w_id == id + 1);
 
-  txn_start(hash_table, id, status);
+  txn_start(hash_table, id, status, ctx);
 
   /*====================================================+
       EXEC SQL UPDATE warehouse SET w_ytd = w_ytd + :h_amount
@@ -936,7 +955,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
   struct tpcc_warehouse *w_r = 
-    (struct tpcc_warehouse *) txn_op(hash_table, id, NULL, &op, 1 /*local*/);
+    (struct tpcc_warehouse *) txn_op(ctask, hash_table, id, NULL, &op, 1 /*local*/);
   assert(w_r);
 
   w_r->w_ytd += h_amount;
@@ -955,7 +974,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
   struct tpcc_district *d_r = 
-    (struct tpcc_district *) txn_op(hash_table, id, NULL, &op, 1);
+    (struct tpcc_district *) txn_op(ctask, hash_table, id, NULL, &op, 1);
   assert(d_r);
 
   d_r->d_ytd += h_amount;
@@ -971,7 +990,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     pkey = MAKE_HASH_KEY(CUSTOMER_SIDX_TID, key);
     MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
     struct secondary_record *sr = 
-      (struct secondary_record *) txn_op(hash_table, id, NULL, &op, c_w_id == w_id);
+      (struct secondary_record *) txn_op(ctask, hash_table, id, NULL, &op, c_w_id == w_id);
     assert(sr);
  
     struct tpcc_customer **c_recs = malloc(sizeof(struct tpcc_customer *) * 
@@ -1002,7 +1021,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
 
       struct tpcc_customer *tmp = 
-        (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, c_w_id == w_id);
+        (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, c_w_id == w_id);
       assert(tmp);
 
       /* XXX: This strcmp and the next below have a huge overhead */
@@ -1054,7 +1073,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
       pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
 
-      c_r = (struct tpcc_customer *) txn_op(hash_table, id, NULL, &op, c_w_id == w_id);
+      c_r = (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, c_w_id == w_id);
       assert(c_r);
     }
 
@@ -1100,7 +1119,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     key = MAKE_HASH_KEY(HISTORY_TID, pkey);
     MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order)), key);
     struct tpcc_history *h_r = 
-      (struct tpcc_history *) txn_op(hash_table, id, NULL, &op, 1);
+      (struct tpcc_history *) txn_op(ctask, hash_table, id, NULL, &op, 1);
     assert(h_r);
 
     h_r->h_c_id = c_id;
@@ -1112,9 +1131,9 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     h_r->h_amount = h_amount;
 
     if (r == TXN_COMMIT)
-      txn_commit(hash_table, id, TXN_SINGLE);
+      txn_commit(hash_table, id, TXN_SINGLE, ctx);
     else
-      txn_abort(hash_table, id, TXN_SINGLE);
+      txn_abort(hash_table, id, TXN_SINGLE, ctx);
 
     return r;
 }
@@ -1135,7 +1154,8 @@ void tpcc_free_query(void *p)
   free (q);
 }
 
-int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
+int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg, 
+    struct task *ctask, int status)
 {
   int r;
   struct tpcc_query *q = (struct tpcc_query *) arg;
@@ -1148,7 +1168,7 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
 #endif
 #endif
 
-  r = tpcc_run_neworder_txn(hash_table, s, q, status); 
+  r = tpcc_run_neworder_txn(hash_table, s, q, ctask, status); 
   //r =  tpcc_run_payment_txn(hash_table, s, q, status); 
 
   return r;
@@ -1157,6 +1177,8 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg, int status)
 void tpcc_get_next_query(struct hash_table *hash_table, int s, 
     void *arg)
 {
+  hash_table->partitions[s].q_idx++;
+
   tpcc_get_next_neworder_query(hash_table, s, arg);
   //tpcc_get_next_payment_query(hash_table, s, arg);
 }

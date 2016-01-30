@@ -15,71 +15,80 @@ void task_unblock(struct task *t);
 
 void lightweight_swapcontext(ucontext_t *out, ucontext_t *in);
 
+static struct task *get_task(struct partition *p, int tid)
+{
+  // only called from unblock_fn. so task should only be inwaiting list
+  struct task *t = TAILQ_FIRST(&p->wait_list);
+  while (t) {
+    if (t->tid == tid)
+      break;
+
+    t = TAILQ_NEXT(t, next);
+  }
+
+  return t;
+}
+
 void unblock_fn(int s, int tid)
 {
   struct partition *p = &hash_table->partitions[s];
   struct task *self = &p->unblock_task;
   struct box_array *boxes = hash_table->boxes;
   struct task *t;
-  int r;
 
   while (1) {
 
     dprint("srv(%d): Unblock task looping again\n", s);
 
+    // we're done if waiters and ready list is empty
     if (p->q_idx == niters && TAILQ_EMPTY(&p->wait_list) && 
         TAILQ_EMPTY(&p->ready_list)) {
       printf("srv(%d): Unblock task killing self\n", s);
       task_destroy(self, p);
     }
 
-    while (TAILQ_EMPTY(&p->wait_list)) {
+    /* if we have empty waiter list and empty ready list, we are still
+     * bootstrapping. So we just have to wait
+     */
+    while (TAILQ_EMPTY(&p->wait_list) && TAILQ_EMPTY(&p->ready_list)) {
       dprint("srv(%d): Unblock task waiting for waiters\n", s);
       task_yield(p, TASK_STATE_READY);
     }
 
+    process_requests(hash_table, s);
+
     // if anybody is ready, yield now
-    while (!TAILQ_EMPTY(&p->ready_list)) {
+    if (!TAILQ_EMPTY(&p->ready_list)) {
       dprint("srv(%d): Unblock task yielding to someone on ready list\n", s);
       task_yield(p, TASK_STATE_READY);
     }
 
-    smp_flush_all(hash_table, s);
-    process_requests(hash_table, s);
+    //smp_flush_all(hash_table, s);
 
-    if (t = TAILQ_FIRST(&p->wait_list)) {
-      assert(t);
+    int nservers = hash_table->nservers;
+    for (int i = 0; i < nservers; i++) {
+      struct onewaybuffer *b = &boxes[s].boxes[i].out;
+      int count = b->wr_index - b->rd_index;
 
-      struct hash_query *q = t->query;
-      short *pending_ops = q->pending_ops;
-      short npending = q->npending;
-      uint64_t val;
+      if (count) {
+        uint64_t data[ONEWAY_BUFFER_SIZE];
+        count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, data, 0);
+        assert(count);
 
-      for (int i = 0; i < npending; i++) {
+        for (int j = 0; j < count; j++) {
+          int tid = HASHOP_GET_TID(data[j]);
+          struct task *t = get_task(p, tid);
+          assert(t && t->state == TASK_STATE_WAITING);
 
-        short op = pending_ops[i];
+          t->received_responses[t->nresponses] = data[j];
+          t->nresponses++;
+          assert (t->nresponses <= t->npending);
 
-        dprint("srv(%d): Unblock task check task %d op %d q %"PRIu64"\n", 
-            s, t->tid, op, q->ops[op].key);
-
-        int ps = g_benchmark->hash_get_server(hash_table, q->ops[op].key);
-        struct onewaybuffer* buffer = &boxes[s].boxes[ps].out;
-        r = 0;
-
-        while (!r) {
-          r = buffer->wr_index - buffer->rd_index;
-          if (r) {
-            // unblock task
-            dprint("srv(%d): Unblock task unblocking task %d: windex = %d, rindex = %d, r = %d\n", 
-                s, t->tid, buffer->wr_index, buffer->rd_index, r);
-          } else {
-            process_requests(hash_table, s);
-          }
+          // task is ready if we have received all pending responses
+          if (t->nresponses == t->npending)
+            task_unblock(t);
         }
       }
-
-      // by now we should have all data. so unblock the task
-      task_unblock(t);
     }
   }
 }
@@ -102,18 +111,22 @@ void child_fn(int s, int tid)
     g_benchmark->get_next_query(hash_table, s, query);
 
     dprint("srv(%d): task %d issuing txn %d \n", s, self->tid, q_idx);
-  
+
     r = TXN_COMMIT;
 
     do {
 #if ENABLE_OP_BATCHING
-        r = run_batch_txn(hash_table, self->s, query, &self->txn_ctx, r);
+      r = run_batch_txn(hash_table, self->s, query, self, r);
 #else
-        r = g_benchmark->run_txn(hash_table, self->s, query, &self->txn_ctx, r);
+      r = g_benchmark->run_txn(hash_table, self->s, query, self, r);
 #endif
       if (r == TXN_ABORT) {
+        task_yield(p, TASK_STATE_READY);
+
         dprint("srv(%d): rerunning aborted txn %d\n", s, q_idx);
       }
+
+      process_requests(hash_table, s);
 
     } while (r == TXN_ABORT);
 
@@ -121,8 +134,8 @@ void child_fn(int s, int tid)
 
 
 #if PRINT_PROGRESS
-    if (q_idx % 10 == 0) {
-      dprint("srv(%d): task %d finished %s(%" PRId64 " of %d)"
+    if (q_idx % 100000 == 0) {
+      printf("srv(%d): task %d finished %s(%" PRId64 " of %d)"
           " on key %" PRId64 "\n", 
           s, 
           self->tid, 

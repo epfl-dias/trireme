@@ -214,7 +214,6 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   char is_duplicate;
   
   query->nops = ops_per_txn;
-  query->npending = 0;
 
   for (int i = 0; i < ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
@@ -335,7 +334,7 @@ process_op:
     /* now that we have the lock, we can issue the actual operation as though 
      * its local
      */
-    value = txn_op(hash_table, s, tpartition, op, 1);
+    value = txn_op(ctask, hash_table, s, tpartition, op, 1);
     assert(value);
 
     // in both lookup and update, we just check the value
@@ -371,10 +370,11 @@ process_op:
 }
 #endif
 
-int micro_run_txn(struct hash_table *hash_table, int s, void *arg, struct txn_ctx *txn_ctx, 
-    int status)
+int micro_run_txn(struct hash_table *hash_table, int s, void *arg, 
+    struct task *ctask, int status)
 {
   struct hash_query *query = (struct hash_query *) arg;
+  struct txn_ctx *txn_ctx = &ctask->txn_ctx;
   int i, r;
   void *value;
 
@@ -424,9 +424,6 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg, struct txn_ct
 
   r = TXN_COMMIT;
   for (i = 0; i < query->nops; i++) {
-    query->npending = 1;
-    query->pending_ops[0] = i;
-
     struct hash_op *op = &query->ops[i];
     int is_local;
 #if defined SHARED_EVERYTHING || defined SHARED_NOTHING
@@ -442,7 +439,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg, struct txn_ct
     tserver = micro_hash_get_server(hash_table, op->key);
     struct partition *tpartition = &hash_table->partitions[tserver];
 
-    value = txn_op(hash_table, s, tpartition, op, is_local, txn_ctx);
+    value = txn_op(ctask, hash_table, s, tpartition, op, is_local);
     assert(value);
 #else
     // try ith operation i+1 times before aborting only with NOWAIT CC
@@ -452,7 +449,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg, struct txn_ct
     int nretries = i + 1;
 #endif
     for (int j = 0; j < nretries; j++) {
-      value = txn_op(hash_table, s, NULL, op, is_local, txn_ctx);
+      value = txn_op(ctask, hash_table, s, NULL, op, is_local);
       if (value)
         break;
     }
