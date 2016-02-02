@@ -346,9 +346,9 @@ process_op:
   }
 
   if (r == TXN_COMMIT) {
-    txn_commit(hash_table, s, TXN_SINGLE);
+    txn_commit(ctask, hash_table, s, TXN_SINGLE);
   } else {
-    txn_abort(hash_table, s, TXN_SINGLE);
+    txn_abort(ctask, hash_table, s, TXN_SINGLE);
   }
 
   // release all partition locks
@@ -488,9 +488,9 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #else
 
   if (r == TXN_COMMIT) {
-    txn_commit(hash_table, s, TXN_SINGLE, txn_ctx);
+    txn_commit(ctask, hash_table, s, TXN_SINGLE);
   } else {
-    txn_abort(hash_table, s, TXN_SINGLE, txn_ctx);
+    txn_abort(ctask, hash_table, s, TXN_SINGLE);
   }
 #endif
 

@@ -50,18 +50,18 @@ void unblock_fn(int s, int tid)
     /* if we have empty waiter list and empty ready list, we are still
      * bootstrapping. So we just have to wait
      */
-    while (TAILQ_EMPTY(&p->wait_list) && TAILQ_EMPTY(&p->ready_list)) {
+    if (TAILQ_EMPTY(&p->wait_list) && TAILQ_EMPTY(&p->ready_list)) {
       dprint("srv(%d): Unblock task waiting for waiters\n", s);
       task_yield(p, TASK_STATE_READY);
     }
-
-    process_requests(hash_table, s);
 
     // if anybody is ready, yield now
     if (!TAILQ_EMPTY(&p->ready_list)) {
       dprint("srv(%d): Unblock task yielding to someone on ready list\n", s);
       task_yield(p, TASK_STATE_READY);
     }
+
+    process_requests(hash_table, s);
 
     //smp_flush_all(hash_table, s);
 
@@ -75,6 +75,8 @@ void unblock_fn(int s, int tid)
         count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, data, 0);
         assert(count);
 
+        dprint("srv(%d): got %d msges from %d\n", s, count, i);
+
         for (int j = 0; j < count; j++) {
           int tid = HASHOP_GET_TID(data[j]);
           struct task *t = get_task(p, tid);
@@ -85,8 +87,12 @@ void unblock_fn(int s, int tid)
           assert (t->nresponses <= t->npending);
 
           // task is ready if we have received all pending responses
-          if (t->nresponses == t->npending)
+          if (t->nresponses == t->npending) {
+            dprint("srv(%d): unblocking %d (nresp %d, npend %d)\n", s, t->tid,
+                t->nresponses, t->npending);
+
             task_unblock(t);
+          }
         }
       }
     }
@@ -121,20 +127,20 @@ void child_fn(int s, int tid)
       r = g_benchmark->run_txn(hash_table, self->s, query, self, r);
 #endif
       if (r == TXN_ABORT) {
+        dprint("srv(%d):txn %d aborted\n", s, q_idx);
         task_yield(p, TASK_STATE_READY);
-
         dprint("srv(%d): rerunning aborted txn %d\n", s, q_idx);
       }
-
-      process_requests(hash_table, s);
 
     } while (r == TXN_ABORT);
 
     assert(q_idx <= niters);
 
+    // After each txn, call process request
+    process_requests(hash_table, s);
 
 #if PRINT_PROGRESS
-    if (q_idx % 100000 == 0) {
+    if (q_idx % 100 == 0) {
       printf("srv(%d): task %d finished %s(%" PRId64 " of %d)"
           " on key %" PRId64 "\n", 
           s, 

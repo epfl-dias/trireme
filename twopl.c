@@ -5,30 +5,71 @@
 extern int write_threshold;
 
 #if ENABLE_WAIT_DIE_CC
-int wait_die_acquire(int s, struct partition *p, // necessary dses
-    int c, struct elem *e, char optype, uint64_t req_ts, // input
-    struct lock_entry **pl) // output
+int wait_die_check_acquire(int s, struct partition *p,
+    int c, int tid, int opid, struct elem *e, char optype, uint64_t req_ts)
+{
+  char conflict;
+  int r;
+  struct lock_entry *l;
+
+  if (optype == OPTYPE_LOOKUP) {
+    conflict = !is_value_ready(e);
+  } else {
+    assert(optype == OPTYPE_UPDATE);
+    conflict = !is_value_ready(e) || e->ref_count > 1;
+  }
+
+  if (!conflict) {
+    if (!TAILQ_EMPTY(&e->waiters)) {
+      l = TAILQ_FIRST(&e->waiters);
+      if (req_ts <= l->ts)
+        conflict = 1;
+    }
+  }
+ 
+  if (conflict) {
+    /* There was a conflict. In wait die case, we can wait if 
+     * req_ts is < ts of all owner txns 
+     */
+    int wait = 1;
+    TAILQ_FOREACH(l, &e->owners, next) {
+      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c))) {
+        wait = 0;
+        break;
+      }
+    }
+
+    if (wait) {
+      r = LOCK_WAIT;
+    } else {
+      r = LOCK_ABORT;
+    }
+  } else {
+    r = LOCK_SUCCESS;
+  }
+
+  return r;
+}
+
+int wait_die_acquire(int s, struct partition *p,
+    int c, int task_id, int op_id, struct elem *e, char optype, 
+    uint64_t req_ts, struct lock_entry **pl)
 {
   struct lock_entry *l;
   int r, conflict;
 
   *pl = NULL;
 
-  /* If we are on the owner's list, we have the element, ref counts are all
-   * set, just save it and move along 
-   */
+  /* we cannot be on the owners list */
   TAILQ_FOREACH(l, &e->owners, next) {
-    if (l->s == c)
-      break;
+    if (l->s == c && l->task_id == task_id && l->op_id == op_id)
+      assert(0);
   }
 
-  if (l) {
-    dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 
-        " found in owner\n", s, c, e->key, e->ref_count);
-
-    *pl = l;
-
-    return LOCK_SUCCESS;
+  /* we cannot be on the waiters list */
+  TAILQ_FOREACH(l, &e->waiters, next) {
+    if (l->s == c && l->task_id == task_id && l->op_id == op_id)
+      assert(0);
   }
 
   dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 "\n", s, 
@@ -55,31 +96,22 @@ int wait_die_acquire(int s, struct partition *p, // necessary dses
   /* if somebody has lock or wait die is signaling a conflict
    * we need to check if this txn must wait or abort. If it must 
    * wait, then we should add it to waiters list and continue. 
-   * SOmetime later, someone will move us to the owner list. At
-   * that point, when we retry getting lock again, we will succeed.
-   * So we will reply back only at that time. For now, we should
-   * leave messages in queue and not remove them.
+   * Sometime later, someone will move us to the owner list and reply back 
+   * to the requestor
    *
    * If it must abort, then we should unlock all locks acquired,
    * then return back a NULL for each message.
 
-   * XXX: We rely on state maintained in messaging system to ensure
-   * that same ops are retried later. Given that we maintain an
-   * explicit waiter list, another option would be to use async
-   * messaging to send out a lock acquired response when the lock
-   * is released. But doing this means that requests can get replied
-   * to out of order. This is something messaging system cannot
-   * handle now. 
-   */
+  */
   if (conflict) {
-    assert(write_threshold < 100);
 
     /* There was a conflict. In wait die case, we can wait if 
      * req_ts is < ts of all owner txns 
      */
     int wait = 1;
     TAILQ_FOREACH(l, &e->owners, next) {
-      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c))) {
+      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c)) || 
+          ((l->ts == req_ts) && (l->s == c) && (l->task_id < task_id))) {
         wait = 0;
         break;
       }
@@ -91,42 +123,37 @@ int wait_die_acquire(int s, struct partition *p, // necessary dses
           s, c, e->key, e->ref_count);
 
       // if we are allowed to wait, make a new lock entry and add it to
-      // waiters list. Its possible that the request is being
-      // retriedin which case it would already be on the waiters list
-      int already_waiting = 0;
+      // waiters list. 
       TAILQ_FOREACH(l, &e->waiters, next) {
-        // break if we're already waiting
-        if (l->ts == req_ts && l->s == c) {
-          assert(l->optype == OPTYPE_UPDATE);
-          already_waiting = 1;
-          *pl = l;
-          break;
-        }
+
+        /* there cannot be a request already from same server/task/op combo */
+        if (l->s == c && l->task_id == task_id && l->op_id == op_id)
+          assert(0);
 
         // break if this is where we have to insert ourself 
-        if (l->ts < req_ts || (l->ts == req_ts && l->s < c))
+        if (l->ts < req_ts || (l->ts == req_ts && l->s < c) ||
+          ((l->ts == req_ts) && (l->s == c) && (l->task_id < task_id)))
           break;
       }
 
-      if (!already_waiting) {
-        struct lock_entry *target = plmalloc_alloc(p, sizeof(struct lock_entry));
-        assert(target);
-        target->ts = req_ts;
-        target->s = c;
-        //XXX: Need to set taskid, opid here
-        assert(0);
-        target->optype = OPTYPE_UPDATE;
-        target->ready = 0;
-        *pl = target;
+      struct lock_entry *target = plmalloc_alloc(p, sizeof(struct lock_entry));
+      assert(target);
+      target->ts = req_ts;
+      target->s = c;
 
-        if (l) {
-          TAILQ_INSERT_BEFORE(l, target, next);
+      target->optype = OPTYPE_UPDATE;
+      target->ready = 0;
+      target->task_id = task_id;
+      target->op_id = op_id;
+      *pl = target;
+
+      if (l) {
+        TAILQ_INSERT_BEFORE(l, target, next);
+      } else {
+        if (TAILQ_EMPTY(&e->waiters)) {
+          TAILQ_INSERT_HEAD(&e->waiters, target, next);
         } else {
-          if (TAILQ_EMPTY(&e->waiters)) {
-            TAILQ_INSERT_HEAD(&e->waiters, target, next);
-          } else {
-            TAILQ_INSERT_TAIL(&e->waiters, target, next);
-          }
+          TAILQ_INSERT_TAIL(&e->waiters, target, next);
         }
       }
 
@@ -151,6 +178,8 @@ int wait_die_acquire(int s, struct partition *p, // necessary dses
     target->s = c;
     target->optype = OPTYPE_UPDATE;
     target->ready = 1;
+    target->task_id = task_id;
+    target->op_id = op_id;
     *pl = target;
 
     dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 
@@ -164,12 +193,13 @@ int wait_die_acquire(int s, struct partition *p, // necessary dses
   return r;
 }
 
-void wait_die_release(int s, struct partition *p, int c, struct elem *e)
+void wait_die_release(int s, struct partition *p, int c, int task_id, 
+    int op_id, struct elem *e)
 {
   // find out lock on the owners list
   struct lock_entry *l;
   TAILQ_FOREACH(l, &e->owners, next) {
-    if (l->s == c)
+    if (l->s == c && l->task_id == task_id && l->op_id == op_id)
       break;
   }
 
@@ -187,7 +217,7 @@ void wait_die_release(int s, struct partition *p, int c, struct elem *e)
     // aborts. In this case, we will get release message for a request
     // that is currently waiting
     TAILQ_FOREACH(l, &e->waiters, next) {
-      if (l->s == c)
+      if (l->s == c && l->task_id == task_id && l->op_id == op_id)
         break;
     }
 
@@ -243,7 +273,7 @@ void wait_die_release(int s, struct partition *p, int c, struct elem *e)
 
     // mark as ready and send message to server
     l->ready = 1;
-    mp_send_reply(s, l->s, l->task_id, e);
+    mp_send_reply(s, l->s, l->task_id, l->op_id, e);
 
     dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n", 
         s, e->key, l->s);
@@ -297,4 +327,4 @@ int no_wait_acquire(struct elem *e, char optype)
 
   return LOCK_SUCCESS;
 }
- 
+

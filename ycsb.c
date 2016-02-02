@@ -151,8 +151,8 @@ int main(int argc, char *argv[])
   }
 
   // set benchmark to micro for now
-  g_benchmark = &tpcc_bench;
-  //g_benchmark = &micro_bench;
+  //g_benchmark = &tpcc_bench;
+  g_benchmark = &micro_bench;
   run_benchmark();
   return 0;
 }

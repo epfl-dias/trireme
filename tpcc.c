@@ -914,9 +914,9 @@ final:
   }
 #else
   if (r == TXN_COMMIT)
-    txn_commit(hash_table, id, TXN_SINGLE, ctx);
+    txn_commit(ctask, hash_table, id, TXN_SINGLE);
   else
-    txn_abort(hash_table, id, TXN_SINGLE, ctx);
+    txn_abort(ctask, hash_table, id, TXN_SINGLE);
 #endif
   
   return r;
@@ -1131,9 +1131,9 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     h_r->h_amount = h_amount;
 
     if (r == TXN_COMMIT)
-      txn_commit(hash_table, id, TXN_SINGLE, ctx);
+      txn_commit(ctask, hash_table, id, TXN_SINGLE);
     else
-      txn_abort(hash_table, id, TXN_SINGLE, ctx);
+      txn_abort(ctask, hash_table, id, TXN_SINGLE);
 
     return r;
 }

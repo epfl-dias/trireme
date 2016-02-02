@@ -11,8 +11,8 @@ void create_hash_table_client(struct hash_table *hash_table);
 
 void smp_flush_all(struct hash_table *hash_table, int client_id);
 
-void mp_release_value(struct hash_table *hash_table, int client_id, void *ptr);
-void mp_mark_ready(struct hash_table *hash_table, int client_id, void *ptr);
+void mp_release_value(struct hash_table *hash_table, int client_id, int tid, int opid, void *ptr);
+void mp_mark_ready(struct hash_table *hash_table, int client_id, int tid, int opid, void *ptr);
 void mp_release_plock(int s, int c);
 void mp_release_value_(struct partition *p, struct elem *e);
 void mp_send_reply(int s, int c, short task_id, short opid, struct elem *e);
@@ -33,8 +33,8 @@ double stats_get_tps(struct hash_table *hash_table);
 
 /* txn functions */
 void txn_start(struct hash_table *hash_table, int s, int status, struct txn_ctx *ctx);
-void txn_commit(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx);
-void txn_abort(struct hash_table *hash_table, int s, int mode, struct txn_ctx *ctx);
+void txn_commit(struct task *t, struct hash_table *hash_table, int s, int mode);
+void txn_abort(struct task *t, struct hash_table *hash_table, int s, int mode);
 void *txn_op(struct task *t, struct hash_table *hash_table, int s, 
     struct partition *p, struct hash_op *op, int is_local);
 int hash_get_server(const struct hash_table *hash_table, hash_key key);
