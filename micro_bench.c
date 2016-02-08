@@ -134,15 +134,34 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
 #if ENABLE_SOCKET_LOCAL_TXN
 
-    // hacked to be specific to diascld33
-    while ((!is_local && tserver == s) || 
-        (!is_first_core && t_coreid % 4 != s_coreid % 4)) {
+    /* hacked to be specific to diascld33. if we are cores 0,1,2,3 then we 
+     * want to do only remote txns. if we are any of the remaining cores
+     * we want to do only socket local txns
+     */
+    if (is_local) {
+      ; // local txn. don't bother changing tserver
+    } else {
+      if (is_first_core) {
+        // only socket remote
+        while ((t_coreid % 4) == (s_coreid % 4)) {
+          tserver = URand(&p->seed, 0, nservers - 1);
+          t_coreid = hash_table->thread_data[tserver].core; 
+        }
+      } else {
+        // only socket local
+        while ((tserver == s) || (t_coreid % 4) != (s_coreid % 4)) {
+          tserver = URand(&p->seed, 0, nservers - 1);
+          t_coreid = hash_table->thread_data[tserver].core; 
+        }
+      }
+    }
+
 #else
     while (!is_local && tserver == s) {
-#endif
       tserver = URand(&p->seed, 0, nservers - 1);
       t_coreid = hash_table->thread_data[tserver].core; 
     }
+#endif
 
     if (!is_local) {
       // remote op
@@ -221,17 +240,18 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
     do {
       // only first NREMOTE_OPS are remote in cross-partition txns
       if (is_local || i >= NREMOTE_OPS) {
-//#if SHARED_EVERYTHING
-//        se_make_operation(hash_table, s, op, 1);
-//#else
+      //if (is_local || i >= nhot_recs) {
+#if SHARED_EVERYTHING
+        se_make_operation(hash_table, s, op, 1);
+#else
         sn_make_operation(hash_table, s, op, 1 /* local op */);
-//#endif
+#endif
       } else {
-//#if SHARED_EVERYTHING
-//        se_make_operation(hash_table, s, op, 0);
-//#else
+#if SHARED_EVERYTHING
+        se_make_operation(hash_table, s, op, 0);
+#else
         sn_make_operation(hash_table, s, op, 0 /* remote op */);
-//#endif
+#endif
       }
       is_duplicate = FALSE;
 

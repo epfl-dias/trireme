@@ -23,6 +23,8 @@
 #include "alock.h"
 #elif TICKET_LOCK
 #include "tlock.h"
+#elif TAS_LOCK
+#include "taslock.h"
 #endif
 
 #endif

@@ -46,7 +46,7 @@ void init_hash_partition(struct partition *p, size_t nrecs,
     p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));
     assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
     for (i = 0; i < p->nhash; i++) {
-      TAILQ_INIT(&(p->table[i].chain));
+      LIST_INIT(&(p->table[i].chain));
 #if SE_LATCH
       LATCH_INIT(&p->table[i].latch, p->nservers);
 #endif
@@ -63,8 +63,8 @@ void init_hash_partition(struct partition *p, size_t nrecs,
   e->size = 0;
   e->ref_count = 1;
 #if ENABLE_WAIT_DIE_CC
-  TAILQ_INIT(&e->owners);
-  TAILQ_INIT(&e->waiters);
+  LIST_INIT(&e->owners);
+  LIST_INIT(&e->waiters);
 #endif
 #endif
 }
@@ -77,9 +77,9 @@ size_t destroy_hash_partition(struct partition *p)
 
   for (i = 0; i < p->nhash; i++) {
     struct elist *eh = &p->table[i].chain;
-    struct elem *e = TAILQ_FIRST(eh);
+    struct elem *e = LIST_FIRST(eh);
     while (e != NULL) {
-      struct elem *next = TAILQ_NEXT(e, chain);
+      struct elem *next = LIST_NEXT(e, chain);
       dbg_p_size += sizeof(struct elem) + e->size;
       //release(e);
       hash_remove(p, e);
@@ -126,12 +126,12 @@ void hash_remove(struct partition *p, struct elem *e)
   struct elist *eh = &b->chain;
   p->size -= (sizeof(struct elem) + e->size);
   assert(p->size >= 0);
-  TAILQ_REMOVE(eh, e, chain);
+  LIST_REMOVE(e, chain);
 
-  if (e->value != (char *)e->local_values) {
+  //if (e->value != (char *)e->local_values) {
     //free(e->value);
     plmalloc_free(p, e->value, e->size);
-  }
+  //}
   plmalloc_efree(p, e);
 
   dprint("Deleted %"PRId64"\n", e->key);
@@ -152,14 +152,15 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   LATCH_ACQUIRE(&b->latch, &alock_state); 
 #endif
 
-  struct elist *eh = &(b->chain);
-  struct elem *e = TAILQ_FIRST(eh);
+  struct elist *eh = &b->chain;
+  struct elem *e = LIST_FIRST(eh);
 
   while (e != NULL) {
     if (e->key == key) {
       break;
     }
-    e = TAILQ_NEXT(e, chain);
+
+    e = LIST_NEXT(e, chain);
   }
 
 #if SE_LATCH
@@ -200,23 +201,23 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   e->key = key;
 
   // if size fits locally, store locally. Else alloc
-  if (size <= sizeof(e->local_values)) {
-    e->value = (char *)e->local_values;
-  } else {
+  //if (size <= sizeof(e->local_values)) {
+  //  e->value = (char *)e->local_values;
+  //} else {
     //e->value = malloc(size);
-    e->value = plmalloc_alloc(p, size);
-  }
+  e->value = plmalloc_alloc(p, size);
+  //}
   assert(e->value);
 
   e->size = size;
   p->size += sizeof(struct elem) + size;
 
 #if ENABLE_WAIT_DIE_CC
-  TAILQ_INIT(&e->owners);
-  TAILQ_INIT(&e->waiters);
+  LIST_INIT(&e->owners);
+  LIST_INIT(&e->waiters);
 #endif
 
-  TAILQ_INSERT_TAIL(eh, e, chain);
+  LIST_INSERT_HEAD(eh, e, chain);
 
 #if SE_LATCH
   LATCH_RELEASE(&b->latch, &alock_state); 

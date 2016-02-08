@@ -7,6 +7,7 @@ extern int batch_size;
 extern int niters;
 extern struct hash_table *hash_table;
 extern struct benchmark *g_benchmark;
+extern int dist_threshold;
 
 int task_create(struct partition *p);
 int task_join(struct task *root_task);
@@ -137,7 +138,8 @@ void child_fn(int s, int tid)
     assert(q_idx <= niters);
 
     // After each txn, call process request
-    process_requests(hash_table, s);
+    if (dist_threshold != 100)
+      process_requests(hash_table, s);
 
 #if PRINT_PROGRESS
     if (q_idx % 100 == 0) {

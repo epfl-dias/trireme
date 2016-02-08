@@ -107,7 +107,6 @@ int main(int argc, char *argv[])
         break;
       case 'b':
         batch_size = atoi(optarg);
-        assert(batch_size < MAX_OPS_PER_QUERY);
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING) || defined(PARTITION_LOCK_MODE)
         if (batch_size != 1) {
           printf("batching not allowed in se/sn or partition lock modes\n");
@@ -137,15 +136,18 @@ int main(int argc, char *argv[])
                "   -t max #records\n"
                "   -m log of max hash key\n"
                "   -w hash insert ratio over total number of queries\n"
-               "   -u show server cpu usage\n"
-               "example './benchmarkhashtable -d 2 -s 3 -c 3 -f 3 -b 1000 -i 100000000 -t 640000 -m 15 -w 0.3'\n");
+               "   -u show server cpu usage\n");
         exit(-1);
     }
   }
   if (first_core == -1) first_core = nclients;
 
   if (alpha) {
+#if SHARED_EVERYTHING
+    assert(nhot_recs > 1 && nhot_servers == 1);
+#else
     assert(nhot_recs != 0);
+#endif
     assert(nhot_servers != 0);
     assert(nhot_servers <= nservers);
   }

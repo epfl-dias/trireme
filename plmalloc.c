@@ -75,7 +75,7 @@ void plmalloc_init(struct partition *p)
   }
 
   LIST_INIT(&p->heap.base_ptrs);
-  TAILQ_INIT(&p->heap.efree_list);
+  LIST_INIT(&p->heap.efree_list);
 }
 
 //struct mem_tuple *plmalloc_alloc(struct partition *p, size_t size)
@@ -154,7 +154,7 @@ struct elem *plmalloc_ealloc(struct partition *p)
   struct elem *e;
   struct elist *free_list = &p->heap.efree_list;
   
-  if (TAILQ_EMPTY(free_list)) {
+  if (LIST_EMPTY(free_list)) {
     /* prealloc a chunk of elem structs and add them to the free list */
     int esize = 
       ((sizeof(struct elem) + CACHELINE - 1) / CACHELINE) * CACHELINE;
@@ -174,19 +174,19 @@ struct elem *plmalloc_ealloc(struct partition *p)
     char *idx = buf;
     for (int i = 0; i < p->nrecs; i++) {
       struct elem *e = (struct elem *)idx;
-      TAILQ_INSERT_HEAD(free_list, e, chain);
+      LIST_INSERT_HEAD(free_list, e, chain);
       idx += esize;
     }
   }
 
-  e = TAILQ_FIRST(free_list);
+  e = LIST_FIRST(free_list);
   assert(e);
-  TAILQ_REMOVE(free_list, e, chain);
+  LIST_REMOVE(e, chain);
 
   return e;
 }
 
 void plmalloc_efree(struct partition *p, struct elem *e)
 {
-  TAILQ_INSERT_HEAD(&p->heap.efree_list, e, chain);
+  LIST_INSERT_HEAD(&p->heap.efree_list, e, chain);
 }

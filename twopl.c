@@ -20,8 +20,8 @@ int wait_die_check_acquire(int s, struct partition *p,
   }
 
   if (!conflict) {
-    if (!TAILQ_EMPTY(&e->waiters)) {
-      l = TAILQ_FIRST(&e->waiters);
+    if (!LIST_EMPTY(&e->waiters)) {
+      l = LIST_FIRST(&e->waiters);
       if (req_ts <= l->ts)
         conflict = 1;
     }
@@ -32,7 +32,7 @@ int wait_die_check_acquire(int s, struct partition *p,
      * req_ts is < ts of all owner txns 
      */
     int wait = 1;
-    TAILQ_FOREACH(l, &e->owners, next) {
+    LIST_FOREACH(l, &e->owners, next) {
       if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c))) {
         wait = 0;
         break;
@@ -60,17 +60,19 @@ int wait_die_acquire(int s, struct partition *p,
 
   *pl = NULL;
 
+#if VERIFY_CONSISTENCY
   /* we cannot be on the owners list */
-  TAILQ_FOREACH(l, &e->owners, next) {
+  LIST_FOREACH(l, &e->owners, next) {
     if (l->s == c && l->task_id == task_id && l->op_id == op_id)
       assert(0);
   }
 
   /* we cannot be on the waiters list */
-  TAILQ_FOREACH(l, &e->waiters, next) {
+  LIST_FOREACH(l, &e->waiters, next) {
     if (l->s == c && l->task_id == task_id && l->op_id == op_id)
       assert(0);
   }
+#endif
 
   dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 "\n", s, 
       c, e->key, e->ref_count);
@@ -79,15 +81,15 @@ int wait_die_acquire(int s, struct partition *p,
     conflict = !is_value_ready(e);
   } else {
     assert(optype == OPTYPE_UPDATE);
-    conflict = !is_value_ready(e) || e->ref_count > 1;
+    conflict = (!is_value_ready(e)) || (e->ref_count > 1);
   }
 
   /* with wait die, we also have a conflict if there is a waiting list
    * and if head of waiting list is a newer txn than incoming one
    */
   if (!conflict) {
-    if (!TAILQ_EMPTY(&e->waiters)) {
-      l = TAILQ_FIRST(&e->waiters);
+    if (!LIST_EMPTY(&e->waiters)) {
+      l = LIST_FIRST(&e->waiters);
       if (req_ts <= l->ts)
         conflict = 1;
     }
@@ -109,7 +111,7 @@ int wait_die_acquire(int s, struct partition *p,
      * req_ts is < ts of all owner txns 
      */
     int wait = 1;
-    TAILQ_FOREACH(l, &e->owners, next) {
+    LIST_FOREACH(l, &e->owners, next) {
       if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c)) || 
           ((l->ts == req_ts) && (l->s == c) && (l->task_id < task_id))) {
         wait = 0;
@@ -124,7 +126,8 @@ int wait_die_acquire(int s, struct partition *p,
 
       // if we are allowed to wait, make a new lock entry and add it to
       // waiters list. 
-      TAILQ_FOREACH(l, &e->waiters, next) {
+      struct lock_entry *last_lock = NULL;
+      LIST_FOREACH(l, &e->waiters, next) {
 
         /* there cannot be a request already from same server/task/op combo */
         if (l->s == c && l->task_id == task_id && l->op_id == op_id)
@@ -134,6 +137,8 @@ int wait_die_acquire(int s, struct partition *p,
         if (l->ts < req_ts || (l->ts == req_ts && l->s < c) ||
           ((l->ts == req_ts) && (l->s == c) && (l->task_id < task_id)))
           break;
+
+        last_lock = l;
       }
 
       struct lock_entry *target = plmalloc_alloc(p, sizeof(struct lock_entry));
@@ -148,12 +153,12 @@ int wait_die_acquire(int s, struct partition *p,
       *pl = target;
 
       if (l) {
-        TAILQ_INSERT_BEFORE(l, target, next);
+        LIST_INSERT_BEFORE(l, target, next);
       } else {
-        if (TAILQ_EMPTY(&e->waiters)) {
-          TAILQ_INSERT_HEAD(&e->waiters, target, next);
+        if (last_lock) {
+          LIST_INSERT_AFTER(last_lock, target, next);
         } else {
-          TAILQ_INSERT_TAIL(&e->waiters, target, next);
+          LIST_INSERT_HEAD(&e->waiters, target, next);
         }
       }
 
@@ -185,7 +190,7 @@ int wait_die_acquire(int s, struct partition *p,
     dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 
         " adding to owners\n", s, c, e->key, e->ref_count);
 
-    TAILQ_INSERT_HEAD(&e->owners, target, next);
+    LIST_INSERT_HEAD(&e->owners, target, next);
 
     r = LOCK_SUCCESS;
   }
@@ -198,7 +203,7 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
 {
   // find out lock on the owners list
   struct lock_entry *l;
-  TAILQ_FOREACH(l, &e->owners, next) {
+  LIST_FOREACH(l, &e->owners, next) {
     if (l->s == c && l->task_id == task_id && l->op_id == op_id)
       break;
   }
@@ -208,7 +213,7 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
     dprint("srv(%d): cl %d key %" PRIu64 " rc %" PRIu64 
         " being removed from owners\n", s, c, e->key, e->ref_count);
 
-    TAILQ_REMOVE(&e->owners, l, next);
+    LIST_REMOVE(l, next);
 
     mp_release_value_(p, e);
   } else {
@@ -216,20 +221,20 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
     // where we send requests in bulk to 2 servers, one waits and other
     // aborts. In this case, we will get release message for a request
     // that is currently waiting
-    TAILQ_FOREACH(l, &e->waiters, next) {
+    LIST_FOREACH(l, &e->waiters, next) {
       if (l->s == c && l->task_id == task_id && l->op_id == op_id)
         break;
     }
 
     // can't be on neither owners nor waiters!
     assert(l);
-    TAILQ_REMOVE(&e->waiters, l, next);
+    LIST_REMOVE(l, next);
   }
 
   plmalloc_free(p, l, sizeof(struct lock_entry));
 
   // if there are no more owners, then refcount should be 1
-  if (TAILQ_EMPTY(&e->owners) && e->ref_count != 1) {
+  if (LIST_EMPTY(&e->owners) && e->ref_count != 1) {
     printf("found key %"PRIu64" with ref count %d\n", e->key, e->ref_count);
     fflush(stdout);
     assert(0);
@@ -240,7 +245,7 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
    * some readers. So only pending readers can be allowed. Keep 
    * popping items from wait list as long as we have readers.
    */
-  l = TAILQ_FIRST(&e->waiters);
+  l = LIST_FIRST(&e->waiters);
   while (l) {
     char conflict = 0;
 
@@ -268,8 +273,8 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
     }
 
     // remove from waiters, add to owners, mark as ready
-    TAILQ_REMOVE(&e->waiters, l, next);
-    TAILQ_INSERT_HEAD(&e->owners, l, next);
+    LIST_REMOVE(l, next);
+    LIST_INSERT_HEAD(&e->owners, l, next);
 
     // mark as ready and send message to server
     l->ready = 1;
@@ -279,7 +284,7 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
         s, e->key, l->s);
 
     // go to next element
-    l = TAILQ_FIRST(&e->waiters);
+    l = LIST_FIRST(&e->waiters);
   }
 }
 #endif

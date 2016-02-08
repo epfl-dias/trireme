@@ -620,6 +620,74 @@ final:
   return r;
 }
 
+void process_releases(struct hash_table *hash_table, int s)
+{
+  struct box_array *boxes = hash_table->boxes;
+  uint64_t inbuf[ONEWAY_BUFFER_SIZE];
+  struct partition *p = &hash_table->partitions[s];
+  int nservers = hash_table->nservers;
+  int s_coreid = hash_table->thread_data[s].core;
+  char skip_list[BITNSLOTS(MAX_SERVERS)];
+
+  memset(skip_list, 0, sizeof(skip_list));
+
+#if ENABLE_SOCKET_LOCAL_TXN
+  for (int i = 0; i < nservers; i++) {
+      int t_coreid = hash_table->thread_data[i].core;
+
+      // check only cores in our own socket of leader cores in other sockets
+      if (s_coreid % 4 == t_coreid % 4 || t_coreid < 4) {
+        ;
+      } else {
+        BITSET(skip_list, i);
+      }
+  }
+#endif
+
+  for (int i = 0; i < nservers; i++) {
+    if (i == s)
+      continue;
+
+    if (BITTEST(skip_list, i)) {
+      continue;
+    }
+
+    struct onewaybuffer *b = &boxes[i].boxes[s].in; 
+    int count = b->wr_index - b->rd_index;
+    if (count == 0) 
+      continue;
+
+    count = buffer_peek(b, ONEWAY_BUFFER_SIZE, inbuf);
+    assert(count);
+
+    dprint("srv(%d): read %d messages from client %d\n", s, count, i);
+
+    // get all elems
+    int j = 0;
+    while (j < count) {
+      uint64_t optype = inbuf[j] & HASHOP_MASK;
+
+      if (optype != HASHOP_RELEASE)
+        break;
+
+      struct elem *t = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
+      short tid = HASHOP_GET_TID(inbuf[j]);
+      short opid = HASHOP_GET_OPID(inbuf[j]);
+
+      dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n", 
+          s, i, t->key, t->ref_count);
+
+#if ENABLE_WAIT_DIE_CC
+      wait_die_release(s, p, i, tid, opid, t);
+#else
+      no_wait_release(p, t);
+#endif
+
+      buffer_seek(b, RELEASE_MSG_LENGTH);
+      j += RELEASE_MSG_LENGTH;
+    }
+  }
+}
 void process_requests(struct hash_table *hash_table, int s)
 {
   struct box_array *boxes = hash_table->boxes;
@@ -676,6 +744,10 @@ void process_requests(struct hash_table *hash_table, int s)
         BITSET(skip_list, i);
       }
   }
+#endif
+
+#if 0
+  process_releases(hash_table, s);
 #endif
 
   for (int i = 0; i < nservers; i++) {
@@ -1099,6 +1171,9 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
       case OPTYPE_LOOKUP:
         s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
+        int s_coreid = hash_table->thread_data[s].core;
+        int c_coreid = hash_table->thread_data[client_id].core;
+
         dprint("srv(%d): issue remote lookup op key %" PRIu64 " to %d\n", 
           client_id, queries[i]->key, s);
 
@@ -1309,7 +1384,7 @@ int stats_get_nlookups(struct hash_table *hash_table)
 {
   int nlookups = 0;
   for (int i = 0; i < hash_table->nservers; i++) {
-    printf("srv %d lookups local: %d remote %d \n", i, 
+    printf("srv %d lookups local: %d remote %d rsocket %d \n", i, 
       hash_table->partitions[i].nlookups_local,
       hash_table->partitions[i].nlookups_remote);
 
@@ -1377,20 +1452,20 @@ void stats_get_buckets(struct hash_table *hash_table, int server, double *avg, d
   struct elem *e;
 
   for (int i = 0; i < p->nhash; i++) {
-    e = TAILQ_FIRST(&p->table[i].chain);
+    e = LIST_FIRST(&p->table[i].chain);
     while (e != NULL) {
       nelems++;
-      e = TAILQ_NEXT(e, chain);
+      e = LIST_NEXT(e, chain);
     }
   }
   *avg = (double)nelems / p->nhash;
   *stddev = 0;
 
   for (int i = 0; i < p->nhash; i++) {
-    e = TAILQ_FIRST(&p->table[i].chain);
+    e = LIST_FIRST(&p->table[i].chain);
     int length = 0;
     while (e != NULL) {
-      e = TAILQ_NEXT(e, chain);
+      e = LIST_NEXT(e, chain);
       length++;
     }
 
@@ -1446,7 +1521,7 @@ double stats_get_tps(struct hash_table *hash_table)
 
     tps += ((double)hash_table->partitions[i].tps / 1000000);
   }
-
+  
   return tps;
 }
 

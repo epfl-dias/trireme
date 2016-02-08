@@ -17,10 +17,10 @@ struct lock_entry {
   uint64_t ts;
   char optype;
   volatile char ready;
-  TAILQ_ENTRY(lock_entry) next;
+  LIST_ENTRY(lock_entry) next;
 };
 
-TAILQ_HEAD(lock_list, lock_entry);
+LIST_HEAD(lock_list, lock_entry);
 
 /* lock type used to implement latching */
 #if ANDERSON_LOCK
@@ -40,6 +40,7 @@ typedef struct {
 #define LATCH_INIT alock_init
 #define LATCH_ACQUIRE alock_acquire
 #define LATCH_RELEASE alock_release
+
 #elif TICKET_LOCK
 
 typedef struct
@@ -52,6 +53,15 @@ typedef struct
 #define LATCH_INIT(latch, nservers) tlock_init(latch)
 #define LATCH_ACQUIRE(latch, state) tlock_acquire(latch)
 #define LATCH_RELEASE(latch, state) tlock_release(latch)
+
+#elif TAS_LOCK
+
+typedef unsigned int taslock_t;
+#define LATCH_T taslock_t
+#define LATCH_INIT(latch, nservers) taslock_init(latch)
+#define LATCH_ACQUIRE(latch, state) taslock_acquire(latch)
+#define LATCH_RELEASE(latch, state) taslock_release(latch)
+
 #elif PTHREAD_SPINLOCK
 #define LATCH_T pthread_spinlock_t
 #define LATCH_INIT(latch, nservers) pthread_spin_init(latch, 0)
@@ -66,13 +76,16 @@ typedef struct
 
 /* base elem used to represent a tuple */
 struct elem {
-  // size must be 64 bytes
+  /* The total size in one cacheline including the latch and locks!!
+   * This is based on the assumption that the latch will be a ptspinlock
+   * which is only 4 bytes
+   */
   hash_key key;
-  size_t size;
+  unsigned int size;
   uint64_t ref_count;
-  TAILQ_ENTRY(elem) chain;
+  LIST_ENTRY(elem) chain;
   char *value;
-  uint64_t local_values[1];
+  //uint64_t local_values[2];
 #if SHARED_EVERYTHING
   LATCH_T latch;
 #endif
@@ -82,7 +95,7 @@ struct elem {
 #endif
 } __attribute__ ((aligned (CACHELINE)));
 
-TAILQ_HEAD(elist, elem);
+LIST_HEAD(elist, elem);
 
 /* plmalloc dses 
  * Each partition, and hence each thread has a dedicated heap. Each heap

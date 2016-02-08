@@ -18,7 +18,8 @@ MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
 LIBSRC =  ycsb.c smphashtable.c onewaybuffer.c \
 				 partition.c util.c zipf.c micro_bench.c twopl.c \
-				 ia32msr.c ia32perf.c selock.c alock.c tlock.c plmalloc.c task.c tpcc.c
+				 ia32msr.c ia32perf.c selock.c alock.c tlock.c taslock.c \
+					plmalloc.c task.c tpcc.c
 
 LIBOBJS = $(LIBSRC:.c=.o)
 

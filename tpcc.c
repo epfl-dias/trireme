@@ -1240,7 +1240,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
   for (int i = 0; i < p->nhash; i++) {
     struct elist *eh = &(p->table[i].chain);
-    struct elem *e = TAILQ_FIRST(eh);
+    struct elem *e = LIST_FIRST(eh);
 
     while (e != NULL) {
       hash_key key = e->key;
@@ -1254,7 +1254,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 #else
         // shared everything config
         if (o_r->o_w_id != w_id) {
-          e = TAILQ_NEXT(e, chain);
+          e = LIST_NEXT(e, chain);
           continue;
         }
 #endif
@@ -1273,7 +1273,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 #else
         // shared everything config
         if (no_r->no_w_id != w_id) {
-          e = TAILQ_NEXT(e, chain);
+          e = LIST_NEXT(e, chain);
           continue;
         }
 #endif
@@ -1295,7 +1295,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 #else
         // shared everything config
         if (ol_r->ol_w_id != w_id) {
-          e = TAILQ_NEXT(e, chain);
+          e = LIST_NEXT(e, chain);
           continue;
         }
 #endif
@@ -1303,7 +1303,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
         nrows_ol[ol_r->ol_d_id]++;
       }
 
-      e = TAILQ_NEXT(e, chain);
+      e = LIST_NEXT(e, chain);
     } 
   }
   

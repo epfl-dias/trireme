@@ -57,7 +57,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
   //if conflict, there must be one and exactly one owner
   if (conflict) {
     int nowners = 0;
-    TAILQ_FOREACH(l, &e->owners, next) {
+    LIST_FOREACH(l, &e->owners, next) {
       nowners++;
     }
 
@@ -74,8 +74,8 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
    * and if head of waiting list is a newer txn than incoming one
    */
   if (!conflict) {
-    if (!TAILQ_EMPTY(&e->waiters)) {
-      l = TAILQ_FIRST(&e->waiters);
+    if (!LIST_EMPTY(&e->waiters)) {
+      l = LIST_FIRST(&e->waiters);
       if (req_ts <= l->ts)
         conflict = 1;
     }
@@ -102,7 +102,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
     target->optype = optype;
     target->ready = 1;
 
-    TAILQ_INSERT_HEAD(&e->owners, target, next);
+    LIST_INSERT_HEAD(&e->owners, target, next);
 
   } else {
 
@@ -110,7 +110,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
      * of all owner txns 
      */
     wait = 1;
-    TAILQ_FOREACH(l, &e->owners, next) {
+    LIST_FOREACH(l, &e->owners, next) {
       if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < s))) {
         wait = 0;
         break;
@@ -123,9 +123,12 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
 
       // if we are allowed to wait, make a new lock entry and add it to
       // waiters list
-      TAILQ_FOREACH(l, &e->waiters, next) {
+      struct lock_entry *last_lock = NULL;
+      LIST_FOREACH(l, &e->waiters, next) {
         if (l->ts < req_ts || (l->ts == req_ts && l->s < s))
           break;
+
+        last_lock = l;
       }
 
       target = plmalloc_alloc(p, sizeof(struct lock_entry));
@@ -135,12 +138,12 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
       target->optype = optype;
       target->ready = 0;
       if (l) {
-        TAILQ_INSERT_BEFORE(l, target, next);
+        LIST_INSERT_BEFORE(l, target, next);
       } else {
-        if (TAILQ_EMPTY(&e->waiters)) {
-          TAILQ_INSERT_HEAD(&e->waiters, target, next);
+        if (last_lock) {
+          LIST_INSERT_AFTER(last_lock, target, next);
         } else {
-          TAILQ_INSERT_TAIL(&e->waiters, target, next);
+          LIST_INSERT_HEAD(&e->waiters, target, next);
         }
       }
     } else {
@@ -198,7 +201,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
   /* go through the owners list and remove the txn */
   struct lock_entry *lock_entry;
 
-  TAILQ_FOREACH(lock_entry, &e->owners, next) {
+  LIST_FOREACH(lock_entry, &e->owners, next) {
     if (lock_entry->s == s)
       break;
   }
@@ -209,7 +212,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
 
   assert(lock_entry);
 
-  TAILQ_REMOVE(&e->owners, lock_entry, next);
+  LIST_REMOVE(lock_entry, next);
 
   // decrement ref count as a owner is releasing a lock
   e->ref_count = (e->ref_count & ~DATA_READY_MASK) - 1;
@@ -217,7 +220,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
   plmalloc_free(p, lock_entry, sizeof(*lock_entry));
 
   // if there are no more owners, then refcount should be 1
-  if (TAILQ_EMPTY(&e->owners))
+  if (LIST_EMPTY(&e->owners))
     assert(e->ref_count == 1);
 
    /* If lock_free is set, that means the new lock mode is decided by 
@@ -225,7 +228,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
    * some readers. So only pending readers can be allowed. Keep 
    * popping items from wait list as long as we have readers.
    */
-  lock_entry = TAILQ_FIRST(&e->waiters);
+  lock_entry = LIST_FIRST(&e->waiters);
   while (lock_entry) {
     char conflict = 0;
 
@@ -259,15 +262,15 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
     }
 
     // remove from waiters, add to owners, mark as ready
-    TAILQ_REMOVE(&e->waiters, lock_entry, next);
-    TAILQ_INSERT_HEAD(&e->owners, lock_entry, next);
+    LIST_REMOVE(lock_entry, next);
+    LIST_INSERT_HEAD(&e->owners, lock_entry, next);
     lock_entry->ready = 1;
 
     dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n", 
       s, e->key, lock_entry->s);
 
     // go to next element
-    lock_entry = TAILQ_FIRST(&e->waiters);
+    lock_entry = LIST_FIRST(&e->waiters);
   }
 
   LATCH_RELEASE(&e->latch, &alock_state);
