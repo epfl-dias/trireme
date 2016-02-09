@@ -80,7 +80,7 @@ int wait_die_acquire(int s, struct partition *p,
   if (optype == OPTYPE_LOOKUP) {
     conflict = !is_value_ready(e);
   } else {
-    assert(optype == OPTYPE_UPDATE);
+    assert(optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
     conflict = (!is_value_ready(e)) || (e->ref_count > 1);
   }
 
@@ -146,7 +146,7 @@ int wait_die_acquire(int s, struct partition *p,
       target->ts = req_ts;
       target->s = c;
 
-      target->optype = OPTYPE_UPDATE;
+      target->optype = optype;
       target->ready = 0;
       target->task_id = task_id;
       target->op_id = op_id;
@@ -181,7 +181,7 @@ int wait_die_acquire(int s, struct partition *p,
     assert(target);
     target->ts = req_ts;
     target->s = c;
-    target->optype = OPTYPE_UPDATE;
+    target->optype = optype;
     target->ready = 1;
     target->task_id = task_id;
     target->op_id = op_id;
@@ -305,7 +305,7 @@ int no_wait_check_acquire(struct elem *e, char optype)
       r = LOCK_SUCCESS;
     }
   } else {
-    assert(optype == OPTYPE_UPDATE);
+    assert(optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
     if (!is_value_ready(e) || e->ref_count > 1) {
       r = LOCK_ABORT;
     } else {
@@ -326,7 +326,7 @@ int no_wait_acquire(struct elem *e, char optype)
   if (optype == OPTYPE_LOOKUP) {
     e->ref_count++;
   } else {
-    assert(optype == OPTYPE_UPDATE);
+    assert(optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
     e->ref_count = DATA_READY_MASK | 2;
   }
 

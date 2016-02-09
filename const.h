@@ -25,7 +25,7 @@
 #define ONEWAY_BUFFER_SIZE  (16 * (CACHELINE >> 3)) 
 #define BUFFER_FLUSH_COUNT  8
 
-#define MAX_OPS_PER_QUERY 64
+#define MAX_OPS_PER_QUERY 128
 
 #define MAX_TUPLE_TYPES 32
 

@@ -194,6 +194,8 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 {
   struct elem *e;
   uint32_t t = op->optype;
+  struct lock_entry *l = NULL;
+  int r;
 
   switch (t) {
     case OPTYPE_INSERT:
@@ -201,8 +203,32 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       assert (p != hash_table->g_partition);
 
       e = hash_insert(p, op->key, op->size, NULL);
-      e->ref_count = DATA_READY_MASK | 2; 
+      assert(e);
+
+      //e->ref_count = DATA_READY_MASK | 2; 
+      e->ref_count = 1;
       p->ninserts++;
+
+#if SHARED_EVERYTHING
+      if (!selock_acquire(p, e, t, ctx->ts)) {
+        p->naborts_local++;
+        return NULL;
+      }
+#elif SHARED_NOTHING
+      // no logical locks. do nothing
+#else
+#if ENABLE_WAIT_DIE_CC
+      r = wait_die_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */, 
+          e, t, ctx->ts, &l);
+#else
+      r = no_wait_acquire(e, t);
+#endif
+
+      // insert can only succeed
+      assert (r == LOCK_SUCCESS);
+ 
+#endif
+
       break;
 
     case OPTYPE_LOOKUP:
@@ -225,12 +251,11 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
        */
 #else
 
-      struct lock_entry *l = NULL;
 #if ENABLE_WAIT_DIE_CC
-      int r = wait_die_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */, 
+      r = wait_die_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */, 
           e, t, ctx->ts, &l);
 #else
-      int r = no_wait_acquire(e, t);
+      r = no_wait_acquire(e, t);
 #endif
     
       if (r == LOCK_SUCCESS) {
@@ -341,8 +366,14 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
       octx->old_value = NULL;
     }
 
+    dprint("srv(%d): done %s %s op key %" PRIu64 " ctx-nops %d\n", 
+        s, is_local ? "local":"remote", 
+        op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key, ctx->nops);
+
+
     ctx->nops++;
-  }
+  } else
+    assert(0);
 #endif
 
   return value;
@@ -386,7 +417,10 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         if ((octx->e->key & TID_MASK) == ITEM_TID)
           continue;
 
-        assert(octx->old_value == NULL);
+        if (octx->old_value != NULL) {
+          printf("txn_finish found non null val for %"PRIu64"\n", octx->e->key);
+          assert(octx->old_value == NULL);
+        }
 
         // release element
         if (octx->is_local) {
