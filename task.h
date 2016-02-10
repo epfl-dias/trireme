@@ -2,7 +2,7 @@
 #define __TASK_H__
 
 //NTASKS depends on HASHOP_TID in const.h
-#define NTASKS 16 
+#define NTASKS 15 
 
 #define TASK_STACK_SIZE 1048576
 #define ROOT_TASK_ID 0

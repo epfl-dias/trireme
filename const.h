@@ -26,7 +26,7 @@
 #define BUFFER_FLUSH_COUNT  8
 
 /* max ops per query is limited by hashop_opid_mask */
-#define MAX_OPS_PER_QUERY 256
+#define MAX_OPS_PER_QUERY 255
 
 #define MAX_TUPLE_TYPES 32
 

@@ -239,6 +239,10 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
         assert(0);
       }
 
+      // if this is the ITEM TID, we are done
+      if (p == hash_table->g_partition)
+        break;
+
 #if SHARED_EVERYTHING
       if (!selock_acquire(p, e, t, ctx->ts)) {
         p->naborts_local++;
@@ -405,6 +409,7 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       continue;
     }
 
+    // lookups on item table do not need anything
     if ((octx->e->key & TID_MASK) == ITEM_TID) {
       assert(octx->optype == OPTYPE_LOOKUP);
       continue;
@@ -412,10 +417,6 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
     switch (t) {
       case OPTYPE_LOOKUP:
-        // lookups on item table do not need anything
-        if ((octx->e->key & TID_MASK) == ITEM_TID)
-          continue;
-
         if (octx->old_value != NULL) {
           printf("txn_finish found non null val for %"PRIu64"\n", octx->e->key);
           assert(octx->old_value == NULL);
@@ -851,7 +852,6 @@ void process_requests(struct hash_table *hash_table, int s)
           hash_key key = HASHOP_GET_VAL(inbuf[j]);
           struct req *req = &reqs[nreqs];
           req->optype = optype;
-          assert(req->optype == HASHOP_LOOKUP || req->optype == HASHOP_UPDATE);
           req->tid = HASHOP_GET_TID(inbuf[j]);
           req->opid = HASHOP_GET_OPID(inbuf[j]);
           req->r = LOCK_INVALID;
@@ -884,8 +884,6 @@ void process_requests(struct hash_table *hash_table, int s)
       }
     }
 
-    char abort = 0;
-
     // do trial task at a time
     for (j = 0; j < nreqs; j++) {
       struct req *req = &reqs[j];
@@ -899,15 +897,15 @@ void process_requests(struct hash_table *hash_table, int s)
       }
 
 #if ENABLE_WAIT_DIE_CC
-      // in wait die, timestamp is a payload
       req->r = wait_die_check_acquire(s, p, i, req->tid, req->opid, req->e,
           req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE, 
           req->ts);
 #else
-      // try acquring j's lock
       req->r = no_wait_check_acquire(req->e,
           req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #endif
+
+      char abort = 0;
 
       if (req->r == LOCK_ABORT) {
         abort = 1;
@@ -937,17 +935,17 @@ void process_requests(struct hash_table *hash_table, int s)
             reqs[k].r = no_wait_check_acquire(reqs[k].e,
                 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #endif
-            // if k failed, fail j as well
+
             if (reqs[k].r == LOCK_ABORT) {
-              req->r = reqs[k].r = LOCK_ABORT;
+              req->r = LOCK_ABORT;
               abort = 1;
             }
           }
         }
       }
 
-      //actually acquire the locks for all requests from j's task
       if (!abort) {
+        //actually acquire the locks for all requests from j's task
         for (int k = j; k < nreqs; k++) {
           if (reqs[j].tid != reqs[k].tid)
             continue;
@@ -968,9 +966,15 @@ void process_requests(struct hash_table *hash_table, int s)
 #endif
           assert(res == reqs[k].r);
         }
+
       } else {
-        // some request aborted. just break out.
-        break;
+        assert(req->r == LOCK_ABORT);
+
+        // if any of k failed, fail all of them
+        for (int k = j + 1; k < nreqs; k++) {
+          if (req->tid == reqs[k].tid)
+            req[k].r = LOCK_ABORT;
+        }
       }
     }
 
@@ -988,7 +992,7 @@ void process_requests(struct hash_table *hash_table, int s)
       /* now, skip waits, respond back for success and aborts and get the locks
        * for real
        */
-      if (abort) {
+      if (r == LOCK_ABORT) {
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, 0, 0);
         buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
       } else if (r == LOCK_SUCCESS) {

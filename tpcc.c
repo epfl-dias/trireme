@@ -125,8 +125,7 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   int y = URand(&p->seed, 1, 100);
 
   //if (1) {
-  //if(x <= 85 || dist_threshold == 100) {
-  if (0) {
+  if(x <= 85 || dist_threshold == 100) {
     // home warehouse
     q->c_d_id = q->d_id;
     q->c_w_id = s + 1;
@@ -143,8 +142,7 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
     }
   }
 
-  //if (y <= 60) {
-  if (y > 0) {
+  if (y <= 60) {
     // by last name
     q->by_last_name = TRUE;
     set_last_name(NURand(&p->seed, 255, 0, 999), q->c_last);
@@ -1232,8 +1230,8 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
 #endif
 
-  //r = tpcc_run_neworder_txn(hash_table, s, q, ctask, status); 
-  r = tpcc_run_payment_txn(hash_table, s, q, ctask, status); 
+  r = tpcc_run_neworder_txn(hash_table, s, q, ctask, status); 
+  //r = tpcc_run_payment_txn(hash_table, s, q, ctask, status); 
 
   return r;
 }
@@ -1243,8 +1241,8 @@ void tpcc_get_next_query(struct hash_table *hash_table, int s,
 {
   hash_table->partitions[s].q_idx++;
 
-  //tpcc_get_next_neworder_query(hash_table, s, arg);
-  tpcc_get_next_payment_query(hash_table, s, arg);
+  tpcc_get_next_neworder_query(hash_table, s, arg);
+  //tpcc_get_next_payment_query(hash_table, s, arg);
 }
 
 void tpcc_verify_txn(struct hash_table *hash_table, int id)
