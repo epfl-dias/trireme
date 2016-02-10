@@ -372,8 +372,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 
 
     ctx->nops++;
-  } else
-    assert(0);
+  }
 #endif
 
   return value;
@@ -401,8 +400,8 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
     int t = octx->optype;
 
     if (!octx->e) {
-      // only possible in batch mode
-      assert(mode == TXN_BATCH);
+      // only possible in batch mode or if benchmark is tpcc
+      assert(mode == TXN_BATCH || g_benchmark == &tpcc_bench);
       continue;
     }
 
@@ -435,6 +434,9 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #endif //ENABLE_WAIT_DIE_cc
 #endif //SHARED_EVERYTHING
         } else {
+#if SHARED_EVERYTHING
+          assert(0);
+#endif
           mp_release_value(hash_table, s, ctask->tid, 
               opids ? opids[nops] : 0, octx->e);
         }
@@ -469,6 +471,9 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #endif //ENABLE_WAIT_DIE_CC
 #endif //SHARED_EVERYTHING
         } else {
+#if SHARED_EVERYTHING
+          assert(0);
+#endif
           mp_mark_ready(hash_table, s, ctask->tid, 
               opids ? opids[nops] : 0, octx->e);
         }
@@ -879,6 +884,8 @@ void process_requests(struct hash_table *hash_table, int s)
       }
     }
 
+    char abort = 0;
+
     // do trial task at a time
     for (j = 0; j < nreqs; j++) {
       struct req *req = &reqs[j];
@@ -901,7 +908,6 @@ void process_requests(struct hash_table *hash_table, int s)
       req->r = no_wait_check_acquire(req->e,
           req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #endif
-      char abort = 0;
 
       if (req->r == LOCK_ABORT) {
         abort = 1;
@@ -962,6 +968,9 @@ void process_requests(struct hash_table *hash_table, int s)
 #endif
           assert(res == reqs[k].r);
         }
+      } else {
+        // some request aborted. just break out.
+        break;
       }
     }
 
@@ -979,14 +988,16 @@ void process_requests(struct hash_table *hash_table, int s)
       /* now, skip waits, respond back for success and aborts and get the locks
        * for real
        */
-      if (r == LOCK_ABORT) {
+      if (abort) {
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, 0, 0);
         buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
       } else if (r == LOCK_SUCCESS) {
+        assert(req->e->ref_count > 1);
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, (unsigned long)req->e, 0);
         buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
-      } else
-        ;
+      } else {
+        assert (r == LOCK_WAIT);
+      }
     }
 
     buffer_flush(&boxes[i].boxes[s].out);
@@ -1173,7 +1184,8 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
 
   assert(server >= 0 && server < hash_table->nservers);
 
-  dprint("srv(%d): sending lookup for key %"PRIu64" to srv %d\n", client_id, key, server);
+  dprint("srv(%d): sending update for key %"PRIu64" to srv %d\n", client_id, 
+      key, server);
 
   msg_data[0] = MAKE_HASH_MSG(ctask->tid, op_id, key, HASHOP_UPDATE);
 

@@ -2,6 +2,7 @@
 #include "smphashtable.h"
 #include "onewaybuffer.h"
 #include "benchmark.h"
+#include <sys/mman.h>
 
 extern int batch_size;
 extern int niters;
@@ -85,6 +86,7 @@ void unblock_fn(int s, int tid)
 
           t->received_responses[t->nresponses] = data[j];
           t->nresponses++;
+          assert(t->nresponses < MAX_OPS_PER_QUERY);
           assert (t->nresponses <= t->npending);
 
           // task is ready if we have received all pending responses
@@ -167,7 +169,7 @@ void root_fn(int s, int tid)
   struct partition *p = &hash_table->partitions[s];
   struct task *self = &p->root_task;
 
-  assert(batch_size <= NTASKS);
+  assert(batch_size <= NTASKS - 2);
 
   // add unblock task to ready list
   TAILQ_INSERT_TAIL(&p->ready_list, &p->unblock_task, next);
@@ -189,7 +191,10 @@ void init_task(struct task *t, int tid, void (*fn)(), ucontext_t *next_ctx,
 {
   t->tid = tid;
   getcontext(&t->ctx);
-  t->ctx.uc_stack.ss_sp = malloc(TASK_STACK_SIZE);
+  //t->ctx.uc_stack.ss_sp = malloc(TASK_STACK_SIZE);
+  t->ctx.uc_stack.ss_sp = mmap(NULL, TASK_STACK_SIZE, PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN | MAP_STACK, -1, 0);
+  
   t->ctx.uc_stack.ss_size = TASK_STACK_SIZE;
   t->ctx.uc_link = next_ctx;
   t->s = s;
@@ -219,6 +224,9 @@ void task_libinit(int s)
 
   init_task(&p->root_task, ROOT_TASK_ID, root_fn, NULL, s);
   init_task(&p->unblock_task, UNBLOCK_TASK_ID, unblock_fn, NULL, s);
+
+  // tid starts from 2. HASHOP_TID_MASK permits 15. 
+  assert(NTASKS <= 16);
 
   for (i = 0; i < NTASKS; i++) {
     struct task *t = malloc(sizeof(struct task));

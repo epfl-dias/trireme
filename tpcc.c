@@ -3,6 +3,7 @@
 #include "smphashtable.h"
 #include "partition.h"
 #include "benchmark.h"
+#include "plmalloc.h"
 #include "tpcc.h"
 
 #define CHK_ABORT(val) \
@@ -39,6 +40,17 @@ struct tpcc_query {
   int ol_cnt;
   int o_entry_d;
 };
+
+/* fwd declarations */
+static int fetch_cust_records(struct hash_table *hash_table, int id,
+    struct task *ctask, struct tpcc_customer **c_recs, 
+    struct secondary_record *sr, struct tpcc_query *q,
+    short *opids, short *nopids);
+
+static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
+    struct task *ctask, struct tpcc_customer **c_recs, 
+    struct secondary_record *sr, struct tpcc_query *q,
+    short *opids, short *nopids);
 
 extern int dist_threshold;
 
@@ -113,7 +125,8 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   int y = URand(&p->seed, 1, 100);
 
   //if (1) {
-  if(x <= 85 || dist_threshold == 100) {
+  //if(x <= 85 || dist_threshold == 100) {
+  if (0) {
     // home warehouse
     q->c_d_id = q->d_id;
     q->c_w_id = s + 1;
@@ -202,6 +215,7 @@ static uint64_t cust_derive_key(char * c_last, int c_d_id, int c_w_id)
     key = (key << 1) + (c_last[i] - offset);
   key = key << 10;
   key += c_w_id * TPCC_NDIST_PER_WH + c_d_id;
+
   return key;
 }
 
@@ -930,6 +944,8 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   int c_id = q->c_id;
   double h_amount = q->h_amount;
   struct txn_ctx *ctx = &ctask->txn_ctx;
+  short opids[MAX_OPS_PER_QUERY];
+  short nopids = 0;
 
   int r = TXN_COMMIT;
 
@@ -971,6 +987,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
 
   pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+  opids[nopids++] = 0;
   struct tpcc_warehouse *w_r = 
     (struct tpcc_warehouse *) txn_op(ctask, hash_table, id, NULL, &op, 1 /*local*/);
   CHK_ABORT(w_r);
@@ -990,6 +1007,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   key = MAKE_DIST_KEY(w_id, d_id);
   pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+  opids[nopids++] = 0;
   struct tpcc_district *d_r = 
     (struct tpcc_district *) txn_op(ctask, hash_table, id, NULL, &op, 1);
   CHK_ABORT(d_r);
@@ -1019,6 +1037,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     // We already got latch. Can't have failure.
     assert(sr);
 #else
+    opids[nopids++] = 0;
     sr = (struct secondary_record *) txn_op(ctask, hash_table, id, NULL, 
         &op, c_w_id == w_id);
 #endif
@@ -1028,52 +1047,26 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     struct tpcc_customer *c_recs[MAX_OPS_PER_QUERY];
     assert(sr->sr_idx < MAX_OPS_PER_QUERY);
 
-    /*==========================================================================+
-      EXEC SQL DECLARE c_byname CURSOR FOR
-      SELECT c_first, c_middle, c_id, c_street_1, c_street_2, c_city, c_state,
-        c_zip, c_phone, c_credit, c_credit_lim, c_discount, c_balance, c_since
-        FROM customer
-        WHERE c_w_id=:c_w_id AND c_d_id=:c_d_id AND c_last=:c_last
-        ORDER BY c_first;
-      EXEC SQL OPEN c_byname;
-    +===========================================================================*/
-    /* retrieve all matching records */
-    int i, nmatch;
-    i = nmatch = 0;
-    int sr_nids = sr->sr_idx;
-    while (i < sr_nids) {
-      /* XXX: Painful here. We have to retrieve all customers with update lock
-       * as we potentially anybody could be the median guy. We might need lock
-       * escalation if this becomes a bottleneck in practice
-       * 
-       * XXX: We are requesting one by one. We can batch all requests here
-       */
-      pkey = MAKE_HASH_KEY(CUSTOMER_TID, sr->sr_rids[i]);
-      MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-
-      struct tpcc_customer *tmp = NULL;
-
-#if SHARED_EVERYTHING
-      tmp = (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, 1);
-#elif SHARED_NOTHING
-      tmp = (struct tpcc_customer *) txn_op(ctask, hash_table, id, 
-          &hash_table->partitions[c_w_id - 1], &op, 1);
-
-      assert(tmp);
+    int nmatch = 0;
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+    nmatch = fetch_cust_records(hash_table, id, ctask, c_recs, sr, q,
+        opids, &nopids);
 #else
-      tmp = (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, 
-          c_w_id == w_id);
+    if (c_w_id == w_id) {
+      nmatch = fetch_cust_records(hash_table, id, ctask, c_recs, sr, q, 
+          opids, &nopids);
+    } else {
+      nmatch = batch_fetch_cust_records(hash_table, id, ctask, c_recs, sr, q, 
+          opids, &nopids);
+    }
 #endif
 
-      CHK_ABORT(tmp);
-
-      /* XXX: This strcmp and the next below have a huge overhead */
-      if (strcmp(tmp->c_last, q->c_last) == 0) {
-        c_recs[nmatch++] = tmp;
-      }
-
-      i++;
+    if (nmatch == -1) {
+      r = TXN_ABORT;
+      goto final;
     }
+    
+    assert(nmatch > 0);
 
     /*============================================================================+
         for (n=0; n<namecnt/2; n++) {
@@ -1122,6 +1115,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
 
     assert(c_r);
 #else
+    opids[nopids++] = 0;
     c_r = (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, 
         c_w_id == w_id);
 #endif
@@ -1170,6 +1164,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   pkey = MAKE_CUST_KEY(w_id, d_id, c_id);
   key = MAKE_HASH_KEY(HISTORY_TID, pkey);
   MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order)), key);
+  opids[nopids++] = 0;
   struct tpcc_history *h_r = 
     (struct tpcc_history *) txn_op(ctask, hash_table, id, NULL, &op, 1);
   CHK_ABORT(h_r);
@@ -1201,10 +1196,7 @@ final:
   }
 
 #else
-  if (r == TXN_COMMIT)
-    txn_commit(ctask, hash_table, id, TXN_SINGLE);
-  else
-    txn_abort(ctask, hash_table, id, TXN_SINGLE);
+  txn_finish(ctask, hash_table, id, r, TXN_SINGLE, opids);
 #endif
 
   return r;
@@ -1402,7 +1394,164 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
     //check 5: 
   }
+}
 
+static int fetch_cust_records(struct hash_table *hash_table, int id,
+    struct task *ctask, struct tpcc_customer **c_recs, 
+    struct secondary_record *sr, struct tpcc_query *q,
+    short *opids, short *nopids)
+{
+  /*==========================================================================+
+    EXEC SQL DECLARE c_byname CURSOR FOR
+    SELECT c_first, c_middle, c_id, c_street_1, c_street_2, c_city, c_state,
+      c_zip, c_phone, c_credit, c_credit_lim, c_discount, c_balance, c_since
+    FROM customer
+    WHERE c_w_id=:c_w_id AND c_d_id=:c_d_id AND c_last=:c_last
+    ORDER BY c_first;
+    EXEC SQL OPEN c_byname;
+    +===========================================================================*/
+  int i, nmatch;
+  struct hash_op op;
+  int sr_nids = sr->sr_idx;
+  int w_id = q->w_id;
+  int c_w_id = q->c_w_id;
+  short opid_idx = *nopids;
+
+  i = nmatch = 0;
+  while (i < sr_nids) {
+    /* XXX: Painful here. We have to retrieve all customers with update lock
+     * as we potentially anybody could be the median guy. We might need lock
+     * escalation if this becomes a bottleneck in practice
+     * 
+     * XXX: We are requesting one by one. We can batch all requests here
+     */
+    hash_key pkey = MAKE_HASH_KEY(CUSTOMER_TID, sr->sr_rids[i]);
+    MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+
+    struct tpcc_customer *tmp = NULL;
+
+#if SHARED_EVERYTHING
+    tmp = (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, 1);
+#elif SHARED_NOTHING
+    tmp = (struct tpcc_customer *) txn_op(ctask, hash_table, id, 
+        &hash_table->partitions[c_w_id - 1], &op, 1);
+
+    assert(tmp);
+#else
+    assert(c_w_id == w_id);
+
+    tmp = (struct tpcc_customer *) txn_op(ctask, hash_table, id, NULL, &op, 1);
+#endif
+
+    opids[opid_idx++] = 0;
+    *nopids = opid_idx;
+
+    if (!tmp)
+      return -1;
+
+    /* XXX: This strcmp and the next below have a huge overhead */
+    if (strcmp(tmp->c_last, q->c_last) == 0) {
+      c_recs[nmatch++] = tmp;
+    }
+
+    i++;
+  }
+
+  return nmatch;
+}
+
+static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
+    struct task *ctask, struct tpcc_customer **c_recs, 
+    struct secondary_record *sr, struct tpcc_query *q, 
+    short *opids, short *nopids)
+{
+  /*==========================================================================+
+    EXEC SQL DECLARE c_byname CURSOR FOR
+    SELECT c_first, c_middle, c_id, c_street_1, c_street_2, c_city, c_state,
+      c_zip, c_phone, c_credit, c_credit_lim, c_discount, c_balance, c_since
+    FROM customer
+    WHERE c_w_id=:c_w_id AND c_d_id=:c_d_id AND c_last=:c_last
+    ORDER BY c_first;
+    EXEC SQL OPEN c_byname;
+    +===========================================================================*/
+  int i, nmatch;
+  struct hash_op op;
+  int sr_nids = sr->sr_idx;
+  int w_id = q->w_id;
+  int c_w_id = q->c_w_id;
+  struct txn_ctx *ctx = &ctask->txn_ctx;
+  struct partition *p = &hash_table->partitions[id];
+  short opid_idx = *nopids;
+
+  dprint("srv(%d): batch fetching %d cust records from %d\n", id, sr_nids, 
+      c_w_id - 1);
+
+  assert(c_w_id != w_id);
+
+  assert(sr_nids < MAX_OPS_PER_QUERY);
+
+  for (int i = 0; i < sr_nids; i++) {
+    hash_key pkey = MAKE_HASH_KEY(CUSTOMER_TID, sr->sr_rids[i]);
+
+    /* XXX: we are setting opid to 0 here and this should be fine. This is
+     * because, we are sending all requests to the same server. As the 
+     * server will process requests , we will  get response back in same 
+     * order as we requested them. So no need for opids
+     */
+    smp_hash_update(ctask, hash_table, id, c_w_id - 1, pkey, i);
+
+    c_recs[i] = NULL;
+  }
+
+  ctask->npending = sr_nids;
+  ctask->nresponses = 0;
+
+  smp_flush_all(hash_table, id);
+
+  task_yield(p, TASK_STATE_WAITING);
+
+  assert(ctask->nresponses == sr_nids);
+
+  int r = TXN_COMMIT;
+  nmatch = 0;
+  for (int i = 0; i < sr_nids; i++) {
+    uint64_t val = ctask->received_responses[i];
+    assert(HASHOP_GET_TID(val) == ctask->tid);
+
+    short opid = HASHOP_GET_OPID(val);
+    assert(opid < sr_nids);
+
+    opids[opid_idx++] = opid;
+
+    struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
+    octx->optype = OPTYPE_UPDATE;
+    octx->e = (struct elem *)HASHOP_GET_VAL(val);
+    octx->is_local = 0;
+    ctx->nops++;
+
+    if (octx->e) {
+      assert(octx->e->key == sr->sr_rids[opid]);
+      assert(octx->e->ref_count & DATA_READY_MASK);
+      int esize = octx->e->size;
+      octx->old_value = plmalloc_alloc(p, esize);
+      memcpy(octx->old_value, octx->e->value, esize);
+
+      // is this cust record a match?
+      struct tpcc_customer *tmp = (struct tpcc_customer *) octx->e->value;
+      if (strcmp(tmp->c_last, q->c_last) == 0)
+        c_recs[nmatch++] = tmp;
+
+    } else {
+      r = TXN_ABORT;
+#if GATHER_STATS
+      p->naborts_remote++;
+#endif
+    }
+  }
+
+  *nopids = opid_idx;
+
+  return r == TXN_COMMIT ? nmatch : -1;
 }
 
 struct benchmark tpcc_bench = {

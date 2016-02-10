@@ -22,10 +22,11 @@
 #define YCSB_REC_SZ (YCSB_NFIELDS * YCSB_FIELD_SZ)
 
 /* commn. buffer constants */
-#define ONEWAY_BUFFER_SIZE  (16 * (CACHELINE >> 3)) 
+#define ONEWAY_BUFFER_SIZE  (32 * (CACHELINE >> 3)) 
 #define BUFFER_FLUSH_COUNT  8
 
-#define MAX_OPS_PER_QUERY 128
+/* max ops per query is limited by hashop_opid_mask */
+#define MAX_OPS_PER_QUERY 256
 
 #define MAX_TUPLE_TYPES 32
 
@@ -49,12 +50,12 @@
  * 16-bits to encode operation type and msg tag
  */
 #define HASHOP_MASK           0xF000000000000000
-#define HASHOP_TID_MASK       0x0FF0000000000000
-#define HASHOP_OPID_MASK      0x000F000000000000
+#define HASHOP_TID_MASK       0x0F00000000000000
+#define HASHOP_OPID_MASK      0x00FF000000000000
 #define MAKE_HASH_MSG(tid,opid,key,optype)\
-  ((optype) | ((unsigned long)(tid) << 52UL) | ((unsigned long)opid << 48UL) | (key))
+  ((optype) | ((unsigned long)(tid) << 56UL) | ((unsigned long)opid << 48UL) | (key))
 
-#define HASHOP_GET_TID(msg)   (((msg) & HASHOP_TID_MASK) >> 52)
+#define HASHOP_GET_TID(msg)   (((msg) & HASHOP_TID_MASK) >> 56)
 #define HASHOP_GET_OPID(msg)   (((msg) & HASHOP_OPID_MASK) >> 48)
 #define HASHOP_GET_VAL(msg)   ((msg) & ~HASHOP_TID_MASK & ~HASHOP_MASK & ~HASHOP_OPID_MASK)
 
