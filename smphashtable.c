@@ -10,6 +10,8 @@
 #include "twopl.h"
 
 static volatile int nready = 0;
+const char *optype_str[] = {"","lookup","insert","update","release"};
+#define OPTYPE_STR(optype) optype_str[optype >> 60]
 
 extern struct benchmark *g_benchmark;
 extern double alpha;
@@ -22,7 +24,8 @@ extern struct hash_table *hash_table;
 void *hash_table_server(void* args);
 int is_value_ready(struct elem *e);
 void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
-    int client_id, int nqueries, struct hash_op **queries, void **values);
+    int client_id, int server, int nqueries, struct hash_op **queries, 
+    void **values);
 int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table, 
     int client_id, int server, hash_key key, short opid);
 int smp_hash_update(struct task *ctask, struct hash_table *hash_table, 
@@ -184,11 +187,6 @@ void create_hash_table_client(struct hash_table *hash_table)
   }
 }
 
-int is_local_op(struct hash_table *hash_table, int s, hash_key key)
-{
-  return g_benchmark->hash_get_server(hash_table, key) == s;
-}
-
 struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx, 
     struct partition *p, struct hash_op *op)
 {
@@ -205,7 +203,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       e = hash_insert(p, op->key, op->size, NULL);
       assert(e);
 
-      //e->ref_count = DATA_READY_MASK | 2; 
+      // set ref count to 1 here so that cc algo will set it appropriate below
       e->ref_count = 1;
       p->ninserts++;
 
@@ -223,10 +221,8 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #else
       r = no_wait_acquire(e, t);
 #endif
-
       // insert can only succeed
       assert (r == LOCK_SUCCESS);
- 
 #endif
 
       break;
@@ -301,16 +297,30 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 }
 
 void *txn_op(struct task *ctask, struct hash_table *hash_table, int s, 
-    struct partition *l_p, struct hash_op *op, int is_local)
+    struct hash_op *op, int target)
 {
   void *value = NULL;
   struct elem *e = NULL;
   struct txn_ctx *ctx = &ctask->txn_ctx;
   struct partition *p = &hash_table->partitions[s];
-  //int is_local = is_local_op(hash_table, s, op->key);
+  struct partition *l_p = NULL;
 
-  if (!l_p)
-    l_p = p;
+#if SHARED_EVERYTHING
+  int is_local = 1;
+  l_p = p;
+#elif SHARED_NOTHING
+  int is_local = 1;
+  l_p = &hash_table->partitions[target];
+#else
+  int is_local = (s == target);
+  l_p = p;
+#endif
+
+  //ugly hack to make item table global in all cases
+  if ((op->key & TID_MASK) == ITEM_TID) {
+    l_p = hash_table->g_partition;
+    is_local = 1;
+  }
 
   dprint("srv(%d): issue %s %s op key %" PRIu64 "\n", 
     s, is_local ? "local":"remote", 
@@ -320,6 +330,8 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   if (is_local) {
     //assert(op->key >= s * l_p->nrecs && op->key < (s * l_p->nrecs + l_p->nrecs));
     
+    assert (l_p);
+
     e = local_txn_op(ctask, s, ctx, l_p, op);
 
     // it is possible for a local txn to fail as someone else might have
@@ -334,7 +346,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #endif
 
     // call the corresponding authority and block
-    smp_hash_doall(ctask, hash_table, s, 1, &op, &value);
+    smp_hash_doall(ctask, hash_table, s, target, 1, &op, &value);
 
     // the remote server can fail to return us data if someone else has a lock
     if (value) {
@@ -357,7 +369,11 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
     octx->optype = op->optype;
     octx->e = e;
-    octx->is_local = is_local;
+#if SHARED_EVERYTHING
+    octx->target = s;
+#else
+    octx->target = target;
+#endif
 
     if (op->optype == OPTYPE_UPDATE) {
       //octx->old_value = memalign(CACHELINE, e->size);
@@ -396,6 +412,7 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
     int status, int mode, short *opids)
 {
   struct txn_ctx *ctx = &ctask->txn_ctx;
+  struct partition *p = &hash_table->partitions[s];
   int nops = ctx->nops;
   int nrels;
 
@@ -417,32 +434,27 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
     switch (t) {
       case OPTYPE_LOOKUP:
-        if (octx->old_value != NULL) {
-          printf("txn_finish found non null val for %"PRIu64"\n", octx->e->key);
-          assert(octx->old_value == NULL);
-        }
+        assert (octx->old_value == NULL);
 
         // release element
-        if (octx->is_local) {
+        if (octx->target == s) {
 #if SHARED_EVERYTHING
-          mp_release_value_(&hash_table->partitions[s], octx->e);
+          selock_release(p, octx->e);
 #else
 #if ENABLE_WAIT_DIE_CC
-          wait_die_release(s, &hash_table->partitions[s], s, ctask->tid, 
+          wait_die_release(s, p, s, ctask->tid, 
               opids ? opids[nops]: 0, octx->e);
 #else
-          no_wait_release(&hash_table->partitions[s], octx->e);
+          no_wait_release(p, octx->e);
 #endif //ENABLE_WAIT_DIE_cc
 #endif //SHARED_EVERYTHING
         } else {
-#if SHARED_EVERYTHING
-          assert(0);
-#endif
-          mp_release_value(hash_table, s, ctask->tid, 
+         mp_release_value(hash_table, s, octx->target, ctask->tid, 
               opids ? opids[nops] : 0, octx->e);
         }
 
         break;
+
       case OPTYPE_UPDATE:
         // should never get updates to item table
         assert((octx->e->key & TID_MASK) != ITEM_TID);
@@ -458,24 +470,21 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           memcpy(octx->e->value, octx->old_value, size);
         }
 
-        plmalloc_free(&hash_table->partitions[s], octx->old_value, size);
+        plmalloc_free(p, octx->old_value, size);
 
-        if (octx->is_local) {
+        if (octx->target == s) {
 #if SHARED_EVERYTHING
-          mp_release_value_(&hash_table->partitions[s], octx->e);
+          selock_release(p, octx->e);
 #else
 #if ENABLE_WAIT_DIE_CC
-          wait_die_release(s, &hash_table->partitions[s], s, ctask->tid, 
+          wait_die_release(s, p, s, ctask->tid, 
               opids ? opids[nops] : 0, octx->e);
 #else
-          no_wait_release(&hash_table->partitions[s], octx->e);
+          no_wait_release(p, octx->e);
 #endif //ENABLE_WAIT_DIE_CC
 #endif //SHARED_EVERYTHING
         } else {
-#if SHARED_EVERYTHING
-          assert(0);
-#endif
-          mp_mark_ready(hash_table, s, ctask->tid, 
+          mp_mark_ready(hash_table, s, octx->target, ctask->tid, 
               opids ? opids[nops] : 0, octx->e);
         }
 
@@ -487,14 +496,34 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
         // only single mode supported now
         assert(mode == TXN_SINGLE);
-        nrels = (status == TXN_ABORT ? 2 : 1);
 
-        do {
-          if (octx->is_local)
-            mp_release_value_(&hash_table->partitions[s], octx->e);
-          else
-            mp_mark_ready(hash_table, s, ctask->tid, nops, octx->e);
-        } while (--nrels);
+        if (octx->target == s) {
+#if SHARED_EVERYTHING
+          selock_release(p, octx->e);
+#else
+#if ENABLE_WAIT_DIE_CC
+          wait_die_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
+#else
+          no_wait_release(p, octx->e);
+#endif //ENABLE_WAIT_DIE_CC
+#endif //SHARED_EVERYTHING
+
+          /* selock or wait_die/no_wiat will reset ref count once
+           * if we are aborting, we reset it again. This will delete
+           * the element and free up space
+           */
+          if (status == TXN_ABORT) {
+            assert(octx->e->ref_count == 1);
+            mp_release_value_(p, octx->e);            
+          }
+
+        } else {
+          // XXX: If we need to abort a remote insert, we need a new 
+          // HASHOP_DELETE that we don't support yet.
+          // check if we need to do this
+          assert(0);
+          //mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
+        }
 
         break;
     }
@@ -515,6 +544,10 @@ void txn_abort(struct task *ctask, struct hash_table *hash_table, int s, int mod
 
 void txn_commit(struct task *ctask, struct hash_table *hash_table, int s, int mode)
 {
+#if SHARED_NOTHING
+  assert(0);
+#endif
+
   return txn_finish(ctask, hash_table, s, TXN_COMMIT, mode, NULL);
 }
 
@@ -535,6 +568,9 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
   short opids[MAX_OPS_PER_QUERY];
   short nopids = 0;
 
+  // batch txns for micro benchmark
+  assert(g_benchmark == &micro_bench);
+
   txn_start(hash_table, s, status, ctx);
 
   /* XXX: REWRITE THIS TO GATHER ALL REMOTE OPS AND SEND IT USING
@@ -543,11 +579,11 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
   // do all local first. if any local fails, no point sending remote requests
   for (i = 0; i < nops; i++) {
     struct hash_op *op = &query->ops[i];    
-    server = g_benchmark->hash_get_server(hash_table, op->key);
+    server = op->key / hash_table->nrecs;
 
     // if local, get it
     if (server == s) {
-      values[i] = txn_op(ctask, hash_table, s, NULL, &query->ops[i], 1);
+      values[i] = txn_op(ctask, hash_table, s, &query->ops[i], server);
       opids[nopids++] = 0;
 
       if (!values[i]) {
@@ -560,7 +596,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
   // now send all remote requests
   for (i = 0; i < nops; i++) {
     struct hash_op *op = &query->ops[i];    
-    server = g_benchmark->hash_get_server(hash_table, op->key);
+    server = op->key / hash_table->nrecs;
 
     if (server != s) {
       if (op->optype == OPTYPE_LOOKUP) {
@@ -608,7 +644,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
       struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
       octx->optype = op->optype;
       octx->e = (struct elem *)HASHOP_GET_VAL(val);
-      octx->is_local = 0;
+      octx->target = -1;
       octx->old_value = NULL;
       ctx->nops++;
       opids[nopids++] = opid;
@@ -846,6 +882,43 @@ void process_requests(struct hash_table *hash_table, int s)
           j += RELEASE_MSG_LENGTH;
           break;
         }
+        case HASHOP_INSERT:
+        {
+          hash_key key = HASHOP_GET_VAL(inbuf[j]);
+          short tid = HASHOP_GET_TID(inbuf[j]);
+          short opid = HASHOP_GET_OPID(inbuf[j]);
+          size_t sz = inbuf[j + 1];
+
+          dprint("srv(%d): cl %d inserting key %"PRIu64" sz %d\n",
+              s, i, key, sz);
+
+          struct elem *e = hash_insert(p, key, sz, NULL);
+          assert(e);
+
+          e->ref_count = 1;
+          p->ninserts++;
+
+          int r;
+#if ENABLE_WAIT_DIE_CC
+          struct lock_entry *l;
+
+          r = wait_die_acquire(s, p, i, tid, opid, e, OPTYPE_INSERT, 
+              inbuf[j + 2], &l);
+#else
+          r = no_wait_acquire(e, OPTYPE_INSERT);
+#endif
+
+          // insert can only succeed
+          assert (r == LOCK_SUCCESS);
+
+          // reply back
+          uint64_t out_msg = MAKE_HASH_MSG(tid, opid, (unsigned long)e, 0);
+          buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
+     
+          j += INSERT_MSG_LENGTH;
+
+          break;
+        }
         case HASHOP_LOOKUP:
         case HASHOP_UPDATE:
         {
@@ -861,12 +934,12 @@ void process_requests(struct hash_table *hash_table, int s)
 
           dprint("srv (%d): cl %d tid %d opid %d %s %" PRIu64 "\n", s, i, 
               req->tid, req->opid, 
-              optype == HASHOP_LOOKUP ? "lookup" : "update", key);
+              OPTYPE_STR(optype), key);
 
           req->e = hash_lookup(p, key);
           if (!req->e) {
             dprint("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i, 
-                optype == HASHOP_LOOKUP ? "lookup" : "update", key);
+                OPTYPE_STR(optype), key);
           }
           assert(req->e);
 
@@ -1205,13 +1278,14 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
 }
 
 void smp_hash_doall(struct task *ctask, struct hash_table *hash_table, 
-    int client_id, int nqueries, struct hash_op **queries, void **values)
+    int client_id, int s, int nqueries, struct hash_op **queries, 
+    void **values)
 {
-  int r, i, s;
+  int r, i;
   uint64_t val;
 
   struct box_array *boxes = hash_table->boxes;
-  uint64_t msg_data[2];
+  uint64_t msg_data[3];
 
   for(int i = 0; i < nqueries; i++) {
 
@@ -1219,13 +1293,13 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 
     switch (queries[i]->optype) {
       case OPTYPE_LOOKUP:
-        s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
-
-        int s_coreid = hash_table->thread_data[s].core;
-        int c_coreid = hash_table->thread_data[client_id].core;
+        //s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
         dprint("srv(%d): issue remote lookup op key %" PRIu64 " to %d\n", 
           client_id, queries[i]->key, s);
+
+        int s_coreid = hash_table->thread_data[s].core;
+        int c_coreid = hash_table->thread_data[client_id].core;
 
         msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key, 
             HASHOP_LOOKUP);
@@ -1243,7 +1317,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 #endif
         break;
       case OPTYPE_UPDATE:
-        s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
+        //s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
         dprint("srv(%d): issue remote update op key %" PRIu64 " to %d\n", 
           client_id, queries[i]->key, s);
@@ -1263,17 +1337,29 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 #endif
         break;
 
-#if PARTITION_LOCK_MODE
-      case OPTYPE_PLOCK_ACQUIRE:
-        s = queries[i]->key;
+      case OPTYPE_INSERT:
+        //s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
-        dprint("srv(%d): issue remote plock op key to %d\n", client_id, s);
+        dprint("srv(%d): issue remote insert op key %" PRIu64 " to %d\n", 
+          client_id, queries[i]->key, s);
 
-        msg_data = HASHOP_PLOCK_ACQUIRE;
-        buffer_write_all(&boxes[client_id].boxes[s].in, 1, &msg_data, 0);
+        msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key, 
+            HASHOP_INSERT);
+
+        msg_data[1] = queries[i]->size;
+
+#if ENABLE_WAIT_DIE_CC
+        msg_data[2] = ctask->txn_ctx.ts;
+        buffer_write_all(&boxes[client_id].boxes[s].in, 3, msg_data, 0);
+#else
+        buffer_write_all(&boxes[client_id].boxes[s].in, 2, msg_data, 0);
+#endif
+
+#if GATHER_STATS
+        hash_table->partitions[client_id].nupdates_remote++;
+#endif
         break;
 
-#endif
       default:
         assert(0);
         break;
@@ -1295,10 +1381,12 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
   while (i < nqueries) {
     int ps;
 
-    if (queries[i]->optype == OPTYPE_PLOCK_ACQUIRE)
+    if (queries[i]->optype == OPTYPE_PLOCK_ACQUIRE) {
       ps = queries[i]->key;
-    else
-      ps = g_benchmark->hash_get_server(hash_table, queries[i]->key);
+    } else {
+      //ps = g_benchmark->hash_get_server(hash_table, queries[i]->key);
+      ps = s;
+    }
 
     val = ctask->received_responses[i];
 
@@ -1335,11 +1423,7 @@ int is_value_ready(struct elem *e)
 
 void mp_release_value_(struct partition *p, struct elem *e)
 {
-#if SHARED_EVERYTHING
-  selock_release(p, e);
-#else
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
-#endif
 
   dprint("srv(%ld): Releasing key %" PRIu64 " rc %" PRIu64 "\n", 
       p - hash_table->partitions, e->key,
@@ -1353,18 +1437,22 @@ void mp_release_value_(struct partition *p, struct elem *e)
 }
 
 void mp_send_release_msg_(struct hash_table *hash_table, int client_id, 
-    int task_id, int op_id, void *ptr, int force_flush)
+    int s, int task_id, int op_id, void *ptr, int force_flush)
 {
   struct elem *e = (struct elem *)ptr;
+
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+  assert(0);
+#endif
+
+  assert (s < hash_table->nservers && client_id < hash_table->nservers);
 
   // XXX: we are exploiting the 48-bit address here. 
   uint64_t msg_data = MAKE_HASH_MSG(task_id, op_id, (uint64_t)e, HASHOP_RELEASE);
   assert(((struct elem *)HASHOP_GET_VAL(msg_data)) == e);
 
-  int s = g_benchmark->hash_get_server(hash_table, e->key);
-
-  dprint("srv(%ld): sending release msg for key %" PRIu64 " rc %" PRIu64 " to %d\n", 
-      client_id, e->key, e->ref_count, s);
+  dprint("srv(%ld): sending release msg %"PRIu64" for key %" PRIu64 
+      " rc %" PRIu64 " to %d\n", client_id, msg_data, e->key, e->ref_count, s);
 
   buffer_write_all(&hash_table->boxes[client_id].boxes[s].in, 1, &msg_data, 
           force_flush);
@@ -1377,24 +1465,21 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id,
 
 }
 
-void mp_release_value(struct hash_table *hash_table, int client_id, 
+void mp_release_value(struct hash_table *hash_table, int client_id, int target,
     int task_id, int op_id, void *ptr)
 {
-  mp_send_release_msg_(hash_table, client_id, task_id, op_id, ptr, 0 /* force_flush */);
+  mp_send_release_msg_(hash_table, client_id, target, task_id, op_id, ptr, 
+      0 /* force_flush */);
 }
 
-void mp_mark_ready(struct hash_table *hash_table, int client_id, int task_id, 
-    int op_id, void *ptr)
+void mp_mark_ready(struct hash_table *hash_table, int client_id, int target,
+    int task_id, int op_id, void *ptr)
 {
-#if SHARED_EVERYTHING
-  assert(0);
-#else
-
   dprint("srv(%d): sending release msg key %" PRIu64 " rc %" PRIu64 " \n", 
       client_id, ((struct elem *)ptr)->key, ((struct elem*)ptr)->ref_count);
 
-  mp_send_release_msg_(hash_table, client_id, task_id, op_id, ptr, 0 /* force_flush */);
-#endif
+  mp_send_release_msg_(hash_table, client_id, target, task_id, op_id, ptr, 
+      0 /* force_flush */);
 }
 
 void mp_release_plock(int s, int c)
@@ -1434,7 +1519,7 @@ int stats_get_nlookups(struct hash_table *hash_table)
 {
   int nlookups = 0;
   for (int i = 0; i < hash_table->nservers; i++) {
-    printf("srv %d lookups local: %d remote %d rsocket %d \n", i, 
+    printf("srv %d lookups local: %d remote %d\n", i, 
       hash_table->partitions[i].nlookups_local,
       hash_table->partitions[i].nlookups_remote);
 

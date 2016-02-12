@@ -5,7 +5,7 @@ ARCH   = INTEL64
 # 								latching: SE_LATCH (enables latching in shared everything)
 # 								lock types:  PTHREAD_SPINLOCK, PTHREAD_MUTEX, ANDERSON_LOCK, TICKET_LOCK
 # 								CC types: ENABLE_WAIT_DIE_CC
-# 								trireme-specific options: ENABLE_OP_BATCHING, PARTITION_LOCK_MODE 
+# 								trireme-specific options: ENABLE_OP_BATCHING
 # compile shared everything with se_latch and pthread_spinlock.
 # non se_latch config is only for microbenchmark readonly case
 # 

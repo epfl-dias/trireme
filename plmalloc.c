@@ -159,10 +159,10 @@ struct elem *plmalloc_ealloc(struct partition *p)
     int esize = 
       ((sizeof(struct elem) + CACHELINE - 1) / CACHELINE) * CACHELINE;
 
-    /* we are preallocating a huge number here = p->nrecs. this will
+    /* we are preallocating a huge number here = 1000000. this will
      * inflat memory in case we don't use that many elem structs
      */
-    char *buf = memalign(CACHELINE, esize * p->nrecs);
+    char *buf = memalign(CACHELINE, esize * 1000000);
     assert(buf);
 
     // add buffer to base pointer list
@@ -172,7 +172,7 @@ struct elem *plmalloc_ealloc(struct partition *p)
 
     // now make elem structs and add them to the free list
     char *idx = buf;
-    for (int i = 0; i < p->nrecs; i++) {
+    for (int i = 0; i < 1000000; i++) {
       struct elem *e = (struct elem *)idx;
       LIST_INSERT_HEAD(free_list, e, chain);
       idx += esize;

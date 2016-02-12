@@ -67,8 +67,8 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
 
   // even if no exclusive lock, conflict if we want an update when
   // there are read locks
-  if (!conflict && optype == OPTYPE_UPDATE)
-    conflict = e->ref_count > 1;
+  if (!conflict && (optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT))
+    conflict = (e->ref_count > 1);
 
   /* with wait die, we also have a conflict if there is a waiting list
    * and if head of waiting list is a newer txn than incoming one
@@ -207,7 +207,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
   }
   
   if (!lock_entry) {
-    dprint("srv(%d): FAILED releasing lock request for key %"PRIu64"\n", s, e->key);
+    printf("srv(%d): FAILED releasing lock request for key %"PRIu64"\n", s, e->key);
   }
 
   assert(lock_entry);
@@ -238,6 +238,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
     if (lock_entry->optype == OPTYPE_LOOKUP) {
       conflict = !is_value_ready(e);
     } else {
+      assert(lock_entry->optype == OPTYPE_UPDATE);
       conflict = (!is_value_ready(e)) || ((e->ref_count & ~DATA_READY_MASK) > 1);
     }
 
@@ -299,7 +300,7 @@ int selock_nowait_acquire(struct partition *p, struct elem *e, char optype,
 
   // even if no exclusive lock, conflict if we want an update when
   // there are read locks
-  if (!conflict && optype == OPTYPE_UPDATE)
+  if (!conflict && (optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT))
     conflict = e->ref_count > 1;
 
   /* if there are no conflicts  locks, we reset refcount */

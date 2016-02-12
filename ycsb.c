@@ -65,12 +65,6 @@ int main(int argc, char *argv[])
 {
   int opt_char;
 
-#if PARTITION_LOCK_MODE
-#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
-#error "Shared everthing or nothing cannot be compiled in partition lock mode"
-#endif
-#endif
-
   while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:h:p:")) != -1) {
     switch (opt_char) {
       case 'a':
@@ -107,9 +101,9 @@ int main(int argc, char *argv[])
         break;
       case 'b':
         batch_size = atoi(optarg);
-#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING) || defined(PARTITION_LOCK_MODE)
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
         if (batch_size != 1) {
-          printf("batching not allowed in se/sn or partition lock modes\n");
+          printf("batching not allowed in se/sn modes\n");
           assert(0);
         }
 #endif

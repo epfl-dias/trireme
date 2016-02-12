@@ -8,7 +8,6 @@ struct benchmark {
   int (*run_txn)(struct hash_table *hash_table, int s, void *arg, 
       struct task *t, int status);
   void (*verify_txn)(struct hash_table *hash_table, int s);
-  int (*hash_get_server)(struct hash_table *hash_table, hash_key key);
 };
 
 extern struct benchmark tpcc_bench;

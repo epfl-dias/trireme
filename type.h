@@ -142,7 +142,7 @@ struct bucket {
 }__attribute__ ((aligned (CACHELINE)));
 
 struct op_ctx {
-  char is_local;
+  int target;
   char optype; 
   struct elem *e;
   void *old_value;
@@ -185,9 +185,6 @@ struct partition {
   size_t nrecs;
   size_t size;
   struct bucket *table;
-#if PARTITION_LOCK_MODE
-  struct elem magic_elem;
-#endif
 
   // tasks
   struct task unblock_task;

@@ -144,7 +144,7 @@ void child_fn(int s, int tid)
       process_requests(hash_table, s);
 
 #if PRINT_PROGRESS
-    if (q_idx % 10000 == 0) {
+    if (q_idx % 100000 == 0) {
       printf("srv(%d): task %d finished %s(%" PRId64 " of %d)"
           " on key %" PRId64 "\n", 
           s, 

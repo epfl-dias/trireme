@@ -13,8 +13,8 @@ void smp_flush_all(struct hash_table *hash_table, int client_id);
 int smp_hash_update(struct task *ctask, struct hash_table *hash_table, 
     int client_id, int server, hash_key key, short op_id);
 
-void mp_release_value(struct hash_table *hash_table, int client_id, int tid, int opid, void *ptr);
-void mp_mark_ready(struct hash_table *hash_table, int client_id, int tid, int opid, void *ptr);
+void mp_release_value(struct hash_table *hash_table, int client_id, int target, int tid, int opid, void *ptr);
+void mp_mark_ready(struct hash_table *hash_table, int client_id, int target, int tid, int opid, void *ptr);
 void mp_release_plock(int s, int c);
 void mp_release_value_(struct partition *p, struct elem *e);
 void mp_send_reply(int s, int c, short task_id, short opid, struct elem *e);
@@ -40,7 +40,7 @@ void txn_abort(struct task *t, struct hash_table *hash_table, int s, int mode);
 void txn_finish(struct task *ctask, struct hash_table *hash_table, int s, 
     int status, int mode, short *opids);
 void *txn_op(struct task *t, struct hash_table *hash_table, int s, 
-    struct partition *p, struct hash_op *op, int is_local);
+    struct hash_op *op, int target);
 int hash_get_server(const struct hash_table *hash_table, hash_key key);
 
 /* misc */

@@ -7,9 +7,7 @@
 void buffer_write(struct onewaybuffer* buffer, uint64_t data)
 {
   // wait till there is space in buffer
-  while (buffer->tmp_wr_index >= buffer->rd_index + ONEWAY_BUFFER_SIZE) {
-    _mm_pause();
-  }
+  assert (buffer->tmp_wr_index < buffer->rd_index + ONEWAY_BUFFER_SIZE);
 
   buffer->data[buffer->tmp_wr_index & (ONEWAY_BUFFER_SIZE - 1)] = data;
   buffer->tmp_wr_index++;
@@ -45,6 +43,7 @@ void buffer_flush(struct onewaybuffer* buffer)
 
   // for safety do memory barrier to make sure data is written before index
   __sync_synchronize(); 
+
   buffer->wr_index = buffer->tmp_wr_index;
 }
 

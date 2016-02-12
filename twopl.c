@@ -74,7 +74,7 @@ int wait_die_acquire(int s, struct partition *p,
   }
 #endif
 
-  dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 "\n", s, 
+  dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64 "\n", s, 
       c, e->key, e->ref_count);
 
   if (optype == OPTYPE_LOOKUP) {
@@ -121,7 +121,7 @@ int wait_die_acquire(int s, struct partition *p,
 
     if (wait) {
 
-      dprint("srv(%d): cl %d update %"PRIu64" rc %"PRIu64" waiting \n", 
+      dprint("srv(%d): cl %d %"PRIu64" rc %"PRIu64" waiting \n", 
           s, c, e->key, e->ref_count);
 
       // if we are allowed to wait, make a new lock entry and add it to
@@ -164,7 +164,7 @@ int wait_die_acquire(int s, struct partition *p,
 
       r = LOCK_WAIT;
     } else {
-      dprint("srv(%d): cl %d update %"PRIu64" rc %"PRIu64" aborted \n", 
+      dprint("srv(%d): cl %d %"PRIu64" rc %"PRIu64" aborted \n", 
           s, c, e->key, e->ref_count);
 
       r = LOCK_ABORT;
@@ -187,7 +187,7 @@ int wait_die_acquire(int s, struct partition *p,
     target->op_id = op_id;
     *pl = target;
 
-    dprint("srv(%d): cl %d update %" PRIu64 " rc %" PRIu64 
+    dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64 
         " adding to owners\n", s, c, e->key, e->ref_count);
 
     LIST_INSERT_HEAD(&e->owners, target, next);
@@ -252,6 +252,7 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
     if (l->optype == OPTYPE_LOOKUP) {
       conflict = !is_value_ready(e);
     } else {
+      assert(l->optype == OPTYPE_UPDATE);
       conflict = (!is_value_ready(e)) || ((e->ref_count & ~DATA_READY_MASK) > 1);
     }
 
