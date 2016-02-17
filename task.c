@@ -15,7 +15,90 @@ int task_join(struct task *root_task);
 void task_destroy(struct task *t, struct partition *p);
 void task_unblock(struct task *t);
 
-void lightweight_swapcontext(ucontext_t *out, ucontext_t *in);
+#if NO_CUSTOM_SWAP_CONTEXT
+#define lightweight_swapcontext(out, in) swapcontext(out, in)
+#else
+void lightweight_swapcontext(ucontext_t *out, ucontext_t *in)
+{
+
+__asm__(
+#if defined(__x86_64__)
+    // Good
+#else
+#error "Invalid architecture"
+#endif
+
+  /* Save the preserved registers, the registers used for passing args,
+     and the return address.  */
+  "popq %rbp\n"
+  "movq  %rbx, "oRBX"(%rdi)\n"
+  "movq  %rbp, "oRBP"(%rdi)\n"
+  "movq  %r12, "oR12"(%rdi)\n"
+  "movq  %r13, "oR13"(%rdi)\n"
+  "movq  %r14, "oR14"(%rdi)\n"
+  "movq  %r15, "oR15"(%rdi)\n"
+
+  "movq  %rdi, "oRDI"(%rdi)\n"
+  "movq  %rsi, "oRSI"(%rdi)\n"
+  "movq  %rdx, "oRDX"(%rdi)\n"
+  "movq  %rcx, "oRCX"(%rdi)\n"
+  "movq  %r8, "oR8"(%rdi)\n"
+  "movq  %r9, "oR9"(%rdi)\n"
+
+  "movq  (%rsp), %rcx\n"
+  "movq  %rcx, "oRIP"(%rdi)\n"
+  "leaq  8(%rsp), %rcx\n"   /* Exclude the return address.  */
+  "movq  %rcx, "oRSP"(%rdi)\n"
+
+#if 0
+  /* We have separate floating-point register content memory on the
+     stack.  We use the __fpregs_mem block in the context.  Set the
+     links up correctly.  */
+  "leaq  "oFPREGSMEM"(%rdi), %rcx"
+  "movq  %rcx, "oFPREGS"(%rdi)"
+
+  /* Save the floating-point environment.  */
+  "fnstenv (%rcx)"
+  "stmxcsr "oMXCSR"(%rdi)"
+
+  /* Restore the floating-point context.  Not the registers, only the
+     rest.  */
+  "movq  "oFPREGS"(%rsi), %rcx"
+  "fldenv  (%rcx)"
+  "ldmxcsr" oMXCSR"(%rsi)"
+#endif
+
+  /* Load the new stack pointer and the preserved registers.  */
+  "movq  "oRSP"(%rsi), %rsp\n"
+  "movq  "oRBX"(%rsi), %rbx\n"
+  "movq  "oRBP"(%rsi), %rbp\n"
+  "movq  "oR12"(%rsi), %r12\n"
+  "movq  "oR13"(%rsi), %r13\n"
+  "movq  "oR14"(%rsi), %r14\n"
+  "movq  "oR15"(%rsi), %r15\n"
+
+  /* The following ret should return to the address set with
+  getcontext.  Therefore push the address on the stack.  */
+  "movq  "oRIP"(%rsi), %rcx\n"
+  "pushq %rcx\n"
+
+  /* Setup registers used for passing args.  */
+  "movq  "oRDI"(%rsi), %rdi\n"
+  "movq  "oRDX"(%rsi), %rdx\n"
+  "movq  "oRCX"(%rsi), %rcx\n"
+  "movq  "oR8"(%rsi), %r8\n"
+  "movq  "oR9"(%rsi), %r9\n"
+
+  /* Setup finally  %rsi.  */
+  "movq  "oRSI"(%rsi), %rsi\n"
+
+  /* Clear rax to indicate success.  */
+  "xorl  %eax, %eax\n"
+
+  "ret\n"
+);
+}
+#endif
 
 static struct task *get_task(struct partition *p, int tid)
 {
@@ -102,63 +185,100 @@ void unblock_fn(int s, int tid)
   }
 }
 
+struct hash_query *get_next_query(struct hash_table *hash_table, int s, 
+    struct task *ctask)
+{
+  short idx = ctask->qidx;
+  struct partition *p = &hash_table->partitions[s];
+  struct hash_query *target_query = NULL;
+
+  assert(idx < NQUERIES_PER_TASK);
+
+  do {
+    struct hash_query *next_query = &ctask->queries[idx];
+
+    switch(next_query->state) {
+      case HASH_QUERY_EMPTY:
+      case HASH_QUERY_COMMITTED:
+        if (p->q_idx < niters) {
+          // we have txn left to run. get a fresh one and issue it
+          g_benchmark->get_next_query(hash_table, s, next_query);
+          target_query = next_query;
+        } else {
+          // we are done with all txns. only remaining aborted ones left.
+          assert(p->q_idx == niters);
+        }
+
+        break;        
+      case HASH_QUERY_ABORTED:
+        /* this query aborted previously and we must have cycled back
+         * issue this
+         */
+        target_query = next_query;
+        break;
+
+      default:
+        assert(0);
+    }
+
+    idx = (++idx) % NQUERIES_PER_TASK;
+
+  } while (idx != ctask->qidx && target_query == NULL);
+
+  ctask->qidx = idx;
+
+  return target_query;
+}
+
 void child_fn(int s, int tid)
 {
-  int r;
+  int r, ntxn;
   struct partition *p = &hash_table->partitions[s];
   struct task *self = p->current_task;
   assert(self && self->s == s);
 
-  struct hash_query *query = self->query;
+  struct hash_query *next_query = get_next_query(hash_table, s, self);
 
-  while (1) {
-    uint64_t q_idx = p->q_idx;
+  while (next_query) {
 
-    if (q_idx == niters)
-      break;
+    dprint("srv(%d): task %d issuing txn \n", s, self->tid);
 
-    g_benchmark->get_next_query(hash_table, s, query);
-
-    dprint("srv(%d): task %d issuing txn %d \n", s, self->tid, q_idx);
-
-    r = TXN_COMMIT;
-
-    do {
 #if ENABLE_OP_BATCHING
-      r = run_batch_txn(hash_table, self->s, query, self, r);
+    r = run_batch_txn(hash_table, self->s, next_query, self, r);
 #else
-      r = g_benchmark->run_txn(hash_table, self->s, query, self, r);
+    r = g_benchmark->run_txn(hash_table, self->s, next_query, self, r);
 #endif
-      if (r == TXN_ABORT) {
-        dprint("srv(%d):txn %d aborted\n", s, q_idx);
-        task_yield(p, TASK_STATE_READY);
-        dprint("srv(%d): rerunning aborted txn %d\n", s, q_idx);
-      }
 
-    } while (r == TXN_ABORT);
-
-    assert(q_idx <= niters);
+    if (r == TXN_ABORT) {
+      next_query->state = HASH_QUERY_ABORTED;
+      dprint("srv(%d):task %d txn aborted\n", s, self->tid);
+      task_yield(p, TASK_STATE_READY);
+      dprint("srv(%d): task %d rerunning aborted txn\n", s, self->tid);
+    } else {
+      next_query->state = HASH_QUERY_COMMITTED;
+      p->ncommits++;
+    }
 
     // After each txn, call process request
     if (dist_threshold != 100)
       process_requests(hash_table, s);
 
 #if PRINT_PROGRESS
-    if (q_idx % 100000 == 0) {
+    if (p->q_idx % 100000 == 0) {
       printf("srv(%d): task %d finished %s(%" PRId64 " of %d)"
           " on key %" PRId64 "\n", 
           s, 
           self->tid, 
-          query->ops[0].optype == OPTYPE_LOOKUP ? "lookup":"update", 
-          q_idx, niters,
-          query->ops[0].key);
+          next_query->ops[0].optype == OPTYPE_LOOKUP ? "lookup":"update", 
+          p->q_idx, niters,
+          next_query->ops[0].key);
     }
-
 #endif
 
+    next_query = get_next_query(hash_table, s, self);
   }
 
-  free(query);
+  //free(query);
 
   task_destroy(self, p);
 }
@@ -198,7 +318,11 @@ void init_task(struct task *t, int tid, void (*fn)(), ucontext_t *next_ctx,
   t->ctx.uc_stack.ss_size = TASK_STACK_SIZE;
   t->ctx.uc_link = next_ctx;
   t->s = s;
-  t->query = memalign(CACHELINE, sizeof(struct hash_query));
+  for (int i = 0; i < NQUERIES_PER_TASK; i++) {
+    t->queries[i].state = HASH_QUERY_EMPTY;
+    t->qidx = 0;
+  }
+
   makecontext(&t->ctx, fn, 2, s, t);
 }
 
@@ -325,83 +449,4 @@ void task_unblock(struct task *t)
   TAILQ_INSERT_TAIL(&p->ready_list, t, next);
 }
 
-void lightweight_swapcontext(ucontext_t *out, ucontext_t *in)
-{
 
-__asm__(
-#if defined(__x86_64__)
-    // Good
-#else
-#error "Invalid architecture"
-#endif
-
-  /* Save the preserved registers, the registers used for passing args,
-     and the return address.  */
-  "popq %rbp\n"
-  "movq  %rbx, "oRBX"(%rdi)\n"
-  "movq  %rbp, "oRBP"(%rdi)\n"
-  "movq  %r12, "oR12"(%rdi)\n"
-  "movq  %r13, "oR13"(%rdi)\n"
-  "movq  %r14, "oR14"(%rdi)\n"
-  "movq  %r15, "oR15"(%rdi)\n"
-
-  "movq  %rdi, "oRDI"(%rdi)\n"
-  "movq  %rsi, "oRSI"(%rdi)\n"
-  "movq  %rdx, "oRDX"(%rdi)\n"
-  "movq  %rcx, "oRCX"(%rdi)\n"
-  "movq  %r8, "oR8"(%rdi)\n"
-  "movq  %r9, "oR9"(%rdi)\n"
-
-  "movq  (%rsp), %rcx\n"
-  "movq  %rcx, "oRIP"(%rdi)\n"
-  "leaq  8(%rsp), %rcx\n"   /* Exclude the return address.  */
-  "movq  %rcx, "oRSP"(%rdi)\n"
-
-#if 0
-  /* We have separate floating-point register content memory on the
-     stack.  We use the __fpregs_mem block in the context.  Set the
-     links up correctly.  */
-  "leaq  "oFPREGSMEM"(%rdi), %rcx"
-  "movq  %rcx, "oFPREGS"(%rdi)"
-
-  /* Save the floating-point environment.  */
-  "fnstenv (%rcx)"
-  "stmxcsr "oMXCSR"(%rdi)"
-
-  /* Restore the floating-point context.  Not the registers, only the
-     rest.  */
-  "movq  "oFPREGS"(%rsi), %rcx"
-  "fldenv  (%rcx)"
-  "ldmxcsr" oMXCSR"(%rsi)"
-#endif
-
-  /* Load the new stack pointer and the preserved registers.  */
-  "movq  "oRSP"(%rsi), %rsp\n"
-  "movq  "oRBX"(%rsi), %rbx\n"
-  "movq  "oRBP"(%rsi), %rbp\n"
-  "movq  "oR12"(%rsi), %r12\n"
-  "movq  "oR13"(%rsi), %r13\n"
-  "movq  "oR14"(%rsi), %r14\n"
-  "movq  "oR15"(%rsi), %r15\n"
-
-  /* The following ret should return to the address set with
-  getcontext.  Therefore push the address on the stack.  */
-  "movq  "oRIP"(%rsi), %rcx\n"
-  "pushq %rcx\n"
-
-  /* Setup registers used for passing args.  */
-  "movq  "oRDI"(%rsi), %rdi\n"
-  "movq  "oRDX"(%rsi), %rdx\n"
-  "movq  "oRCX"(%rsi), %rcx\n"
-  "movq  "oR8"(%rsi), %r8\n"
-  "movq  "oR9"(%rsi), %r9\n"
-
-  /* Setup finally  %rsi.  */
-  "movq  "oRSI"(%rsi), %rsi\n"
-
-  /* Clear rax to indicate success.  */
-  "xorl  %eax, %eax\n"
-
-  "ret\n"
-);
-}

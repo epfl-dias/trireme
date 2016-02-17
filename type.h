@@ -4,11 +4,6 @@
 #include <sys/queue.h>
 #include <inttypes.h>
 
-/**
- * hash_key - Hash table key type
- */
-typedef uint64_t hash_key;
-
 /* lock used to implement 2pl wait die */
 struct lock_entry {
   short task_id;
@@ -172,7 +167,8 @@ struct task {
   ucontext_t ctx;
   int s;
   struct txn_ctx txn_ctx;
-  struct hash_query *query;
+  struct hash_query queries[NQUERIES_PER_TASK];
+  short qidx;
   short npending;
   uint64_t received_responses[MAX_OPS_PER_QUERY];
   short nresponses;
@@ -198,6 +194,7 @@ struct partition {
 
   // stats
   int ninserts;
+  int ncommits;
   int nlookups_local;
   int nupdates_local;
   int naborts_local;

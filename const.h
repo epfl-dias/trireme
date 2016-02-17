@@ -28,6 +28,8 @@
 /* max ops per query is limited by hashop_opid_mask */
 #define MAX_OPS_PER_QUERY 255
 
+#define NQUERIES_PER_TASK 256
+
 #define MAX_TUPLE_TYPES 32
 
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)

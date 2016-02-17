@@ -14,6 +14,11 @@ enum optype {
   OPTYPE_PLOCK_RELEASE = 4,
 };
 
+/**
+ * hash_key - Hash table key type
+ */
+typedef uint64_t hash_key;
+
 struct hash_op {
   uint32_t optype;
   uint32_t size;
@@ -36,5 +41,13 @@ struct hash_op {
 struct hash_query {
   struct hash_op ops[MAX_OPS_PER_QUERY];
   short nops;
+  char state;
 };
+
+enum query_state {
+  HASH_QUERY_EMPTY, 
+  HASH_QUERY_COMMITTED, 
+  HASH_QUERY_ABORTED
+};
+
 #endif

@@ -14,6 +14,7 @@
 
 #include <ucontext.h>
 #include "const.h"
+#include "hashprotocol.h"
 #include "util.h"
 #include "type.h"
 #include "task.h"

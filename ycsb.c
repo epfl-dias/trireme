@@ -147,8 +147,8 @@ int main(int argc, char *argv[])
   }
 
   // set benchmark to micro for now
-  g_benchmark = &tpcc_bench;
-  //g_benchmark = &micro_bench;
+  //g_benchmark = &tpcc_bench;
+  g_benchmark = &micro_bench;
   run_benchmark();
   return 0;
 }
@@ -314,6 +314,8 @@ void run_benchmark()
   free(lthreads);
   free(cdata);
 #endif
+
+  assert(stats_get_ncommits(hash_table) == niters * nservers);
 
   printf("== results ==\n");
   printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));

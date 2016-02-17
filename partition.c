@@ -23,6 +23,7 @@ void init_hash_partition(struct partition *p, size_t nrecs,
 
   p->q_idx = 0;
   p->ninserts = 0;
+  p->ncommits = 0;
   p->nlookups_local = 0;
   p->nupdates_local = 0;
   p->naborts_local = 0;

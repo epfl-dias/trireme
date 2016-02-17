@@ -1515,6 +1515,22 @@ void stats_reset(struct hash_table *hash_table)
   }
 }
 
+int stats_get_ncommits(struct hash_table *hash_table)
+{
+  int ncommits = 0;
+  for (int i = 0; i < hash_table->nservers; i++) {
+    printf("srv %d commits %d\n", i, 
+      hash_table->partitions[i].ncommits);
+
+    ncommits += hash_table->partitions[i].ncommits;
+  }
+
+  printf("total commits %d\n", ncommits);
+
+  return ncommits;
+
+}
+
 int stats_get_nlookups(struct hash_table *hash_table)
 {
   int nlookups = 0;
