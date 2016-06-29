@@ -43,8 +43,6 @@
 #define LOCK_WAIT 2
 #define LOCK_INVALID 3
 
-#define NREMOTE_OPS 2
-
 /** 
  * Hash Table Operations
  */

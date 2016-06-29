@@ -5,6 +5,7 @@
 #include "twopl.h"
 
 extern int ops_per_txn;
+extern int nremote_ops;
 extern int batch_size;
 extern int niters;
 extern int dist_threshold;
@@ -233,7 +234,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
     do {
       // only first NREMOTE_OPS are remote in cross-partition txns
-      if (is_local || i >= NREMOTE_OPS) {
+      if (is_local || i >= nremote_ops) {
       //if (is_local || i >= nhot_recs) {
 #if SHARED_EVERYTHING
         se_make_operation(hash_table, s, op, 1);

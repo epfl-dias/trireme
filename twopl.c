@@ -33,7 +33,8 @@ int wait_die_check_acquire(int s, struct partition *p,
      */
     int wait = 1;
     LIST_FOREACH(l, &e->owners, next) {
-      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c))) {
+      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c)) || 
+          ((l->ts == req_ts) && (l->s == c) && (l->task_id < tid))) {
         wait = 0;
         break;
       }

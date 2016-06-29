@@ -1,0 +1,3258 @@
+./ycsb -s 1 -d 100 -b 1 -i 10000000 -o 10 -t 1000000 -w 100
+ # clients:    1
+ # servers:    1
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 1000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+srv 0 load time 0.073
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 0 query time 21.558
+srv 0 quitting 
+srv 0 commits 10000000
+total commits 10000000
+== results ==
+Server 0: 0.463869000M TPS
+Total tps: 0.463869000M
+./ycsb -s 1 -d 100 -b 1 -i 10000000 -o 10 -t 1000000 -w 100
+ # clients:    1
+ # servers:    1
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 1000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+srv 0 load time 0.081
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 0 query time 21.524
+srv 0 quitting 
+srv 0 commits 10000000
+total commits 10000000
+== results ==
+Server 0: 0.464603000M TPS
+Total tps: 0.464603000M
+./ycsb -s 1 -d 100 -b 1 -i 10000000 -o 10 -t 1000000 -w 100
+ # clients:    1
+ # servers:    1
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 1000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+srv 0 load time 0.074
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 0 query time 21.587
+srv 0 quitting 
+srv 0 commits 10000000
+total commits 10000000
+== results ==
+Server 0: 0.463251000M TPS
+Total tps: 0.463251000M
+./ycsb -s 2 -d 100 -b 1 -i 10000000 -o 10 -t 2000000 -w 100
+ # clients:    1
+ # servers:    2
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 2000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+srv 0 load time 0.075
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.086
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 starting txns
+srv 0 starting txns
+srv 0 query time 23.676
+srv 1 query time 23.863
+srv 0 quitting 
+srv 1 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+total commits 20000000
+== results ==
+Server 0: 0.422370000M TPS
+Server 1: 0.419062000M TPS
+Total tps: 0.841432000M
+./ycsb -s 2 -d 100 -b 1 -i 10000000 -o 10 -t 2000000 -w 100
+ # clients:    1
+ # servers:    2
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 2000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+srv 0 load time 0.075
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.086
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 starting txns
+srv 0 starting txns
+srv 0 query time 23.689
+srv 1 query time 23.921
+srv 1 quitting 
+srv 0 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+total commits 20000000
+== results ==
+Server 0: 0.422133000M TPS
+Server 1: 0.418040000M TPS
+Total tps: 0.840173000M
+./ycsb -s 2 -d 100 -b 1 -i 10000000 -o 10 -t 2000000 -w 100
+ # clients:    1
+ # servers:    2
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 2000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+srv 0 load time 0.075
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.086
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 starting txns
+srv 0 starting txns
+srv 0 query time 23.733
+srv 1 query time 23.817
+srv 1 quitting 
+srv 0 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+total commits 20000000
+== results ==
+Server 0: 0.421356000M TPS
+Server 1: 0.419870000M TPS
+Total tps: 0.841226000M
+./ycsb -s 4 -d 100 -b 1 -i 10000000 -o 10 -t 4000000 -w 100
+ # clients:    1
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 4000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+srv 3 load time 0.091
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.091
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.091
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.091
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 starting txns
+srv 0 starting txns
+srv 3 starting txns
+srv 1 starting txns
+srv 3 query time 24.499
+srv 2 query time 24.640
+srv 0 query time 24.769
+srv 1 query time 24.904
+srv 1 quitting 
+srv 0 quitting 
+srv 3 quitting 
+srv 2 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+total commits 40000000
+== results ==
+Server 0: 0.403726000M TPS
+Server 1: 0.401534000M TPS
+Server 2: 0.405840000M TPS
+Server 3: 0.408179000M TPS
+Total tps: 1.619279000M
+./ycsb -s 4 -d 100 -b 1 -i 10000000 -o 10 -t 4000000 -w 100
+ # clients:    1
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 4000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+srv 3 load time 0.080
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.080
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.082
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.083
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 3 starting txns
+srv 3 query time 24.568
+srv 2 query time 24.626
+srv 0 query time 24.687
+srv 1 query time 24.928
+srv 1 quitting 
+srv 3 quitting 
+srv 2 quitting 
+srv 0 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+total commits 40000000
+== results ==
+Server 0: 0.405067000M TPS
+Server 1: 0.401150000M TPS
+Server 2: 0.406080000M TPS
+Server 3: 0.407039000M TPS
+Total tps: 1.619336000M
+./ycsb -s 4 -d 100 -b 1 -i 10000000 -o 10 -t 4000000 -w 100
+ # clients:    1
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 4000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+srv 2 load time 0.079
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.081
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.082
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.091
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 0 starting txns
+srv 2 query time 24.521
+srv 3 query time 24.549
+srv 0 query time 24.797
+srv 1 query time 24.888
+srv 1 quitting 
+srv 2 quitting 
+srv 0 quitting 
+srv 3 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+total commits 40000000
+== results ==
+Server 0: 0.403275000M TPS
+Server 1: 0.401802000M TPS
+Server 2: 0.407811000M TPS
+Server 3: 0.407347000M TPS
+Total tps: 1.620235000M
+./ycsb -s 8 -d 100 -b 1 -i 10000000 -o 10 -t 8000000 -w 100
+ # clients:    1
+ # servers:    8
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 8000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+srv 5 load time 0.105
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.106
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.107
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.107
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.108
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.110
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.112
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.112
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 starting txns
+srv 7 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 3 starting txns
+srv 0 starting txns
+srv 5 starting txns
+srv 4 starting txns
+srv 4 query time 24.917
+srv 7 query time 24.980
+srv 0 query time 25.029
+srv 2 query time 25.071
+srv 3 query time 25.104
+srv 6 query time 25.193
+srv 1 query time 25.349
+srv 5 query time 25.448
+srv 5 quitting 
+srv 0 quitting 
+srv 2 quitting 
+srv 3 quitting 
+srv 6 quitting 
+srv 1 quitting 
+srv 7 quitting 
+srv 4 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+total commits 80000000
+== results ==
+Server 0: 0.399532000M TPS
+Server 1: 0.394494000M TPS
+Server 2: 0.398874000M TPS
+Server 3: 0.398342000M TPS
+Server 4: 0.401333000M TPS
+Server 5: 0.392953000M TPS
+Server 6: 0.396942000M TPS
+Server 7: 0.400323000M TPS
+Total tps: 3.182793000M
+./ycsb -s 8 -d 100 -b 1 -i 10000000 -o 10 -t 8000000 -w 100
+ # clients:    1
+ # servers:    8
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 8000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+srv 3 load time 0.098
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.100
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.103
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.104
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.104
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.105
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.112
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.112
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 starting txns
+srv 1 starting txns
+srv 7 starting txns
+srv 0 starting txns
+srv 2 starting txns
+srv 3 starting txns
+srv 5 starting txns
+srv 4 starting txns
+srv 7 query time 24.909
+srv 4 query time 24.955
+srv 2 query time 25.054
+srv 0 query time 25.103
+srv 6 query time 25.159
+srv 3 query time 25.159
+srv 1 query time 25.259
+srv 5 query time 25.414
+srv 5 quitting 
+srv 3 quitting 
+srv 0 quitting 
+srv 1 quitting 
+srv 6 quitting 
+srv 7 quitting 
+srv 2 quitting 
+srv 4 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+total commits 80000000
+== results ==
+Server 0: 0.398354000M TPS
+Server 1: 0.395903000M TPS
+Server 2: 0.399142000M TPS
+Server 3: 0.397465000M TPS
+Server 4: 0.400713000M TPS
+Server 5: 0.393481000M TPS
+Server 6: 0.397476000M TPS
+Server 7: 0.401459000M TPS
+Total tps: 3.183993000M
+./ycsb -s 8 -d 100 -b 1 -i 10000000 -o 10 -t 8000000 -w 100
+ # clients:    1
+ # servers:    8
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 8000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+srv 3 load time 0.105
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.107
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.107
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.108
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.107
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.108
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.106
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.112
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 starting txns
+srv 1 starting txns
+srv 3 starting txns
+srv 6 starting txns
+srv 2 starting txns
+srv 5 starting txns
+srv 0 starting txns
+srv 7 starting txns
+srv 7 query time 24.957
+srv 4 query time 24.970
+srv 2 query time 25.025
+srv 0 query time 25.039
+srv 3 query time 25.076
+srv 1 query time 25.194
+srv 6 query time 25.214
+srv 5 query time 25.334
+srv 5 quitting 
+srv 0 quitting 
+srv 6 quitting 
+srv 4 quitting 
+srv 3 quitting 
+srv 1 quitting 
+srv 7 quitting 
+srv 2 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+total commits 80000000
+== results ==
+Server 0: 0.399371000M TPS
+Server 1: 0.396915000M TPS
+Server 2: 0.399595000M TPS
+Server 3: 0.398792000M TPS
+Server 4: 0.400486000M TPS
+Server 5: 0.394721000M TPS
+Server 6: 0.396611000M TPS
+Server 7: 0.400695000M TPS
+Total tps: 3.187186000M
+./ycsb -s 16 -d 100 -b 1 -i 10000000 -o 10 -t 16000000 -w 100
+ # clients:    1
+ # servers:    16
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 16000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+srv 1 load time 0.179
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.181
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.185
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.186
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.186
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.187
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.187
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.188
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.186
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.191
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.185
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.188
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.187
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.191
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.196
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.195
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 starting txns
+srv 13 starting txns
+srv 14 starting txns
+srv 3 starting txns
+srv 4 starting txns
+srv 9 starting txns
+srv 8 starting txns
+srv 5 starting txns
+srv 11 starting txns
+srv 1 starting txns
+srv 7 starting txns
+srv 0 starting txns
+srv 6 starting txns
+srv 12 starting txns
+srv 2 starting txns
+srv 10 starting txns
+srv 4 query time 25.454
+srv 14 query time 25.674
+srv 7 query time 25.749
+srv 2 query time 25.781
+srv 3 query time 25.783
+srv 13 query time 25.846
+srv 6 query time 25.870
+srv 5 query time 25.938
+srv 9 query time 26.001
+srv 8 query time 26.005
+srv 10 query time 26.022
+srv 15 query time 26.037
+srv 0 query time 26.146
+srv 12 query time 26.194
+srv 1 query time 26.317
+srv 11 query time 26.331
+srv 11 quitting 
+srv 0 quitting 
+srv 8 quitting 
+srv 14 quitting 
+srv 5 quitting 
+srv 1 quitting 
+srv 13 quitting 
+srv 4 quitting 
+srv 2 quitting 
+srv 7 quitting 
+srv 12 quitting 
+srv 15 quitting 
+srv 9 quitting 
+srv 10 quitting 
+srv 6 quitting 
+srv 3 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+total commits 160000000
+== results ==
+Server 0: 0.382473000M TPS
+Server 1: 0.379977000M TPS
+Server 2: 0.387878000M TPS
+Server 3: 0.387848000M TPS
+Server 4: 0.392860000M TPS
+Server 5: 0.385534000M TPS
+Server 6: 0.386544000M TPS
+Server 7: 0.388366000M TPS
+Server 8: 0.384547000M TPS
+Server 9: 0.384599000M TPS
+Server 10: 0.384289000M TPS
+Server 11: 0.379785000M TPS
+Server 12: 0.381765000M TPS
+Server 13: 0.386914000M TPS
+Server 14: 0.389495000M TPS
+Server 15: 0.384072000M TPS
+Total tps: 6.166946000M
+./ycsb -s 16 -d 100 -b 1 -i 10000000 -o 10 -t 16000000 -w 100
+ # clients:    1
+ # servers:    16
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 16000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+srv 9 load time 0.180
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.189
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.191
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.188
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.187
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.184
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.195
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.187
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.194
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.197
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.197
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.184
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.197
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.188
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.197
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.200
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 starting txns
+srv 7 starting txns
+srv 14 starting txns
+srv 0 starting txns
+srv 10 starting txns
+srv 9 starting txns
+srv 5 starting txns
+srv 12 starting txns
+srv 4 starting txns
+srv 3 starting txns
+srv 2 starting txns
+srv 11 starting txns
+srv 13 starting txns
+srv 1 starting txns
+srv 8 starting txns
+srv 15 starting txns
+srv 4 query time 25.500
+srv 14 query time 25.623
+srv 3 query time 25.642
+srv 7 query time 25.669
+srv 13 query time 25.801
+srv 2 query time 25.804
+srv 5 query time 25.891
+srv 9 query time 25.926
+srv 8 query time 25.951
+srv 6 query time 25.978
+srv 10 query time 25.988
+srv 15 query time 26.071
+srv 0 query time 26.118
+srv 12 query time 26.165
+srv 11 query time 26.255
+srv 1 query time 26.375
+srv 1 quitting 
+srv 12 quitting 
+srv 15 quitting 
+srv 4 quitting 
+srv 13 quitting 
+srv 6 quitting 
+srv 7 quitting 
+srv 5 quitting 
+srv 8 quitting 
+srv 11 quitting 
+srv 14 quitting 
+srv 9 quitting 
+srv 0 quitting 
+srv 3 quitting 
+srv 10 quitting 
+srv 2 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+total commits 160000000
+== results ==
+Server 0: 0.382879000M TPS
+Server 1: 0.379146000M TPS
+Server 2: 0.387540000M TPS
+Server 3: 0.389989000M TPS
+Server 4: 0.392155000M TPS
+Server 5: 0.386237000M TPS
+Server 6: 0.384936000M TPS
+Server 7: 0.389573000M TPS
+Server 8: 0.385337000M TPS
+Server 9: 0.385715000M TPS
+Server 10: 0.384786000M TPS
+Server 11: 0.380880000M TPS
+Server 12: 0.382182000M TPS
+Server 13: 0.387581000M TPS
+Server 14: 0.390269000M TPS
+Server 15: 0.383565000M TPS
+Total tps: 6.172770000M
+./ycsb -s 16 -d 100 -b 1 -i 10000000 -o 10 -t 16000000 -w 100
+ # clients:    1
+ # servers:    16
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 16000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+srv 2 load time 0.186
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.182
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.190
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.191
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.191
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.190
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.184
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.188
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.194
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.191
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.188
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.194
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.191
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.193
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.196
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.193
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 starting txns
+srv 12 starting txns
+srv 6 starting txns
+srv 9 starting txns
+srv 14 starting txns
+srv 4 starting txns
+srv 8 starting txns
+srv 5 starting txns
+srv 2 starting txns
+srv 1 starting txns
+srv 10 starting txns
+srv 3 starting txns
+srv 7 starting txns
+srv 13 starting txns
+srv 11 starting txns
+srv 0 starting txns
+srv 4 query time 25.391
+srv 14 query time 25.605
+srv 3 query time 25.680
+srv 7 query time 25.685
+srv 2 query time 25.819
+srv 10 query time 25.848
+srv 6 query time 25.850
+srv 13 query time 25.886
+srv 8 query time 25.888
+srv 5 query time 25.927
+srv 9 query time 25.938
+srv 0 query time 25.960
+srv 12 query time 26.143
+srv 15 query time 26.158
+srv 1 query time 26.220
+srv 11 query time 26.325
+srv 11 quitting 
+srv 12 quitting 
+srv 4 quitting 
+srv 5 quitting 
+srv 7 quitting 
+srv 13 quitting 
+srv 8 quitting 
+srv 6 quitting 
+srv 3 quitting 
+srv 14 quitting 
+srv 9 quitting 
+srv 1 quitting 
+srv 0 quitting 
+srv 10 quitting 
+srv 15 quitting 
+srv 2 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+total commits 160000000
+== results ==
+Server 0: 0.385215000M TPS
+Server 1: 0.381381000M TPS
+Server 2: 0.387307000M TPS
+Server 3: 0.389413000M TPS
+Server 4: 0.393843000M TPS
+Server 5: 0.385693000M TPS
+Server 6: 0.386848000M TPS
+Server 7: 0.389327000M TPS
+Server 8: 0.386280000M TPS
+Server 9: 0.385531000M TPS
+Server 10: 0.386884000M TPS
+Server 11: 0.379867000M TPS
+Server 12: 0.382510000M TPS
+Server 13: 0.386303000M TPS
+Server 14: 0.390551000M TPS
+Server 15: 0.382294000M TPS
+Total tps: 6.179247000M
+./ycsb -s 32 -d 100 -b 1 -i 10000000 -o 10 -t 32000000 -w 100
+ # clients:    1
+ # servers:    32
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 32000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+srv 10 load time 0.250
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.254
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.274
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.276
+srv 20 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.307
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.310
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.302
+srv 16 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.314
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.316
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.317
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.320
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.310
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.320
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.284
+srv 27 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 load time 0.304
+srv 19 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.294
+srv 24 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.277
+srv 30 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 23 load time 0.298
+srv 23 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.301
+srv 22 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.291
+srv 26 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.310
+srv 18 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.323
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.323
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.322
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.318
+srv 17 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.330
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.295
+srv 29 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.326
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.312
+srv 25 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.322
+srv 21 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.306
+srv 28 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.298
+srv 31 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 starting txns
+srv 26 starting txns
+srv 4 starting txns
+srv 20 starting txns
+srv 22 starting txns
+srv 5 starting txns
+srv 29 starting txns
+srv 11 starting txns
+srv 2 starting txns
+srv 10 starting txns
+srv 24 starting txns
+srv 0 starting txns
+srv 1 starting txns
+srv 12 starting txns
+srv 27 starting txns
+srv 7 starting txns
+srv 9 starting txns
+srv 6 starting txns
+srv 25 starting txns
+srv 19 starting txns
+srv 14 starting txns
+srv 23 starting txns
+srv 13 starting txns
+srv 15 starting txns
+srv 21 starting txns
+srv 8 starting txns
+srv 30 starting txns
+srv 17 starting txns
+srv 28 starting txns
+srv 3 starting txns
+srv 16 starting txns
+srv 18 starting txns
+srv 26 query time 25.141
+srv 22 query time 25.252
+srv 20 query time 25.314
+srv 28 query time 25.317
+srv 27 query time 25.350
+srv 18 query time 25.364
+srv 31 query time 25.487
+srv 25 query time 25.536
+srv 19 query time 25.560
+srv 21 query time 25.585
+srv 29 query time 25.845
+srv 23 query time 25.902
+srv 30 query time 26.083
+srv 0 query time 26.154
+srv 8 query time 26.219
+srv 24 query time 26.264
+srv 9 query time 26.290
+srv 14 query time 26.381
+srv 1 query time 26.380
+srv 7 query time 26.471
+srv 17 query time 26.583
+srv 10 query time 26.676
+srv 6 query time 26.716
+srv 15 query time 26.913
+srv 2 query time 27.188
+srv 16 query time 27.376
+srv 4 query time 27.399
+srv 3 query time 27.569
+srv 13 query time 27.603
+srv 11 query time 27.652
+srv 5 query time 27.792
+srv 12 query time 27.808
+srv 12 quitting 
+srv 14 quitting 
+srv 23 quitting 
+srv 18 quitting 
+srv 19 quitting 
+srv 5 quitting 
+srv 17 quitting 
+srv 13 quitting 
+srv 4 quitting 
+srv 29 quitting 
+srv 28 quitting 
+srv 25 quitting 
+srv 30 quitting 
+srv 3 quitting 
+srv 15 quitting 
+srv 8 quitting 
+srv 1 quitting 
+srv 26 quitting 
+srv 20 quitting 
+srv 22 quitting 
+srv 0 quitting 
+srv 16 quitting 
+srv 7 quitting 
+srv 9 quitting 
+srv 27 quitting 
+srv 24 quitting 
+srv 31 quitting 
+srv 6 quitting 
+srv 21 quitting 
+srv 10 quitting 
+srv 11 quitting 
+srv 2 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+total commits 320000000
+== results ==
+Server 0: 0.382347000M TPS
+Server 1: 0.379070000M TPS
+Server 2: 0.367807000M TPS
+Server 3: 0.362731000M TPS
+Server 4: 0.364975000M TPS
+Server 5: 0.359815000M TPS
+Server 6: 0.374308000M TPS
+Server 7: 0.377773000M TPS
+Server 8: 0.381402000M TPS
+Server 9: 0.380366000M TPS
+Server 10: 0.374864000M TPS
+Server 11: 0.361631000M TPS
+Server 12: 0.359607000M TPS
+Server 13: 0.362282000M TPS
+Server 14: 0.379067000M TPS
+Server 15: 0.371567000M TPS
+Server 16: 0.365278000M TPS
+Server 17: 0.376175000M TPS
+Server 18: 0.394263000M TPS
+Server 19: 0.391236000M TPS
+Server 20: 0.395035000M TPS
+Server 21: 0.390855000M TPS
+Server 22: 0.396011000M TPS
+Server 23: 0.386075000M TPS
+Server 24: 0.380753000M TPS
+Server 25: 0.391607000M TPS
+Server 26: 0.397763000M TPS
+Server 27: 0.394480000M TPS
+Server 28: 0.394991000M TPS
+Server 29: 0.386915000M TPS
+Server 30: 0.383388000M TPS
+Server 31: 0.392356000M TPS
+Total tps: 12.156793000M
+./ycsb -s 32 -d 100 -b 1 -i 10000000 -o 10 -t 32000000 -w 100
+ # clients:    1
+ # servers:    32
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 32000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+srv 3 load time 0.248
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.249
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.271
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.284
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.285
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.279
+srv 20 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.301
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.308
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.311
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.324
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.322
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.307
+srv 21 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.328
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.296
+srv 26 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.331
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.323
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.315
+srv 17 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.317
+srv 16 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 load time 0.311
+srv 19 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.323
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.327
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.296
+srv 27 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.323
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.302
+srv 25 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.294
+srv 29 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 23 load time 0.308
+srv 23 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.310
+srv 22 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.321
+srv 18 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.300
+srv 31 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.317
+srv 24 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.309
+srv 28 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.308
+srv 30 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 starting txns
+srv 14 starting txns
+srv 15 starting txns
+srv 4 starting txns
+srv 16 starting txns
+srv 10 starting txns
+srv 8 starting txns
+srv 19 starting txns
+srv 13 starting txns
+srv 2 starting txns
+srv 29 starting txns
+srv 17 starting txns
+srv 28 starting txns
+srv 22 starting txns
+srv 27 starting txns
+srv 23 starting txns
+srv 1 starting txns
+srv 24 starting txns
+srv 9 starting txns
+srv 0 starting txns
+srv 21 starting txns
+srv 12 starting txns
+srv 3 starting txns
+srv 25 starting txns
+srv 31 starting txns
+srv 26 starting txns
+srv 6 starting txns
+srv 20 starting txns
+srv 5 starting txns
+srv 7 starting txns
+srv 11 starting txns
+srv 18 starting txns
+srv 26 query time 25.044
+srv 27 query time 25.102
+srv 21 query time 25.207
+srv 20 query time 25.302
+srv 22 query time 25.329
+srv 18 query time 25.341
+srv 28 query time 25.346
+srv 25 query time 25.577
+srv 30 query time 25.611
+srv 31 query time 25.615
+srv 19 query time 25.643
+srv 23 query time 25.721
+srv 29 query time 25.850
+srv 0 query time 26.004
+srv 24 query time 26.047
+srv 14 query time 26.254
+srv 8 query time 26.409
+srv 1 query time 26.480
+srv 9 query time 26.580
+srv 6 query time 26.708
+srv 17 query time 26.709
+srv 10 query time 26.766
+srv 7 query time 26.780
+srv 15 query time 26.812
+srv 16 query time 26.823
+srv 2 query time 26.824
+srv 4 query time 27.171
+srv 3 query time 27.336
+srv 11 query time 27.480
+srv 5 query time 27.501
+srv 12 query time 27.838
+srv 13 query time 27.843
+srv 12 quitting 
+srv 13 quitting 
+srv 26 quitting 
+srv 0 quitting 
+srv 30 quitting 
+srv 28 quitting 
+srv 19 quitting 
+srv 27 quitting 
+srv 20 quitting 
+srv 11 quitting 
+srv 22 quitting 
+srv 18 quitting 
+srv 25 quitting 
+srv 24 quitting 
+srv 29 quitting 
+srv 23 quitting 
+srv 31 quitting 
+srv 10 quitting 
+srv 6 quitting 
+srv 5 quitting 
+srv 2 quitting 
+srv 21 quitting 
+srv 7 quitting 
+srv 1 quitting 
+srv 17 quitting 
+srv 8 quitting 
+srv 15 quitting 
+srv 4 quitting 
+srv 3 quitting 
+srv 14 quitting 
+srv 16 quitting 
+srv 9 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+total commits 320000000
+== results ==
+Server 0: 0.384554000M TPS
+Server 1: 0.377642000M TPS
+Server 2: 0.372797000M TPS
+Server 3: 0.365812000M TPS
+Server 4: 0.368043000M TPS
+Server 5: 0.363621000M TPS
+Server 6: 0.374425000M TPS
+Server 7: 0.373414000M TPS
+Server 8: 0.378657000M TPS
+Server 9: 0.376225000M TPS
+Server 10: 0.373601000M TPS
+Server 11: 0.363900000M TPS
+Server 12: 0.359222000M TPS
+Server 13: 0.359155000M TPS
+Server 14: 0.380899000M TPS
+Server 15: 0.372965000M TPS
+Server 16: 0.372817000M TPS
+Server 17: 0.374412000M TPS
+Server 18: 0.394613000M TPS
+Server 19: 0.389963000M TPS
+Server 20: 0.395229000M TPS
+Server 21: 0.396712000M TPS
+Server 22: 0.394807000M TPS
+Server 23: 0.388790000M TPS
+Server 24: 0.383924000M TPS
+Server 25: 0.390978000M TPS
+Server 26: 0.399299000M TPS
+Server 27: 0.398380000M TPS
+Server 28: 0.394540000M TPS
+Server 29: 0.386849000M TPS
+Server 30: 0.390457000M TPS
+Server 31: 0.390399000M TPS
+Total tps: 12.187101000M
+./ycsb -s 32 -d 100 -b 1 -i 10000000 -o 10 -t 32000000 -w 100
+ # clients:    1
+ # servers:    32
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 32000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+srv 2 load time 0.222
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.207
+srv 21 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.216
+srv 20 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 23 load time 0.220
+srv 23 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.246
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.224
+srv 22 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.249
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.249
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.251
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.224
+srv 27 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.230
+srv 25 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.223
+srv 28 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 load time 0.243
+srv 19 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.222
+srv 29 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.234
+srv 24 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.218
+srv 31 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.220
+srv 30 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.236
+srv 26 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.272
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.258
+srv 18 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.274
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.275
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.276
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.274
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.265
+srv 16 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.277
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.271
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.270
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.281
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.277
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.269
+srv 17 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.274
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 starting txns
+srv 17 starting txns
+srv 14 starting txns
+srv 6 starting txns
+srv 29 starting txns
+srv 23 starting txns
+srv 12 starting txns
+srv 28 starting txns
+srv 22 starting txns
+srv 3 starting txns
+srv 16 starting txns
+srv 8 starting txns
+srv 5 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 10 starting txns
+srv 31 starting txns
+srv 19 starting txns
+srv 25 starting txns
+srv 21 starting txns
+srv 27 starting txns
+srv 7 starting txns
+srv 0 starting txns
+srv 18 starting txns
+srv 26 starting txns
+srv 20 starting txns
+srv 9 starting txns
+srv 4 starting txns
+srv 11 starting txns
+srv 24 starting txns
+srv 13 starting txns
+srv 30 starting txns
+srv 31 query time 25.953
+srv 0 query time 26.091
+srv 1 query time 26.120
+srv 9 query time 26.185
+srv 20 query time 26.245
+srv 22 query time 26.247
+srv 28 query time 26.279
+srv 19 query time 26.302
+srv 27 query time 26.318
+srv 21 query time 26.356
+srv 8 query time 26.445
+srv 18 query time 26.448
+srv 10 query time 26.463
+srv 7 query time 26.470
+srv 3 query time 26.501
+srv 29 query time 26.560
+srv 6 query time 26.648
+srv 26 query time 26.716
+srv 2 query time 26.747
+srv 14 query time 26.772
+srv 30 query time 26.805
+srv 15 query time 26.811
+srv 25 query time 26.842
+srv 16 query time 26.925
+srv 17 query time 27.163
+srv 4 query time 27.198
+srv 13 query time 27.240
+srv 12 query time 27.323
+srv 23 query time 27.366
+srv 11 query time 27.428
+srv 5 query time 27.546
+srv 24 query time 27.579
+srv 5 quitting 
+srv 18 quitting 
+srv 1 quitting 
+srv 7 quitting 
+srv 4 quitting 
+srv 9 quitting 
+srv 3 quitting 
+srv 10 quitting 
+srv 24 quitting 
+srv 23 quitting 
+srv 13 quitting 
+srv 31 quitting 
+srv 20 quitting 
+srv 16 quitting 
+srv 2 quitting 
+srv 6 quitting 
+srv 30 quitting 
+srv 29 quitting 
+srv 21 quitting 
+srv 0 quitting 
+srv 14 quitting 
+srv 26 quitting 
+srv 17 quitting 
+srv 25 quitting 
+srv 28 quitting 
+srv 27 quitting 
+srv 12 quitting 
+srv 8 quitting 
+srv 19 quitting 
+srv 22 quitting 
+srv 15 quitting 
+srv 11 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+total commits 320000000
+== results ==
+Server 0: 0.383266000M TPS
+Server 1: 0.382851000M TPS
+Server 2: 0.373878000M TPS
+Server 3: 0.377349000M TPS
+Server 4: 0.367671000M TPS
+Server 5: 0.363026000M TPS
+Server 6: 0.375262000M TPS
+Server 7: 0.377782000M TPS
+Server 8: 0.378136000M TPS
+Server 9: 0.381903000M TPS
+Server 10: 0.377889000M TPS
+Server 11: 0.364592000M TPS
+Server 12: 0.365998000M TPS
+Server 13: 0.367108000M TPS
+Server 14: 0.373521000M TPS
+Server 15: 0.372983000M TPS
+Server 16: 0.371398000M TPS
+Server 17: 0.368142000M TPS
+Server 18: 0.378096000M TPS
+Server 19: 0.380196000M TPS
+Server 20: 0.381029000M TPS
+Server 21: 0.379426000M TPS
+Server 22: 0.380996000M TPS
+Server 23: 0.365418000M TPS
+Server 24: 0.362591000M TPS
+Server 25: 0.372556000M TPS
+Server 26: 0.374305000M TPS
+Server 27: 0.379960000M TPS
+Server 28: 0.380527000M TPS
+Server 29: 0.376503000M TPS
+Server 30: 0.373070000M TPS
+Server 31: 0.385306000M TPS
+Total tps: 11.992734000M
+./ycsb -s 64 -d 100 -b 1 -i 10000000 -o 10 -t 64000000 -w 100
+ # clients:    1
+ # servers:    64
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 64000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+Assinging core 57 to srv 32
+Assinging core 61 to srv 33
+Assinging core 65 to srv 34
+Assinging core 69 to srv 35
+Assinging core 2 to srv 36
+Assinging core 6 to srv 37
+Assinging core 10 to srv 38
+Assinging core 14 to srv 39
+Assinging core 18 to srv 40
+Assinging core 22 to srv 41
+Assinging core 26 to srv 42
+Assinging core 30 to srv 43
+Assinging core 34 to srv 44
+Assinging core 38 to srv 45
+Assinging core 42 to srv 46
+Assinging core 46 to srv 47
+Assinging core 50 to srv 48
+Assinging core 54 to srv 49
+Assinging core 58 to srv 50
+Assinging core 62 to srv 51
+Assinging core 66 to srv 52
+Assinging core 70 to srv 53
+Assinging core 3 to srv 54
+Assinging core 7 to srv 55
+Assinging core 11 to srv 56
+Assinging core 15 to srv 57
+Assinging core 19 to srv 58
+Assinging core 23 to srv 59
+Assinging core 27 to srv 60
+Assinging core 31 to srv 61
+Assinging core 35 to srv 62
+Assinging core 39 to srv 63
+srv 55 load time 0.258
+srv 55 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 59 load time 0.250
+srv 59 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 54 load time 0.263
+srv 54 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 32 load time 0.370
+srv 32 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.409
+srv 20 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.397
+srv 31 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 37 load time 0.391
+srv 37 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 38 load time 0.394
+srv 38 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 51 load time 0.362
+srv 51 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 56 load time 0.347
+srv 56 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 48 load time 0.375
+srv 48 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 63 load time 0.338
+srv 63 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 60 load time 0.370
+srv 60 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 load time 0.467
+srv 19 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.473
+srv 22 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.465
+srv 28 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.467
+srv 29 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.471
+srv 26 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.474
+srv 25 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 62 load time 0.384
+srv 62 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 58 load time 0.394
+srv 58 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 53 load time 0.418
+srv 53 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 40 load time 0.452
+srv 40 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.492
+srv 30 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 43 load time 0.470
+srv 43 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.514
+srv 24 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 57 load time 0.433
+srv 57 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 61 load time 0.425
+srv 61 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 41 load time 0.481
+srv 41 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.531
+srv 18 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.546
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.559
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 46 load time 0.486
+srv 46 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 45 load time 0.490
+srv 45 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 49 load time 0.483
+srv 49 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.545
+srv 27 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 23 load time 0.551
+srv 23 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.571
+srv 21 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 34 load time 0.546
+srv 34 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 33 load time 0.549
+srv 33 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 35 load time 0.545
+srv 35 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 50 load time 0.508
+srv 50 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 47 load time 0.518
+srv 47 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 39 load time 0.545
+srv 39 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 36 load time 0.554
+srv 36 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 42 load time 0.540
+srv 42 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 52 load time 0.514
+srv 52 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 44 load time 0.536
+srv 44 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.609
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.597
+srv 17 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.614
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.613
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.620
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.613
+srv 16 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.630
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.621
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.632
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.620
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.627
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.632
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.623
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.627
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.619
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.636
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 starting txns
+srv 8 starting txns
+srv 2 starting txns
+srv 29 starting txns
+srv 34 starting txns
+srv 27 starting txns
+srv 55 starting txns
+srv 36 starting txns
+srv 3 starting txns
+srv 51 starting txns
+srv 17 starting txns
+srv 33 starting txns
+srv 54 starting txns
+srv 41 starting txns
+srv 62 starting txns
+srv 13 starting txns
+srv 49 starting txns
+srv 58 starting txns
+srv 46 starting txns
+srv 15 starting txns
+srv 38 starting txns
+srv 19 starting txns
+srv 5 starting txns
+srv 0 starting txns
+srv 53 starting txns
+srv 39 starting txns
+srv 31 starting txns
+srv 44 starting txns
+srv 43 starting txns
+srv 59 starting txns
+srv 47 starting txns
+srv 9 starting txns
+srv 22 starting txns
+srv 45 starting txns
+srv 7 starting txns
+srv 25 starting txns
+srv 28 starting txns
+srv 21 starting txns
+srv 50 starting txns
+srv 63 starting txns
+srv 4 starting txns
+srv 23 starting txns
+srv 6 starting txns
+srv 35 starting txns
+srv 18 starting txns
+srv 52 starting txns
+srv 48 starting txns
+srv 61 starting txns
+srv 57 starting txns
+srv 10 starting txns
+srv 14 starting txns
+srv 26 starting txns
+srv 20 starting txns
+srv 30 starting txns
+srv 40 starting txns
+srv 56 starting txns
+srv 60 starting txns
+srv 24 starting txns
+srv 42 starting txns
+srv 11 starting txns
+srv 16 starting txns
+srv 12 starting txns
+srv 32 starting txns
+srv 37 starting txns
+srv 26 query time 26.110
+srv 28 query time 26.160
+srv 21 query time 26.196
+srv 22 query time 26.210
+srv 25 query time 26.295
+srv 32 query time 26.349
+srv 29 query time 26.374
+srv 20 query time 26.393
+srv 18 query time 26.433
+srv 31 query time 26.453
+srv 27 query time 26.506
+srv 23 query time 26.548
+srv 19 query time 26.550
+srv 34 query time 26.571
+srv 30 query time 26.651
+srv 35 query time 26.693
+srv 33 query time 26.776
+srv 24 query time 26.941
+srv 63 query time 27.032
+srv 0 query time 27.139
+srv 2 query time 27.198
+srv 61 query time 27.413
+srv 8 query time 27.420
+srv 1 query time 27.429
+srv 54 query time 27.470
+srv 53 query time 27.600
+srv 9 query time 27.600
+srv 62 query time 27.682
+srv 10 query time 27.710
+srv 17 query time 27.714
+srv 15 query time 27.775
+srv 57 query time 27.798
+srv 7 query time 27.802
+srv 40 query time 27.856
+srv 56 query time 27.901
+srv 50 query time 27.990
+srv 44 query time 27.993
+srv 16 query time 28.076
+srv 55 query time 28.083
+srv 43 query time 28.148
+srv 49 query time 28.244
+srv 36 query time 28.261
+srv 11 query time 28.274
+srv 41 query time 28.302
+srv 42 query time 28.310
+srv 52 query time 28.381
+srv 51 query time 28.462
+srv 3 query time 28.542
+srv 45 query time 28.685
+srv 58 query time 28.964
+srv 14 query time 29.202
+srv 59 query time 29.241
+srv 4 query time 29.293
+srv 60 query time 29.358
+srv 13 query time 29.528
+srv 48 query time 29.555
+srv 5 query time 29.560
+srv 39 query time 29.585
+srv 38 query time 29.586
+srv 6 query time 29.603
+srv 46 query time 29.609
+srv 12 query time 29.632
+srv 37 query time 29.748
+srv 47 query time 29.783
+srv 47 quitting 
+srv 40 quitting 
+srv 61 quitting 
+srv 60 quitting 
+srv 25 quitting 
+srv 16 quitting 
+srv 20 quitting 
+srv 3 quitting 
+srv 28 quitting 
+srv 2 quitting 
+srv 11 quitting 
+srv 23 quitting 
+srv 48 quitting 
+srv 33 quitting 
+srv 56 quitting 
+srv 51 quitting 
+srv 7 quitting 
+srv 1 quitting 
+srv 10 quitting 
+srv 5 quitting 
+srv 44 quitting 
+srv 57 quitting 
+srv 12 quitting 
+srv 38 quitting 
+srv 14 quitting 
+srv 34 quitting 
+srv 58 quitting 
+srv 26 quitting 
+srv 59 quitting 
+srv 24 quitting 
+srv 0 quitting 
+srv 45 quitting 
+srv 42 quitting 
+srv 49 quitting 
+srv 63 quitting 
+srv 62 quitting 
+srv 9 quitting 
+srv 30 quitting 
+srv 32 quitting 
+srv 6 quitting 
+srv 46 quitting 
+srv 8 quitting 
+srv 18 quitting 
+srv 52 quitting 
+srv 41 quitting 
+srv 35 quitting 
+srv 54 quitting 
+srv 31 quitting 
+srv 22 quitting 
+srv 43 quitting 
+srv 27 quitting 
+srv 36 quitting 
+srv 21 quitting 
+srv 55 quitting 
+srv 19 quitting 
+srv 4 quitting 
+srv 15 quitting 
+srv 29 quitting 
+srv 39 quitting 
+srv 17 quitting 
+srv 13 quitting 
+srv 37 quitting 
+srv 50 quitting 
+srv 53 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+srv 32 commits 10000000
+srv 33 commits 10000000
+srv 34 commits 10000000
+srv 35 commits 10000000
+srv 36 commits 10000000
+srv 37 commits 10000000
+srv 38 commits 10000000
+srv 39 commits 10000000
+srv 40 commits 10000000
+srv 41 commits 10000000
+srv 42 commits 10000000
+srv 43 commits 10000000
+srv 44 commits 10000000
+srv 45 commits 10000000
+srv 46 commits 10000000
+srv 47 commits 10000000
+srv 48 commits 10000000
+srv 49 commits 10000000
+srv 50 commits 10000000
+srv 51 commits 10000000
+srv 52 commits 10000000
+srv 53 commits 10000000
+srv 54 commits 10000000
+srv 55 commits 10000000
+srv 56 commits 10000000
+srv 57 commits 10000000
+srv 58 commits 10000000
+srv 59 commits 10000000
+srv 60 commits 10000000
+srv 61 commits 10000000
+srv 62 commits 10000000
+srv 63 commits 10000000
+total commits 640000000
+== results ==
+Server 0: 0.368472000M TPS
+Server 1: 0.364580000M TPS
+Server 2: 0.367670000M TPS
+Server 3: 0.350358000M TPS
+Server 4: 0.341375000M TPS
+Server 5: 0.338297000M TPS
+Server 6: 0.337798000M TPS
+Server 7: 0.359690000M TPS
+Server 8: 0.364701000M TPS
+Server 9: 0.362312000M TPS
+Server 10: 0.360876000M TPS
+Server 11: 0.353677000M TPS
+Server 12: 0.337469000M TPS
+Server 13: 0.338657000M TPS
+Server 14: 0.342440000M TPS
+Server 15: 0.360037000M TPS
+Server 16: 0.356173000M TPS
+Server 17: 0.360830000M TPS
+Server 18: 0.378320000M TPS
+Server 19: 0.376651000M TPS
+Server 20: 0.378893000M TPS
+Server 21: 0.381735000M TPS
+Server 22: 0.381532000M TPS
+Server 23: 0.376678000M TPS
+Server 24: 0.371185000M TPS
+Server 25: 0.380295000M TPS
+Server 26: 0.382991000M TPS
+Server 27: 0.377272000M TPS
+Server 28: 0.382256000M TPS
+Server 29: 0.379158000M TPS
+Server 30: 0.375215000M TPS
+Server 31: 0.378022000M TPS
+Server 32: 0.379515000M TPS
+Server 33: 0.373473000M TPS
+Server 34: 0.376349000M TPS
+Server 35: 0.374627000M TPS
+Server 36: 0.353842000M TPS
+Server 37: 0.336152000M TPS
+Server 38: 0.338002000M TPS
+Server 39: 0.338010000M TPS
+Server 40: 0.358989000M TPS
+Server 41: 0.353332000M TPS
+Server 42: 0.353232000M TPS
+Server 43: 0.355263000M TPS
+Server 44: 0.357229000M TPS
+Server 45: 0.348611000M TPS
+Server 46: 0.337737000M TPS
+Server 47: 0.335767000M TPS
+Server 48: 0.338353000M TPS
+Server 49: 0.354052000M TPS
+Server 50: 0.357265000M TPS
+Server 51: 0.351340000M TPS
+Server 52: 0.352345000M TPS
+Server 53: 0.362324000M TPS
+Server 54: 0.364028000M TPS
+Server 55: 0.356090000M TPS
+Server 56: 0.358408000M TPS
+Server 57: 0.359743000M TPS
+Server 58: 0.345261000M TPS
+Server 59: 0.341988000M TPS
+Server 60: 0.340618000M TPS
+Server 61: 0.364789000M TPS
+Server 62: 0.361249000M TPS
+Server 63: 0.369925000M TPS
+Total tps: 23.013523000M
+./ycsb -s 64 -d 100 -b 1 -i 10000000 -o 10 -t 64000000 -w 100
+ # clients:    1
+ # servers:    64
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 64000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+Assinging core 57 to srv 32
+Assinging core 61 to srv 33
+Assinging core 65 to srv 34
+Assinging core 69 to srv 35
+Assinging core 2 to srv 36
+Assinging core 6 to srv 37
+Assinging core 10 to srv 38
+Assinging core 14 to srv 39
+Assinging core 18 to srv 40
+Assinging core 22 to srv 41
+Assinging core 26 to srv 42
+Assinging core 30 to srv 43
+Assinging core 34 to srv 44
+Assinging core 38 to srv 45
+Assinging core 42 to srv 46
+Assinging core 46 to srv 47
+Assinging core 50 to srv 48
+Assinging core 54 to srv 49
+Assinging core 58 to srv 50
+Assinging core 62 to srv 51
+Assinging core 66 to srv 52
+Assinging core 70 to srv 53
+Assinging core 3 to srv 54
+Assinging core 7 to srv 55
+Assinging core 11 to srv 56
+Assinging core 15 to srv 57
+Assinging core 19 to srv 58
+Assinging core 23 to srv 59
+Assinging core 27 to srv 60
+Assinging core 31 to srv 61
+Assinging core 35 to srv 62
+Assinging core 39 to srv 63
+srv 57 load time 0.264
+srv 57 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 62 load time 0.253
+srv 62 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 56 load time 0.267
+srv 56 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.387
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.383
+srv 18 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 41 load time 0.344
+srv 41 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.377
+srv 28 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 60 load time 0.306
+srv 60 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 44 load time 0.355
+srv 44 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 47 load time 0.346
+srv 47 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 54 load time 0.361
+srv 54 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 59 load time 0.345
+srv 59 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 32 load time 0.416
+srv 32 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 61 load time 0.359
+srv 61 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 55 load time 0.375
+srv 55 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.470
+srv 22 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 42 load time 0.434
+srv 42 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 36 load time 0.449
+srv 36 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 35 load time 0.452
+srv 35 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 load time 0.485
+srv 19 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 63 load time 0.386
+srv 63 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 50 load time 0.425
+srv 50 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 58 load time 0.421
+srv 58 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 38 load time 0.482
+srv 38 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 37 load time 0.484
+srv 37 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 45 load time 0.464
+srv 45 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.529
+srv 26 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 34 load time 0.516
+srv 34 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.563
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 52 load time 0.472
+srv 52 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 48 load time 0.487
+srv 48 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.574
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.572
+srv 16 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 23 load time 0.561
+srv 23 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.586
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 43 load time 0.521
+srv 43 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 40 load time 0.534
+srv 40 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.562
+srv 29 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.572
+srv 25 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.587
+srv 17 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 53 load time 0.505
+srv 53 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.590
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 39 load time 0.544
+srv 39 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.605
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.566
+srv 31 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.590
+srv 20 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.611
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 49 load time 0.523
+srv 49 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 46 load time 0.535
+srv 46 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 51 load time 0.524
+srv 51 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.591
+srv 24 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.616
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.579
+srv 30 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.615
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.621
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.614
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.612
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.622
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.622
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.622
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.594
+srv 27 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 33 load time 0.580
+srv 33 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.632
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.612
+srv 21 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 49 starting txns
+srv 58 starting txns
+srv 57 starting txns
+srv 62 starting txns
+srv 1 starting txns
+srv 14 starting txns
+srv 6 starting txns
+srv 16 starting txns
+srv 9 starting txns
+srv 52 starting txns
+srv 0 starting txns
+srv 34 starting txns
+srv 55 starting txns
+srv 32 starting txns
+srv 3 starting txns
+srv 20 starting txns
+srv 47 starting txns
+srv 23 starting txns
+srv 63 starting txns
+srv 18 starting txns
+srv 37 starting txns
+srv 38 starting txns
+srv 35 starting txns
+srv 22 starting txns
+srv 54 starting txns
+srv 53 starting txns
+srv 46 starting txns
+srv 42 starting txns
+srv 50 starting txns
+srv 21 starting txns
+srv 10 starting txns
+srv 2 starting txns
+srv 5 starting txns
+srv 40 starting txns
+srv 48 starting txns
+srv 36 starting txns
+srv 13 starting txns
+srv 24 starting txns
+srv 19 starting txns
+srv 8 starting txns
+srv 17 starting txns
+srv 7 starting txns
+srv 41 starting txns
+srv 60 starting txns
+srv 61 starting txns
+srv 59 starting txns
+srv 33 starting txns
+srv 12 starting txns
+srv 31 starting txns
+srv 45 starting txns
+srv 51 starting txns
+srv 15 starting txns
+srv 30 starting txns
+srv 56 starting txns
+srv 11 starting txns
+srv 43 starting txns
+srv 25 starting txns
+srv 28 starting txns
+srv 29 starting txns
+srv 27 starting txns
+srv 26 starting txns
+srv 4 starting txns
+srv 44 starting txns
+srv 39 starting txns
+srv 26 query time 26.039
+srv 21 query time 26.146
+srv 27 query time 26.180
+srv 28 query time 26.211
+srv 20 query time 26.320
+srv 23 query time 26.446
+srv 25 query time 26.459
+srv 18 query time 26.460
+srv 19 query time 26.491
+srv 31 query time 26.511
+srv 32 query time 26.568
+srv 33 query time 26.569
+srv 22 query time 26.598
+srv 30 query time 26.640
+srv 35 query time 26.658
+srv 29 query time 26.735
+srv 34 query time 26.746
+srv 24 query time 26.904
+srv 62 query time 26.968
+srv 2 query time 27.131
+srv 63 query time 27.171
+srv 16 query time 27.271
+srv 17 query time 27.342
+srv 9 query time 27.522
+srv 53 query time 27.564
+srv 56 query time 27.637
+srv 0 query time 27.642
+srv 57 query time 27.659
+srv 36 query time 27.679
+srv 8 query time 27.688
+srv 43 query time 27.693
+srv 54 query time 27.722
+srv 1 query time 27.822
+srv 10 query time 27.853
+srv 44 query time 27.862
+srv 7 query time 27.966
+srv 11 query time 27.969
+srv 55 query time 28.046
+srv 42 query time 28.213
+srv 41 query time 28.291
+srv 50 query time 28.301
+srv 49 query time 28.324
+srv 51 query time 28.415
+srv 52 query time 28.598
+srv 3 query time 28.768
+srv 15 query time 28.814
+srv 61 query time 28.902
+srv 40 query time 28.905
+srv 45 query time 29.029
+srv 58 query time 29.096
+srv 14 query time 29.352
+srv 38 query time 29.357
+srv 39 query time 29.374
+srv 60 query time 29.512
+srv 46 query time 29.521
+srv 59 query time 29.569
+srv 13 query time 29.632
+srv 4 query time 29.685
+srv 5 query time 29.691
+srv 37 query time 29.753
+srv 6 query time 29.759
+srv 48 query time 29.915
+srv 12 query time 29.970
+srv 47 query time 30.212
+srv 47 quitting 
+srv 12 quitting 
+srv 53 quitting 
+srv 6 quitting 
+srv 21 quitting 
+srv 13 quitting 
+srv 14 quitting 
+srv 29 quitting 
+srv 19 quitting 
+srv 8 quitting 
+srv 2 quitting 
+srv 30 quitting 
+srv 22 quitting 
+srv 23 quitting 
+srv 16 quitting 
+srv 43 quitting 
+srv 41 quitting 
+srv 27 quitting 
+srv 32 quitting 
+srv 1 quitting 
+srv 45 quitting 
+srv 4 quitting 
+srv 51 quitting 
+srv 39 quitting 
+srv 44 quitting 
+srv 7 quitting 
+srv 52 quitting 
+srv 63 quitting 
+srv 24 quitting 
+srv 25 quitting 
+srv 37 quitting 
+srv 10 quitting 
+srv 17 quitting 
+srv 33 quitting 
+srv 49 quitting 
+srv 26 quitting 
+srv 59 quitting 
+srv 60 quitting 
+srv 0 quitting 
+srv 50 quitting 
+srv 20 quitting 
+srv 9 quitting 
+srv 3 quitting 
+srv 35 quitting 
+srv 15 quitting 
+srv 54 quitting 
+srv 38 quitting 
+srv 42 quitting 
+srv 18 quitting 
+srv 36 quitting 
+srv 62 quitting 
+srv 31 quitting 
+srv 56 quitting 
+srv 57 quitting 
+srv 55 quitting 
+srv 5 quitting 
+srv 40 quitting 
+srv 48 quitting 
+srv 28 quitting 
+srv 61 quitting 
+srv 11 quitting 
+srv 46 quitting 
+srv 34 quitting 
+srv 58 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+srv 32 commits 10000000
+srv 33 commits 10000000
+srv 34 commits 10000000
+srv 35 commits 10000000
+srv 36 commits 10000000
+srv 37 commits 10000000
+srv 38 commits 10000000
+srv 39 commits 10000000
+srv 40 commits 10000000
+srv 41 commits 10000000
+srv 42 commits 10000000
+srv 43 commits 10000000
+srv 44 commits 10000000
+srv 45 commits 10000000
+srv 46 commits 10000000
+srv 47 commits 10000000
+srv 48 commits 10000000
+srv 49 commits 10000000
+srv 50 commits 10000000
+srv 51 commits 10000000
+srv 52 commits 10000000
+srv 53 commits 10000000
+srv 54 commits 10000000
+srv 55 commits 10000000
+srv 56 commits 10000000
+srv 57 commits 10000000
+srv 58 commits 10000000
+srv 59 commits 10000000
+srv 60 commits 10000000
+srv 61 commits 10000000
+srv 62 commits 10000000
+srv 63 commits 10000000
+total commits 640000000
+== results ==
+Server 0: 0.361766000M TPS
+Server 1: 0.359433000M TPS
+Server 2: 0.368580000M TPS
+Server 3: 0.347609000M TPS
+Server 4: 0.336873000M TPS
+Server 5: 0.336799000M TPS
+Server 6: 0.336032000M TPS
+Server 7: 0.357575000M TPS
+Server 8: 0.361171000M TPS
+Server 9: 0.363348000M TPS
+Server 10: 0.359029000M TPS
+Server 11: 0.357541000M TPS
+Server 12: 0.333671000M TPS
+Server 13: 0.337476000M TPS
+Server 14: 0.340688000M TPS
+Server 15: 0.347050000M TPS
+Server 16: 0.366695000M TPS
+Server 17: 0.365731000M TPS
+Server 18: 0.377931000M TPS
+Server 19: 0.377480000M TPS
+Server 20: 0.379932000M TPS
+Server 21: 0.382469000M TPS
+Server 22: 0.375965000M TPS
+Server 23: 0.378134000M TPS
+Server 24: 0.371687000M TPS
+Server 25: 0.377945000M TPS
+Server 26: 0.384046000M TPS
+Server 27: 0.381974000M TPS
+Server 28: 0.381512000M TPS
+Server 29: 0.374045000M TPS
+Server 30: 0.375378000M TPS
+Server 31: 0.377198000M TPS
+Server 32: 0.376393000M TPS
+Server 33: 0.376381000M TPS
+Server 34: 0.373886000M TPS
+Server 35: 0.375127000M TPS
+Server 36: 0.361278000M TPS
+Server 37: 0.336098000M TPS
+Server 38: 0.340633000M TPS
+Server 39: 0.340436000M TPS
+Server 40: 0.345962000M TPS
+Server 41: 0.353472000M TPS
+Server 42: 0.354447000M TPS
+Server 43: 0.361100000M TPS
+Server 44: 0.358905000M TPS
+Server 45: 0.344483000M TPS
+Server 46: 0.338746000M TPS
+Server 47: 0.330989000M TPS
+Server 48: 0.334280000M TPS
+Server 49: 0.353060000M TPS
+Server 50: 0.353347000M TPS
+Server 51: 0.351932000M TPS
+Server 52: 0.349670000M TPS
+Server 53: 0.362796000M TPS
+Server 54: 0.360727000M TPS
+Server 55: 0.356562000M TPS
+Server 56: 0.361830000M TPS
+Server 57: 0.361547000M TPS
+Server 58: 0.343695000M TPS
+Server 59: 0.338192000M TPS
+Server 60: 0.338840000M TPS
+Server 61: 0.346000000M TPS
+Server 62: 0.370811000M TPS
+Server 63: 0.368033000M TPS
+Total tps: 22.952421000M
+./ycsb -s 64 -d 100 -b 1 -i 10000000 -o 10 -t 64000000 -w 100
+ # clients:    1
+ # servers:    64
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 64000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+Assinging core 57 to srv 32
+Assinging core 61 to srv 33
+Assinging core 65 to srv 34
+Assinging core 69 to srv 35
+Assinging core 2 to srv 36
+Assinging core 6 to srv 37
+Assinging core 10 to srv 38
+Assinging core 14 to srv 39
+Assinging core 18 to srv 40
+Assinging core 22 to srv 41
+Assinging core 26 to srv 42
+Assinging core 30 to srv 43
+Assinging core 34 to srv 44
+Assinging core 38 to srv 45
+Assinging core 42 to srv 46
+Assinging core 46 to srv 47
+Assinging core 50 to srv 48
+Assinging core 54 to srv 49
+Assinging core 58 to srv 50
+Assinging core 62 to srv 51
+Assinging core 66 to srv 52
+Assinging core 70 to srv 53
+Assinging core 3 to srv 54
+Assinging core 7 to srv 55
+Assinging core 11 to srv 56
+Assinging core 15 to srv 57
+Assinging core 19 to srv 58
+Assinging core 23 to srv 59
+Assinging core 27 to srv 60
+Assinging core 31 to srv 61
+Assinging core 35 to srv 62
+Assinging core 39 to srv 63
+srv 56 load time 0.231
+srv 56 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.347
+srv 12 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.347
+srv 18 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 42 load time 0.293
+srv 42 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 48 load time 0.278
+srv 48 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 32 load time 0.323
+srv 32 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 41 load time 0.300
+srv 41 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.336
+srv 28 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 load time 0.354
+srv 19 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.379
+srv 30 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.396
+srv 22 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.379
+srv 31 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 44 load time 0.350
+srv 44 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 53 load time 0.328
+srv 53 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.438
+srv 3 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 55 load time 0.373
+srv 55 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.448
+srv 26 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 35 load time 0.427
+srv 35 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 59 load time 0.367
+srv 59 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 60 load time 0.364
+srv 60 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 61 load time 0.370
+srv 61 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 58 load time 0.381
+srv 58 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 23 load time 0.472
+srv 23 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 57 load time 0.392
+srv 57 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 54 load time 0.400
+srv 54 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 50 load time 0.409
+srv 50 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 38 load time 0.454
+srv 38 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 40 load time 0.448
+srv 40 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 36 load time 0.469
+srv 36 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 34 load time 0.475
+srv 34 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.509
+srv 21 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.499
+srv 27 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.506
+srv 24 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 62 load time 0.412
+srv 62 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 63 load time 0.411
+srv 63 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.518
+srv 20 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 37 load time 0.482
+srv 37 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 39 load time 0.477
+srv 39 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 46 load time 0.464
+srv 46 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 49 load time 0.456
+srv 49 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 47 load time 0.463
+srv 47 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 52 load time 0.453
+srv 52 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 33 load time 0.505
+srv 33 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.532
+srv 25 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.524
+srv 29 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 43 load time 0.491
+srv 43 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 45 load time 0.487
+srv 45 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 load time 0.568
+srv 1 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.567
+srv 8 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 51 load time 0.472
+srv 51 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.569
+srv 5 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.570
+srv 7 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.571
+srv 6 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 load time 0.571
+srv 0 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.562
+srv 14 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.572
+srv 4 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.579
+srv 9 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.585
+srv 2 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.571
+srv 17 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.582
+srv 10 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.578
+srv 13 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.580
+srv 15 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.579
+srv 16 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.597
+srv 11 rec count: 1000000 partition sz 70312-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 starting txns
+srv 62 starting txns
+srv 17 starting txns
+srv 60 starting txns
+srv 61 starting txns
+srv 55 starting txns
+srv 21 starting txns
+srv 16 starting txns
+srv 46 starting txns
+srv 31 starting txns
+srv 36 starting txns
+srv 26 starting txns
+srv 39 starting txns
+srv 14 starting txns
+srv 27 starting txns
+srv 19 starting txns
+srv 56 starting txns
+srv 12 starting txns
+srv 30 starting txns
+srv 58 starting txns
+srv 45 starting txns
+srv 0 starting txns
+srv 9 starting txns
+srv 28 starting txns
+srv 50 starting txns
+srv 22 starting txns
+srv 51 starting txns
+srv 13 starting txns
+srv 8 starting txns
+srv 25 starting txns
+srv 37 starting txns
+srv 24 starting txns
+srv 3 starting txns
+srv 5 starting txns
+srv 54 starting txns
+srv 6 starting txns
+srv 34 starting txns
+srv 48 starting txns
+srv 23 starting txns
+srv 32 starting txns
+srv 53 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 40 starting txns
+srv 57 starting txns
+srv 52 starting txns
+srv 44 starting txns
+srv 4 starting txns
+srv 43 starting txns
+srv 18 starting txns
+srv 47 starting txns
+srv 10 starting txns
+srv 33 starting txns
+srv 38 starting txns
+srv 15 starting txns
+srv 41 starting txns
+srv 35 starting txns
+srv 63 starting txns
+srv 20 starting txns
+srv 29 starting txns
+srv 7 starting txns
+srv 42 starting txns
+srv 59 starting txns
+srv 49 starting txns
+srv 62 query time 25.949
+srv 58 query time 26.267
+srv 57 query time 26.321
+srv 54 query time 26.363
+srv 63 query time 26.430
+srv 60 query time 26.468
+srv 61 query time 26.501
+srv 56 query time 26.502
+srv 59 query time 26.572
+srv 55 query time 26.604
+srv 18 query time 26.957
+srv 8 query time 27.426
+srv 1 query time 27.491
+srv 53 query time 27.582
+srv 2 query time 27.591
+srv 15 query time 27.700
+srv 0 query time 27.700
+srv 9 query time 27.756
+srv 10 query time 27.798
+srv 16 query time 27.852
+srv 17 query time 27.899
+srv 7 query time 27.961
+srv 25 query time 28.020
+srv 26 query time 28.032
+srv 27 query time 28.116
+srv 49 query time 28.146
+srv 43 query time 28.150
+srv 40 query time 28.187
+srv 50 query time 28.251
+srv 41 query time 28.277
+srv 44 query time 28.288
+srv 19 query time 28.366
+srv 32 query time 28.382
+srv 35 query time 28.412
+srv 42 query time 28.414
+srv 28 query time 28.452
+srv 52 query time 28.469
+srv 51 query time 28.521
+srv 34 query time 28.572
+srv 11 query time 28.636
+srv 24 query time 28.679
+srv 33 query time 28.705
+srv 36 query time 28.762
+srv 23 query time 28.826
+srv 45 query time 29.125
+srv 3 query time 29.133
+srv 48 query time 29.446
+srv 14 query time 29.630
+srv 20 query time 29.707
+srv 6 query time 29.716
+srv 38 query time 29.725
+srv 4 query time 29.903
+srv 39 query time 29.920
+srv 37 query time 29.969
+srv 46 query time 30.023
+srv 21 query time 30.070
+srv 13 query time 30.107
+srv 22 query time 30.217
+srv 5 query time 30.265
+srv 47 query time 30.317
+srv 29 query time 30.368
+srv 12 query time 30.433
+srv 31 query time 30.581
+srv 30 query time 30.828
+srv 30 quitting 
+srv 43 quitting 
+srv 57 quitting 
+srv 60 quitting 
+srv 47 quitting 
+srv 11 quitting 
+srv 51 quitting 
+srv 31 quitting 
+srv 59 quitting 
+srv 20 quitting 
+srv 2 quitting 
+srv 35 quitting 
+srv 7 quitting 
+srv 28 quitting 
+srv 49 quitting 
+srv 1 quitting 
+srv 34 quitting 
+srv 62 quitting 
+srv 14 quitting 
+srv 5 quitting 
+srv 18 quitting 
+srv 46 quitting 
+srv 9 quitting 
+srv 36 quitting 
+srv 29 quitting 
+srv 13 quitting 
+srv 8 quitting 
+srv 15 quitting 
+srv 25 quitting 
+srv 6 quitting 
+srv 19 quitting 
+srv 53 quitting 
+srv 3 quitting 
+srv 23 quitting 
+srv 39 quitting 
+srv 4 quitting 
+srv 32 quitting 
+srv 12 quitting 
+srv 56 quitting 
+srv 33 quitting 
+srv 45 quitting 
+srv 48 quitting 
+srv 54 quitting 
+srv 40 quitting 
+srv 10 quitting 
+srv 38 quitting 
+srv 50 quitting 
+srv 44 quitting 
+srv 0 quitting 
+srv 21 quitting 
+srv 63 quitting 
+srv 55 quitting 
+srv 58 quitting 
+srv 52 quitting 
+srv 61 quitting 
+srv 24 quitting 
+srv 17 quitting 
+srv 22 quitting 
+srv 26 quitting 
+srv 37 quitting 
+srv 42 quitting 
+srv 16 quitting 
+srv 27 quitting 
+srv 41 quitting 
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+srv 32 commits 10000000
+srv 33 commits 10000000
+srv 34 commits 10000000
+srv 35 commits 10000000
+srv 36 commits 10000000
+srv 37 commits 10000000
+srv 38 commits 10000000
+srv 39 commits 10000000
+srv 40 commits 10000000
+srv 41 commits 10000000
+srv 42 commits 10000000
+srv 43 commits 10000000
+srv 44 commits 10000000
+srv 45 commits 10000000
+srv 46 commits 10000000
+srv 47 commits 10000000
+srv 48 commits 10000000
+srv 49 commits 10000000
+srv 50 commits 10000000
+srv 51 commits 10000000
+srv 52 commits 10000000
+srv 53 commits 10000000
+srv 54 commits 10000000
+srv 55 commits 10000000
+srv 56 commits 10000000
+srv 57 commits 10000000
+srv 58 commits 10000000
+srv 59 commits 10000000
+srv 60 commits 10000000
+srv 61 commits 10000000
+srv 62 commits 10000000
+srv 63 commits 10000000
+total commits 640000000
+== results ==
+Server 0: 0.361009000M TPS
+Server 1: 0.363755000M TPS
+Server 2: 0.362443000M TPS
+Server 3: 0.343256000M TPS
+Server 4: 0.334411000M TPS
+Server 5: 0.330409000M TPS
+Server 6: 0.336521000M TPS
+Server 7: 0.357638000M TPS
+Server 8: 0.364620000M TPS
+Server 9: 0.360277000M TPS
+Server 10: 0.359734000M TPS
+Server 11: 0.349216000M TPS
+Server 12: 0.328591000M TPS
+Server 13: 0.332152000M TPS
+Server 14: 0.337500000M TPS
+Server 15: 0.361017000M TPS
+Server 16: 0.359038000M TPS
+Server 17: 0.358437000M TPS
+Server 18: 0.370959000M TPS
+Server 19: 0.352533000M TPS
+Server 20: 0.336624000M TPS
+Server 21: 0.332561000M TPS
+Server 22: 0.330942000M TPS
+Server 23: 0.346906000M TPS
+Server 24: 0.348688000M TPS
+Server 25: 0.356888000M TPS
+Server 26: 0.356738000M TPS
+Server 27: 0.355671000M TPS
+Server 28: 0.351469000M TPS
+Server 29: 0.329297000M TPS
+Server 30: 0.324377000M TPS
+Server 31: 0.327003000M TPS
+Server 32: 0.352330000M TPS
+Server 33: 0.348368000M TPS
+Server 34: 0.349989000M TPS
+Server 35: 0.351959000M TPS
+Server 36: 0.347683000M TPS
+Server 37: 0.333672000M TPS
+Server 38: 0.336422000M TPS
+Server 39: 0.334221000M TPS
+Server 40: 0.354769000M TPS
+Server 41: 0.353646000M TPS
+Server 42: 0.351935000M TPS
+Server 43: 0.355238000M TPS
+Server 44: 0.353502000M TPS
+Server 45: 0.343347000M TPS
+Server 46: 0.333072000M TPS
+Server 47: 0.329849000M TPS
+Server 48: 0.339608000M TPS
+Server 49: 0.355294000M TPS
+Server 50: 0.353970000M TPS
+Server 51: 0.350622000M TPS
+Server 52: 0.351253000M TPS
+Server 53: 0.362561000M TPS
+Server 54: 0.379326000M TPS
+Server 55: 0.375890000M TPS
+Server 56: 0.377331000M TPS
+Server 57: 0.379924000M TPS
+Server 58: 0.380704000M TPS
+Server 59: 0.376331000M TPS
+Server 60: 0.377817000M TPS
+Server 61: 0.377349000M TPS
+Server 62: 0.385370000M TPS
+Server 63: 0.378359000M TPS
+Total tps: 22.552391000M

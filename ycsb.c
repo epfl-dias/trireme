@@ -30,6 +30,7 @@ int nclients        = 1;
 int first_core      = -1;
 int batch_size      = 1;
 int ops_per_txn     = 1;
+int nremote_ops     = 2;
 int niters          = 1000000;
 size_t size         = 1000000;
 int query_mask      = (1 << 29) - 1;
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
 {
   int opt_char;
 
-  while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:h:p:")) != -1) {
+  while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:r:h:p:")) != -1) {
     switch (opt_char) {
       case 'a':
         alpha = atoi(optarg);
@@ -99,6 +100,9 @@ int main(int argc, char *argv[])
       case 'd':
         dist_threshold = atoi(optarg);
         break;
+      case 'r':
+        nremote_ops = atoi(optarg);
+        break;
       case 'b':
         batch_size = atoi(optarg);
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
@@ -130,11 +134,15 @@ int main(int argc, char *argv[])
                "   -t max #records\n"
                "   -m log of max hash key\n"
                "   -w hash insert ratio over total number of queries\n"
+               "   -r nremote operations per txn\n"
                "   -u show server cpu usage\n");
         exit(-1);
     }
   }
+
   if (first_core == -1) first_core = nclients;
+
+  assert(nremote_ops <= ops_per_txn && nremote_ops < MAX_OPS_PER_QUERY);
 
   if (alpha) {
 #if SHARED_EVERYTHING

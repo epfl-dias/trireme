@@ -1,0 +1,5946 @@
+./ycsb -s 1 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    1
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 0.616
+srv 0 rec count: 509282 partition sz 151101-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 0 query time 42.005
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 0 commits 10000000
+total commits 10000000
+== results ==
+Server 0: 0.238064000M TPS
+Total tps: 0.238064000M
+./ycsb -s 1 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    1
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 0.574
+srv 0 rec count: 509282 partition sz 151101-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 0 query time 41.219
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 0 commits 10000000
+total commits 10000000
+== results ==
+Server 0: 0.242603000M TPS
+Total tps: 0.242603000M
+./ycsb -s 1 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    1
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 0.624
+srv 0 rec count: 509282 partition sz 151101-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 0 query time 41.879
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 0 commits 10000000
+total commits 10000000
+== results ==
+Server 0: 0.238780000M TPS
+Total tps: 0.238780000M
+./ycsb -s 2 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    2
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+srv 1 load time 0.000
+srv (0): Loading stock..
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 1.116
+srv 0 rec count: 1016760 partition sz 301809-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 1 starting txns
+srv 1 query time 44.738
+srv 0 query time 46.566
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 1 quitting 
+Server 1 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+total commits 20000000
+== results ==
+Server 0: 0.214747000M TPS
+Server 1: 0.223525000M TPS
+Total tps: 0.438272000M
+./ycsb -s 2 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    2
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+srv 1 load time 0.000
+srv (0): Loading stock..
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 1.119
+srv 0 rec count: 1016760 partition sz 301809-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 1 starting txns
+srv 1 query time 44.601
+srv 0 query time 46.494
+srv 0 quitting 
+srv 1 quitting 
+Server 0 verifying consistency..
+Server 1 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+total commits 20000000
+== results ==
+Server 0: 0.215083000M TPS
+Server 1: 0.224210000M TPS
+Total tps: 0.439293000M
+./ycsb -s 2 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    2
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+srv 1 load time 0.000
+srv (0): Loading stock..
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 1.114
+srv 0 rec count: 1016760 partition sz 301809-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 1 starting txns
+srv 1 query time 44.806
+srv 0 query time 46.457
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 1 quitting 
+Server 1 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+total commits 20000000
+== results ==
+Server 0: 0.215252000M TPS
+Server 1: 0.223186000M TPS
+Total tps: 0.438438000M
+./ycsb -s 4 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+srv 1 load time 0.000
+srv 3 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 2.258
+srv 0 rec count: 2035155 partition sz 603975-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 2 starting txns
+srv 3 starting txns
+srv 1 starting txns
+srv 3 query time 55.955
+srv 1 query time 56.417
+srv 2 query time 56.627
+srv 0 query time 58.167
+srv 0 quitting 
+srv 1 quitting 
+Server 0 verifying consistency..
+srv 3 quitting 
+Server 3 verifying consistency..
+Server 1 verifying consistency..
+srv 2 quitting 
+Server 2 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+total commits 40000000
+== results ==
+Server 0: 0.171917000M TPS
+Server 1: 0.177252000M TPS
+Server 2: 0.176593000M TPS
+Server 3: 0.178715000M TPS
+Total tps: 0.704477000M
+./ycsb -s 4 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+srv 2 load time 0.000
+srv 1 load time 0.000
+srv 3 load time 0.000
+srv (0): Loading stock..
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 2.206
+srv 0 rec count: 2035155 partition sz 603975-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 3 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 3 query time 55.410
+srv 1 query time 55.980
+srv 2 query time 56.586
+srv 0 query time 57.747
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 3 quitting 
+srv 1 quitting 
+srv 2 quitting 
+Server 3 verifying consistency..
+Server 2 verifying consistency..
+Server 1 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+total commits 40000000
+== results ==
+Server 0: 0.173170000M TPS
+Server 1: 0.178634000M TPS
+Server 2: 0.176721000M TPS
+Server 3: 0.180472000M TPS
+Total tps: 0.708997000M
+./ycsb -s 4 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+srv 1 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 2.235
+srv 0 rec count: 2035155 partition sz 603975-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 3 starting txns
+srv 2 starting txns
+srv 1 starting txns
+srv 3 query time 55.924
+srv 1 query time 56.167
+srv 2 query time 56.546
+srv 0 query time 58.141
+srv 0 quitting 
+srv 2 quitting 
+Server 0 verifying consistency..
+Server 2 verifying consistency..
+srv 1 quitting 
+Server 1 verifying consistency..
+srv 3 quitting 
+Server 3 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+total commits 40000000
+== results ==
+Server 0: 0.171996000M TPS
+Server 1: 0.178041000M TPS
+Server 2: 0.176846000M TPS
+Server 3: 0.178814000M TPS
+Total tps: 0.705697000M
+./ycsb -s 8 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    8
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+srv 1 load time 0.000
+srv 2 load time 0.000
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+Assinging core 28 to srv 7
+srv (0): Loading stock..
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 4.452
+srv 0 rec count: 4069533 partition sz 1207781-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 3 starting txns
+srv 6 starting txns
+srv 7 starting txns
+srv 5 starting txns
+srv 4 starting txns
+srv 2 starting txns
+srv 1 starting txns
+srv 3 query time 65.480
+srv 1 query time 65.830
+srv 2 query time 67.160
+srv 7 query time 67.234
+srv 6 query time 67.251
+srv 4 query time 67.372
+srv 5 query time 67.381
+srv 0 query time 68.566
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 5 quitting 
+srv 7 quitting 
+srv 4 quitting 
+srv 1 quitting 
+srv 2 quitting 
+Server 7 verifying consistency..
+srv 6 quitting 
+Server 2 verifying consistency..
+Server 1 verifying consistency..
+srv 3 quitting 
+Server 3 verifying consistency..
+Server 4 verifying consistency..
+Server 6 verifying consistency..
+Server 5 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+total commits 80000000
+== results ==
+Server 0: 0.145844000M TPS
+Server 1: 0.151907000M TPS
+Server 2: 0.148897000M TPS
+Server 3: 0.152717000M TPS
+Server 4: 0.148430000M TPS
+Server 5: 0.148409000M TPS
+Server 6: 0.148696000M TPS
+Server 7: 0.148735000M TPS
+Total tps: 1.193635000M
+./ycsb -s 8 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    8
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+srv 1 load time 0.000
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 20 to srv 5
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 4.573
+srv 0 rec count: 4069533 partition sz 1207781-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 6 starting txns
+srv 7 starting txns
+srv 5 starting txns
+srv 4 starting txns
+srv 3 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 1 query time 66.352
+srv 4 query time 66.736
+srv 2 query time 66.943
+srv 3 query time 67.054
+srv 7 query time 67.509
+srv 5 query time 67.632
+srv 6 query time 67.674
+srv 0 query time 68.461
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 3 quitting 
+srv 6 quitting 
+srv 7 quitting 
+srv 5 quitting 
+srv 4 quitting 
+Server 6 verifying consistency..
+Server 4 verifying consistency..
+Server 5 verifying consistency..
+srv 2 quitting 
+Server 2 verifying consistency..
+Server 7 verifying consistency..
+Server 3 verifying consistency..
+srv 1 quitting 
+Server 1 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+total commits 80000000
+== results ==
+Server 0: 0.146067000M TPS
+Server 1: 0.150710000M TPS
+Server 2: 0.149381000M TPS
+Server 3: 0.149133000M TPS
+Server 4: 0.149844000M TPS
+Server 5: 0.147858000M TPS
+Server 6: 0.147766000M TPS
+Server 7: 0.148128000M TPS
+Total tps: 1.188887000M
+./ycsb -s 8 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    8
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+srv 1 load time 0.000
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 28 to srv 7
+srv 5 load time 0.000
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+srv (0): Loading stock..
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 4.538
+srv 0 rec count: 4069533 partition sz 1207781-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 5 starting txns
+srv 4 starting txns
+srv 3 starting txns
+srv 7 starting txns
+srv 6 starting txns
+srv 2 starting txns
+srv 1 starting txns
+srv 3 query time 66.807
+srv 1 query time 67.192
+srv 4 query time 67.397
+srv 7 query time 67.473
+srv 5 query time 67.698
+srv 6 query time 67.714
+srv 2 query time 68.020
+srv 0 query time 69.048
+srv 0 quitting 
+srv 5 quitting 
+Server 0 verifying consistency..
+Server 5 verifying consistency..
+srv 4 quitting 
+Server 4 verifying consistency..
+srv 7 quitting 
+Server 7 verifying consistency..
+srv 6 quitting 
+Server 6 verifying consistency..
+srv 2 quitting 
+Server 2 verifying consistency..
+srv 1 quitting 
+Server 1 verifying consistency..
+srv 3 quitting 
+Server 3 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+total commits 80000000
+== results ==
+Server 0: 0.144826000M TPS
+Server 1: 0.148828000M TPS
+Server 2: 0.147014000M TPS
+Server 3: 0.149683000M TPS
+Server 4: 0.148375000M TPS
+Server 5: 0.147714000M TPS
+Server 6: 0.147680000M TPS
+Server 7: 0.148207000M TPS
+Total tps: 1.182327000M
+./ycsb -s 16 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    16
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+srv 1 load time 0.000
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.000
+Assinging core 24 to srv 6
+srv (0): Loading stock..
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 48 to srv 12
+srv 10 load time 0.000
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.000
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+srv 14 load time 0.000
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.000
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.000
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 8.705
+srv 0 rec count: 8138619 partition sz 2415465-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 15 starting txns
+srv 13 starting txns
+srv 5 starting txns
+srv 6 starting txns
+srv 10 starting txns
+srv 11 starting txns
+srv 1 starting txns
+srv 9 starting txns
+srv 14 starting txns
+srv 8 starting txns
+srv 12 starting txns
+srv 3 starting txns
+srv 7 starting txns
+srv 2 starting txns
+srv 4 starting txns
+srv 10 query time 75.718
+srv 8 query time 75.787
+srv 14 query time 75.972
+srv 9 query time 76.009
+srv 15 query time 76.751
+srv 4 query time 76.767
+srv 7 query time 76.774
+srv 3 query time 76.827
+srv 6 query time 76.873
+srv 13 query time 76.992
+srv 5 query time 77.055
+srv 1 query time 77.088
+srv 12 query time 77.389
+srv 11 query time 77.613
+srv 2 query time 77.778
+srv 0 query time 79.054
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 2 quitting 
+srv 12 quitting 
+srv 6 quitting 
+srv 8 quitting 
+srv 9 quitting 
+srv 15 quitting 
+srv 11 quitting 
+Server 9 verifying consistency..
+srv 3 quitting 
+srv 5 quitting 
+srv 10 quitting 
+Server 12 verifying consistency..
+Server 6 verifying consistency..
+srv 7 quitting 
+Server 7 verifying consistency..
+Server 5 verifying consistency..
+srv 14 quitting 
+Server 14 verifying consistency..
+Server 10 verifying consistency..
+Server 3 verifying consistency..
+Server 2 verifying consistency..
+Server 8 verifying consistency..
+srv 4 quitting 
+Server 4 verifying consistency..
+Server 11 verifying consistency..
+Server 15 verifying consistency..
+srv 1 quitting 
+Server 1 verifying consistency..
+srv 13 quitting 
+Server 13 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+total commits 160000000
+== results ==
+Server 0: 0.126496000M TPS
+Server 1: 0.129721000M TPS
+Server 2: 0.128570000M TPS
+Server 3: 0.130163000M TPS
+Server 4: 0.130264000M TPS
+Server 5: 0.129777000M TPS
+Server 6: 0.130084000M TPS
+Server 7: 0.130252000M TPS
+Server 8: 0.131949000M TPS
+Server 9: 0.131564000M TPS
+Server 10: 0.132069000M TPS
+Server 11: 0.128844000M TPS
+Server 12: 0.129217000M TPS
+Server 13: 0.129884000M TPS
+Server 14: 0.131626000M TPS
+Server 15: 0.130291000M TPS
+Total tps: 2.080771000M
+./ycsb -s 16 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    16
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+srv 1 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+Assinging core 28 to srv 7
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 48 to srv 12
+srv 10 load time 0.000
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.000
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+srv 12 load time 0.000
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.000
+srv 13 load time 0.000
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 8.746
+srv 0 rec count: 8138619 partition sz 2415465-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 15 starting txns
+srv 10 starting txns
+srv 1 starting txns
+srv 2 starting txns
+srv 7 starting txns
+srv 9 starting txns
+srv 6 starting txns
+srv 14 starting txns
+srv 4 starting txns
+srv 3 starting txns
+srv 11 starting txns
+srv 8 starting txns
+srv 5 starting txns
+srv 13 starting txns
+srv 12 starting txns
+srv 8 query time 75.660
+srv 14 query time 75.767
+srv 10 query time 76.332
+srv 13 query time 76.395
+srv 4 query time 76.431
+srv 6 query time 76.486
+srv 7 query time 76.534
+srv 3 query time 76.538
+srv 9 query time 76.559
+srv 5 query time 76.873
+srv 11 query time 76.892
+srv 1 query time 76.912
+srv 15 query time 76.959
+srv 12 query time 77.221
+srv 2 query time 77.642
+srv 0 query time 78.932
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 12 quitting 
+srv 6 quitting 
+srv 9 quitting 
+srv 1 quitting 
+srv 3 quitting 
+Server 12 verifying consistency..
+srv 8 quitting 
+srv 11 quitting 
+srv 4 quitting 
+srv 15 quitting 
+Server 6 verifying consistency..
+Server 8 verifying consistency..
+Server 9 verifying consistency..
+Server 1 verifying consistency..
+srv 2 quitting 
+Server 2 verifying consistency..
+srv 7 quitting 
+Server 7 verifying consistency..
+srv 5 quitting 
+Server 5 verifying consistency..
+srv 10 quitting 
+Server 10 verifying consistency..
+srv 13 quitting 
+Server 13 verifying consistency..
+Server 3 verifying consistency..
+Server 11 verifying consistency..
+Server 4 verifying consistency..
+Server 15 verifying consistency..
+srv 14 quitting 
+Server 14 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+total commits 160000000
+== results ==
+Server 0: 0.126691000M TPS
+Server 1: 0.130019000M TPS
+Server 2: 0.128796000M TPS
+Server 3: 0.130654000M TPS
+Server 4: 0.130836000M TPS
+Server 5: 0.130085000M TPS
+Server 6: 0.130743000M TPS
+Server 7: 0.130661000M TPS
+Server 8: 0.132169000M TPS
+Server 9: 0.130619000M TPS
+Server 10: 0.131007000M TPS
+Server 11: 0.130052000M TPS
+Server 12: 0.129497000M TPS
+Server 13: 0.130898000M TPS
+Server 14: 0.131982000M TPS
+Server 15: 0.129939000M TPS
+Total tps: 2.084648000M
+./ycsb -s 16 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    16
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+srv 1 load time 0.000
+srv 3 load time 0.000
+Assinging core 28 to srv 7
+srv 5 load time 0.000
+srv 2 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 32 to srv 8
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+srv 10 load time 0.000
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 56 to srv 14
+srv 12 load time 0.000
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.000
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.000
+Assinging core 60 to srv 15
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.000
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 8.678
+srv 0 rec count: 8138619 partition sz 2415465-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 15 starting txns
+srv 1 starting txns
+srv 11 starting txns
+srv 2 starting txns
+srv 6 starting txns
+srv 14 starting txns
+srv 4 starting txns
+srv 9 starting txns
+srv 13 starting txns
+srv 12 starting txns
+srv 10 starting txns
+srv 5 starting txns
+srv 7 starting txns
+srv 3 starting txns
+srv 8 starting txns
+srv 8 query time 75.573
+srv 10 query time 75.575
+srv 9 query time 75.594
+srv 14 query time 75.881
+srv 3 query time 75.890
+srv 1 query time 76.122
+srv 13 query time 76.360
+srv 12 query time 76.394
+srv 15 query time 76.427
+srv 7 query time 76.434
+srv 4 query time 76.445
+srv 6 query time 76.668
+srv 11 query time 76.694
+srv 5 query time 76.716
+srv 2 query time 76.880
+srv 0 query time 77.955
+srv 0 quitting 
+srv 10 quitting 
+srv 12 quitting 
+srv 3 quitting 
+srv 5 quitting 
+srv 14 quitting 
+srv 8 quitting 
+srv 9 quitting 
+Server 5 verifying consistency..
+srv 6 quitting 
+Server 10 verifying consistency..
+srv 7 quitting 
+srv 1 quitting 
+Server 14 verifying consistency..
+srv 2 quitting 
+srv 11 quitting 
+srv 15 quitting 
+srv 4 quitting 
+Server 0 verifying consistency..
+Server 3 verifying consistency..
+Server 1 verifying consistency..
+Server 8 verifying consistency..
+Server 12 verifying consistency..
+Server 2 verifying consistency..
+Server 9 verifying consistency..
+Server 11 verifying consistency..
+Server 15 verifying consistency..
+Server 4 verifying consistency..
+Server 6 verifying consistency..
+srv 13 quitting 
+Server 13 verifying consistency..
+Server 7 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+total commits 160000000
+== results ==
+Server 0: 0.128279000M TPS
+Server 1: 0.131368000M TPS
+Server 2: 0.130072000M TPS
+Server 3: 0.131768000M TPS
+Server 4: 0.130812000M TPS
+Server 5: 0.130350000M TPS
+Server 6: 0.130433000M TPS
+Server 7: 0.130831000M TPS
+Server 8: 0.132321000M TPS
+Server 9: 0.132284000M TPS
+Server 10: 0.132318000M TPS
+Server 11: 0.130388000M TPS
+Server 12: 0.130901000M TPS
+Server 13: 0.130958000M TPS
+Server 14: 0.131785000M TPS
+Server 15: 0.130843000M TPS
+Total tps: 2.095711000M
+./ycsb -s 32 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    32
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+srv 1 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 28 to srv 7
+srv (0): Loading stock..
+Assinging core 32 to srv 8
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 44 to srv 11
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 48 to srv 12
+srv 10 load time 0.000
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.000
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+srv 12 load time 0.000
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 1 to srv 18
+srv 14 load time 0.000
+srv 13 load time 0.000
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.000
+srv 16 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 5 to srv 19
+srv 17 load time 0.000
+srv 17 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.000
+srv 18 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 9 to srv 20
+srv 19 load time 0.000
+srv 19 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+srv 20 load time 0.000
+srv 20 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 23 load time 0.000
+srv 23 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+srv 25 load time 0.000
+srv 25 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.000
+srv 21 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.000
+srv 24 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.000
+srv 22 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+srv 26 load time 0.000
+srv 26 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 53 to srv 31
+srv 27 load time 0.000
+srv 27 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.000
+srv 29 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.000
+srv 30 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.000
+srv 28 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.000
+srv 31 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 17.153
+srv 0 rec count: 16274499 partition sz 4830332-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 23 starting txns
+srv 20 starting txns
+srv 25 starting txns
+srv 26 starting txns
+srv 30 starting txns
+srv 22 starting txns
+srv 24 starting txns
+srv 31 starting txns
+srv 27 starting txns
+srv 28 starting txns
+srv 19 starting txns
+srv 29 starting txns
+srv 21 starting txns
+srv 18 starting txns
+srv 9 starting txns
+srv 13 starting txns
+srv 11 starting txns
+srv 2 starting txns
+srv 6 starting txns
+srv 14 starting txns
+srv 8 starting txns
+srv 12 starting txns
+srv 1 starting txns
+srv 10 starting txns
+srv 7 starting txns
+srv 15 starting txns
+srv 17 starting txns
+srv 3 starting txns
+srv 5 starting txns
+srv 4 starting txns
+srv 16 starting txns
+srv 8 query time 94.340
+srv 9 query time 94.497
+srv 10 query time 94.973
+srv 14 query time 95.077
+srv 12 query time 95.392
+srv 3 query time 95.690
+srv 6 query time 95.745
+srv 1 query time 96.024
+srv 16 query time 96.035
+srv 5 query time 96.215
+srv 15 query time 96.310
+srv 17 query time 96.312
+srv 2 query time 96.322
+srv 4 query time 96.340
+srv 13 query time 96.487
+srv 7 query time 97.160
+srv 18 query time 97.811
+srv 11 query time 97.829
+srv 0 query time 97.881
+srv 20 query time 99.262
+srv 28 query time 99.374
+srv 26 query time 101.361
+srv 22 query time 101.401
+srv 27 query time 101.638
+srv 31 query time 101.656
+srv 30 query time 102.192
+srv 19 query time 102.628
+srv 25 query time 102.648
+srv 23 query time 102.970
+srv 29 query time 103.002
+srv 24 query time 103.008
+srv 21 query time 104.063
+srv 21 quitting 
+srv 0 quitting 
+srv 3 quitting 
+srv 15 quitting 
+srv 16 quitting 
+srv 30 quitting 
+srv 27 quitting 
+srv 29 quitting 
+srv 24 quitting 
+srv 13 quitting 
+srv 1 quitting 
+srv 22 quitting 
+srv 4 quitting 
+srv 8 quitting 
+Server 0 verifying consistency..
+srv 5 quitting 
+srv 7 quitting 
+srv 23 quitting 
+srv 9 quitting 
+srv 26 quitting 
+Server 3 verifying consistency..
+srv 18 quitting 
+srv 6 quitting 
+Server 15 verifying consistency..
+srv 28 quitting 
+Server 27 verifying consistency..
+srv 31 quitting 
+Server 1 verifying consistency..
+srv 12 quitting 
+Server 6 verifying consistency..
+srv 11 quitting 
+Server 7 verifying consistency..
+Server 9 verifying consistency..
+srv 10 quitting 
+srv 19 quitting 
+srv 17 quitting 
+Server 29 verifying consistency..
+Server 19 verifying consistency..
+Server 12 verifying consistency..
+Server 8 verifying consistency..
+Server 30 verifying consistency..
+srv 14 quitting 
+srv 20 quitting 
+Server 26 verifying consistency..
+srv 2 quitting 
+Server 17 verifying consistency..
+Server 28 verifying consistency..
+Server 5 verifying consistency..
+Server 20 verifying consistency..
+Server 18 verifying consistency..
+Server 21 verifying consistency..
+Server 14 verifying consistency..
+Server 10 verifying consistency..
+Server 13 verifying consistency..
+Server 31 verifying consistency..
+Server 16 verifying consistency..
+Server 24 verifying consistency..
+Server 22 verifying consistency..
+Server 2 verifying consistency..
+Server 11 verifying consistency..
+srv 25 quitting 
+Server 23 verifying consistency..
+Server 25 verifying consistency..
+Server 4 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+total commits 320000000
+== results ==
+Server 0: 0.102164000M TPS
+Server 1: 0.104140000M TPS
+Server 2: 0.103818000M TPS
+Server 3: 0.104503000M TPS
+Server 4: 0.103799000M TPS
+Server 5: 0.103934000M TPS
+Server 6: 0.104444000M TPS
+Server 7: 0.102922000M TPS
+Server 8: 0.106000000M TPS
+Server 9: 0.105823000M TPS
+Server 10: 0.105292000M TPS
+Server 11: 0.102218000M TPS
+Server 12: 0.104830000M TPS
+Server 13: 0.103640000M TPS
+Server 14: 0.105177000M TPS
+Server 15: 0.103831000M TPS
+Server 16: 0.104128000M TPS
+Server 17: 0.103829000M TPS
+Server 18: 0.102237000M TPS
+Server 19: 0.097439000M TPS
+Server 20: 0.100743000M TPS
+Server 21: 0.096095000M TPS
+Server 22: 0.098618000M TPS
+Server 23: 0.097115000M TPS
+Server 24: 0.097080000M TPS
+Server 25: 0.097420000M TPS
+Server 26: 0.098656000M TPS
+Server 27: 0.098388000M TPS
+Server 28: 0.100629000M TPS
+Server 29: 0.097085000M TPS
+Server 30: 0.097855000M TPS
+Server 31: 0.098370000M TPS
+Total tps: 3.252222000M
+./ycsb -s 32 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    32
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+srv 1 load time 0.000
+srv 2 load time 0.000
+srv 4 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 24 to srv 6
+srv (0): Loading stock..
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 5 load time 0.000
+Assinging core 28 to srv 7
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 32 to srv 8
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 56 to srv 14
+srv 10 load time 0.000
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.000
+Assinging core 60 to srv 15
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.000
+srv 12 load time 0.000
+Assinging core 64 to srv 16
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.000
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 68 to srv 17
+srv 13 load time 0.000
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.000
+srv 16 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+srv 17 load time 0.000
+srv 17 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 13 to srv 21
+srv 19 load time 0.000
+srv 20 load time 0.000
+srv 20 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.000
+srv 18 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+srv 21 load time 0.000
+srv 21 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 29 to srv 25
+srv 22 load time 0.000
+srv 22 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.000
+srv 23 load time 0.000
+srv 23 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+srv 25 load time 0.000
+srv 25 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 45 to srv 29
+srv 26 load time 0.000
+srv 26 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.000
+srv 28 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.000
+srv 27 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+srv 30 load time 0.000
+srv 30 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.000
+srv 29 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.000
+srv 31 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 17.172
+srv 0 rec count: 16274499 partition sz 4830332-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 18 starting txns
+srv 27 starting txns
+srv 17 starting txns
+srv 2 starting txns
+srv 14 starting txns
+srv 4 starting txns
+srv 6 starting txns
+srv 31 starting txns
+srv 19 starting txns
+srv 30 starting txns
+srv 22 starting txns
+srv 25 starting txns
+srv 10 starting txns
+srv 3 starting txns
+srv 23 starting txns
+srv 1 starting txns
+srv 28 starting txns
+srv 15 starting txns
+srv 5 starting txns
+srv 12 starting txns
+srv 20 starting txns
+srv 29 starting txns
+srv 24 starting txns
+srv 13 starting txns
+srv 11 starting txns
+srv 21 starting txns
+srv 26 starting txns
+srv 9 starting txns
+srv 16 starting txns
+srv 8 starting txns
+srv 7 starting txns
+srv 10 query time 93.829
+srv 8 query time 94.317
+srv 11 query time 94.977
+srv 14 query time 95.113
+srv 13 query time 95.308
+srv 16 query time 95.368
+srv 15 query time 95.448
+srv 12 query time 95.501
+srv 17 query time 95.707
+srv 7 query time 95.900
+srv 9 query time 95.922
+srv 5 query time 96.395
+srv 4 query time 96.549
+srv 1 query time 96.570
+srv 6 query time 96.568
+srv 3 query time 96.831
+srv 0 query time 97.291
+srv 2 query time 97.351
+srv 18 query time 98.952
+srv 21 query time 100.027
+srv 20 query time 100.775
+srv 26 query time 101.543
+srv 24 query time 101.625
+srv 28 query time 102.148
+srv 25 query time 102.267
+srv 19 query time 102.412
+srv 29 query time 102.578
+srv 31 query time 102.829
+srv 30 query time 103.133
+srv 23 query time 103.635
+srv 22 query time 104.305
+srv 27 query time 105.122
+srv 27 quitting 
+srv 11 quitting 
+srv 17 quitting 
+srv 23 quitting 
+srv 20 quitting 
+srv 29 quitting 
+srv 26 quitting 
+srv 31 quitting 
+srv 24 quitting 
+srv 16 quitting 
+srv 28 quitting 
+srv 4 quitting 
+srv 0 quitting 
+srv 10 quitting 
+srv 22 quitting 
+srv 8 quitting 
+srv 7 quitting 
+srv 15 quitting 
+Server 27 verifying consistency..
+Server 29 verifying consistency..
+srv 6 quitting 
+Server 28 verifying consistency..
+srv 18 quitting 
+srv 3 quitting 
+srv 5 quitting 
+srv 9 quitting 
+srv 21 quitting 
+Server 11 verifying consistency..
+srv 2 quitting 
+srv 1 quitting 
+srv 14 quitting 
+Server 6 verifying consistency..
+srv 12 quitting 
+Server 0 verifying consistency..
+Server 26 verifying consistency..
+Server 16 verifying consistency..
+Server 22 verifying consistency..
+srv 25 quitting 
+Server 4 verifying consistency..
+Server 24 verifying consistency..
+Server 7 verifying consistency..
+srv 19 quitting 
+Server 23 verifying consistency..
+Server 31 verifying consistency..
+Server 25 verifying consistency..
+srv 13 quitting 
+Server 9 verifying consistency..
+Server 5 verifying consistency..
+Server 15 verifying consistency..
+Server 1 verifying consistency..
+Server 8 verifying consistency..
+Server 10 verifying consistency..
+Server 18 verifying consistency..
+Server 14 verifying consistency..
+Server 19 verifying consistency..
+Server 17 verifying consistency..
+Server 13 verifying consistency..
+Server 21 verifying consistency..
+Server 12 verifying consistency..
+Server 20 verifying consistency..
+srv 30 quitting 
+Server 30 verifying consistency..
+Server 3 verifying consistency..
+Server 2 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+total commits 320000000
+== results ==
+Server 0: 0.102784000M TPS
+Server 1: 0.103551000M TPS
+Server 2: 0.102721000M TPS
+Server 3: 0.103272000M TPS
+Server 4: 0.103574000M TPS
+Server 5: 0.103740000M TPS
+Server 6: 0.103554000M TPS
+Server 7: 0.104275000M TPS
+Server 8: 0.106025000M TPS
+Server 9: 0.104250000M TPS
+Server 10: 0.106576000M TPS
+Server 11: 0.105289000M TPS
+Server 12: 0.104711000M TPS
+Server 13: 0.104923000M TPS
+Server 14: 0.105137000M TPS
+Server 15: 0.104769000M TPS
+Server 16: 0.104856000M TPS
+Server 17: 0.104485000M TPS
+Server 18: 0.101059000M TPS
+Server 19: 0.097644000M TPS
+Server 20: 0.099230000M TPS
+Server 21: 0.099972000M TPS
+Server 22: 0.095872000M TPS
+Server 23: 0.096492000M TPS
+Server 24: 0.098401000M TPS
+Server 25: 0.097782000M TPS
+Server 26: 0.098480000M TPS
+Server 27: 0.095127000M TPS
+Server 28: 0.097897000M TPS
+Server 29: 0.097486000M TPS
+Server 30: 0.096962000M TPS
+Server 31: 0.097248000M TPS
+Total tps: 3.248144000M
+./ycsb -s 32 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    32
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+srv 1 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+Assinging core 28 to srv 7
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 60 to srv 15
+srv 12 load time 0.000
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.000
+srv 10 load time 0.000
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 64 to srv 16
+srv 13 load time 0.000
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.000
+Assinging core 68 to srv 17
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.000
+srv 16 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+srv 17 load time 0.000
+srv 17 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 19 load time 0.000
+srv 19 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 13 to srv 21
+srv 18 load time 0.000
+srv 18 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.000
+srv 20 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+Assinging core 25 to srv 24
+srv 21 load time 0.000
+srv 21 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+srv 22 load time 0.000
+srv 22 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.000
+srv 24 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 37 to srv 27
+srv 23 load time 0.000
+srv 23 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.000
+srv 25 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.000
+srv 26 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+srv 28 load time 0.000
+srv 28 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.000
+srv 29 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.000
+srv 31 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.000
+srv 30 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 27 load time 0.000
+srv 27 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 17.220
+srv 0 rec count: 16274499 partition sz 4830332-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 24 starting txns
+srv 19 starting txns
+srv 26 starting txns
+srv 30 starting txns
+srv 31 starting txns
+srv 21 starting txns
+srv 28 starting txns
+srv 25 starting txns
+srv 29 starting txns
+srv 27 starting txns
+srv 18 starting txns
+srv 22 starting txns
+srv 20 starting txns
+srv 23 starting txns
+srv 12 starting txns
+srv 5 starting txns
+srv 16 starting txns
+srv 13 starting txns
+srv 3 starting txns
+srv 15 starting txns
+srv 10 starting txns
+srv 17 starting txns
+srv 2 starting txns
+srv 6 starting txns
+srv 14 starting txns
+srv 11 starting txns
+srv 4 starting txns
+srv 8 starting txns
+srv 1 starting txns
+srv 9 starting txns
+srv 7 starting txns
+srv 8 query time 95.533
+srv 3 query time 95.539
+srv 9 query time 96.361
+srv 1 query time 96.517
+srv 6 query time 96.523
+srv 14 query time 96.540
+srv 15 query time 96.541
+srv 10 query time 96.635
+srv 4 query time 96.774
+srv 7 query time 96.815
+srv 16 query time 96.865
+srv 17 query time 96.952
+srv 11 query time 96.979
+srv 2 query time 97.088
+srv 5 query time 97.097
+srv 13 query time 97.134
+srv 12 query time 97.339
+srv 0 query time 98.186
+srv 23 query time 99.306
+srv 24 query time 100.197
+srv 30 query time 100.888
+srv 18 query time 101.104
+srv 21 query time 101.655
+srv 20 query time 101.866
+srv 27 query time 102.664
+srv 26 query time 102.672
+srv 31 query time 102.860
+srv 29 query time 102.988
+srv 22 query time 103.202
+srv 19 query time 103.221
+srv 28 query time 103.548
+srv 25 query time 105.445
+srv 25 quitting 
+srv 20 quitting 
+srv 4 quitting 
+srv 0 quitting 
+srv 1 quitting 
+srv 15 quitting 
+srv 7 quitting 
+srv 6 quitting 
+srv 5 quitting 
+srv 17 quitting 
+srv 28 quitting 
+srv 19 quitting 
+srv 10 quitting 
+srv 22 quitting 
+Server 0 verifying consistency..
+srv 24 quitting 
+srv 26 quitting 
+Server 19 verifying consistency..
+Server 20 verifying consistency..
+srv 13 quitting 
+Server 25 verifying consistency..
+srv 21 quitting 
+Server 1 verifying consistency..
+srv 18 quitting 
+srv 31 quitting 
+Server 6 verifying consistency..
+srv 14 quitting 
+srv 27 quitting 
+Server 10 verifying consistency..
+Server 7 verifying consistency..
+srv 3 quitting 
+srv 2 quitting 
+srv 30 quitting 
+srv 12 quitting 
+srv 16 quitting 
+Server 28 verifying consistency..
+Server 14 verifying consistency..
+Server 3 verifying consistency..
+srv 11 quitting 
+Server 5 verifying consistency..
+srv 8 quitting 
+srv 23 quitting 
+Server 22 verifying consistency..
+Server 21 verifying consistency..
+Server 13 verifying consistency..
+Server 17 verifying consistency..
+Server 24 verifying consistency..
+Server 27 verifying consistency..
+Server 31 verifying consistency..
+Server 30 verifying consistency..
+Server 26 verifying consistency..
+Server 23 verifying consistency..
+srv 9 quitting 
+Server 16 verifying consistency..
+Server 15 verifying consistency..
+srv 29 quitting 
+Server 2 verifying consistency..
+Server 29 verifying consistency..
+Server 18 verifying consistency..
+Server 9 verifying consistency..
+Server 8 verifying consistency..
+Server 11 verifying consistency..
+Server 12 verifying consistency..
+Server 4 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+total commits 320000000
+== results ==
+Server 0: 0.101847000M TPS
+Server 1: 0.103608000M TPS
+Server 2: 0.102999000M TPS
+Server 3: 0.104668000M TPS
+Server 4: 0.103334000M TPS
+Server 5: 0.102989000M TPS
+Server 6: 0.103601000M TPS
+Server 7: 0.103289000M TPS
+Server 8: 0.104675000M TPS
+Server 9: 0.103776000M TPS
+Server 10: 0.103482000M TPS
+Server 11: 0.103115000M TPS
+Server 12: 0.102733000M TPS
+Server 13: 0.102950000M TPS
+Server 14: 0.103583000M TPS
+Server 15: 0.103582000M TPS
+Server 16: 0.103236000M TPS
+Server 17: 0.103143000M TPS
+Server 18: 0.098908000M TPS
+Server 19: 0.096879000M TPS
+Server 20: 0.098168000M TPS
+Server 21: 0.098371000M TPS
+Server 22: 0.096897000M TPS
+Server 23: 0.100699000M TPS
+Server 24: 0.099803000M TPS
+Server 25: 0.094835000M TPS
+Server 26: 0.097397000M TPS
+Server 27: 0.097404000M TPS
+Server 28: 0.096573000M TPS
+Server 29: 0.097098000M TPS
+Server 30: 0.099120000M TPS
+Server 31: 0.097219000M TPS
+Total tps: 3.229981000M
+./ycsb -s 64 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    64
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+srv 1 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 24 to srv 6
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 36 to srv 9
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+Assinging core 52 to srv 13
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 56 to srv 14
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 60 to srv 15
+srv 10 load time 0.000
+srv 11 load time 0.000
+Assinging core 64 to srv 16
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 load time 0.000
+Assinging core 68 to srv 17
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.000
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 load time 0.000
+srv 15 load time 0.000
+Assinging core 1 to srv 18
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 16 load time 0.000
+srv 16 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.000
+srv 17 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+Assinging core 21 to srv 23
+srv 20 load time 0.000
+srv 20 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.000
+srv 19 load time 0.000
+Assinging core 25 to srv 24
+srv 19 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.000
+srv 22 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.000
+srv 21 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 29 to srv 25
+srv 23 load time 0.000
+srv 23 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.000
+srv 24 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 33 to srv 26
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+srv 25 load time 0.000
+srv 25 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 49 to srv 30
+srv 26 load time 0.000
+srv 26 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.000
+srv 28 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 53 to srv 31
+srv 27 load time 0.000
+srv 27 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.000
+srv 29 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 57 to srv 32
+srv 30 load time 0.000
+srv 30 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 load time 0.000
+srv 31 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 61 to srv 33
+Assinging core 65 to srv 34
+Assinging core 69 to srv 35
+Assinging core 2 to srv 36
+srv 32 load time 0.000
+srv 32 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 6 to srv 37
+srv 35 load time 0.000
+srv 35 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 10 to srv 38
+srv 36 load time 0.000
+srv 37 load time 0.000
+srv 34 load time 0.000
+srv 37 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 34 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 14 to srv 39
+srv 36 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 33 load time 0.000
+srv 38 load time 0.000
+srv 38 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 33 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 18 to srv 40
+Assinging core 22 to srv 41
+Assinging core 26 to srv 42
+Assinging core 30 to srv 43
+srv 39 load time 0.000
+srv 39 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 34 to srv 44
+srv 40 load time 0.000
+srv 40 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 42 load time 0.000
+srv 42 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 38 to srv 45
+srv 41 load time 0.000
+srv 41 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 43 load time 0.000
+srv 43 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 42 to srv 46
+srv 44 load time 0.000
+srv 44 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 45 load time 0.000
+srv 45 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 46 to srv 47
+Assinging core 50 to srv 48
+Assinging core 54 to srv 49
+Assinging core 58 to srv 50
+srv 46 load time 0.000
+srv 46 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 62 to srv 51
+srv 47 load time 0.000
+srv 47 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 66 to srv 52
+srv 49 load time 0.000
+srv 49 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 50 load time 0.000
+srv 48 load time 0.000
+Assinging core 70 to srv 53
+srv 51 load time 0.000
+srv 51 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 48 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 50 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 52 load time 0.000
+srv 52 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 3 to srv 54
+Assinging core 7 to srv 55
+Assinging core 11 to srv 56
+srv 53 load time 0.000
+srv 53 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 55 load time 0.000
+srv 54 load time 0.000
+srv 55 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 15 to srv 57
+srv 56 load time 0.000
+srv 56 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 19 to srv 58
+srv 54 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 57 load time 0.000
+srv 57 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 23 to srv 59
+Assinging core 27 to srv 60
+Assinging core 31 to srv 61
+srv 58 load time 0.000
+srv 59 load time 0.000
+Assinging core 35 to srv 62
+srv 59 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 58 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 61 load time 0.000
+srv 60 load time 0.000
+Assinging core 39 to srv 63
+srv 60 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 61 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 62 load time 0.000
+srv 62 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 63 load time 0.000
+srv 63 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 33.754
+srv 0 rec count: 32552816 partition sz 9661499-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 61 starting txns
+srv 63 starting txns
+srv 62 starting txns
+srv 23 starting txns
+srv 31 starting txns
+srv 28 starting txns
+srv 26 starting txns
+srv 27 starting txns
+srv 25 starting txns
+srv 29 starting txns
+srv 33 starting txns
+srv 19 starting txns
+srv 22 starting txns
+srv 21 starting txns
+srv 35 starting txns
+srv 18 starting txns
+srv 30 starting txns
+srv 24 starting txns
+srv 20 starting txns
+srv 32 starting txns
+srv 34 starting txns
+srv 10 starting txns
+srv 3 starting txns
+srv 57 starting txns
+srv 59 starting txns
+srv 55 starting txns
+srv 56 starting txns
+srv 54 starting txns
+srv 36 starting txns
+srv 13 starting txns
+srv 17 starting txns
+srv 60 starting txns
+srv 58 starting txns
+srv 9 starting txns
+srv 6 starting txns
+srv 5 starting txns
+srv 53 starting txns
+srv 15 starting txns
+srv 47 starting txns
+srv 2 starting txns
+srv 45 starting txns
+srv 8 starting txns
+srv 14 starting txns
+srv 12 starting txns
+srv 11 starting txns
+srv 42 starting txns
+srv 51 starting txns
+srv 16 starting txns
+srv 44 starting txns
+srv 50 starting txns
+srv 46 starting txns
+srv 4 starting txns
+srv 7 starting txns
+srv 38 starting txns
+srv 49 starting txns
+srv 40 starting txns
+srv 43 starting txns
+srv 39 starting txns
+srv 1 starting txns
+srv 37 starting txns
+srv 41 starting txns
+srv 52 starting txns
+srv 48 starting txns
+srv 55 query time 125.570
+srv 59 query time 126.414
+srv 56 query time 126.858
+srv 57 query time 127.248
+srv 47 query time 128.388
+srv 62 query time 129.240
+srv 49 query time 129.360
+srv 54 query time 129.644
+srv 60 query time 131.829
+srv 36 query time 132.335
+srv 61 query time 132.461
+srv 63 query time 132.838
+srv 58 query time 133.333
+srv 39 query time 134.469
+srv 31 query time 135.131
+srv 42 query time 135.660
+srv 46 query time 135.729
+srv 50 query time 137.120
+srv 44 query time 137.261
+srv 41 query time 137.322
+srv 45 query time 137.430
+srv 43 query time 137.760
+srv 51 query time 137.815
+srv 18 query time 138.058
+srv 20 query time 138.277
+srv 52 query time 138.470
+srv 29 query time 138.598
+srv 35 query time 139.131
+srv 25 query time 139.612
+srv 37 query time 139.905
+srv 53 query time 139.957
+srv 40 query time 139.994
+srv 26 query time 140.107
+srv 15 query time 140.191
+srv 19 query time 140.229
+srv 32 query time 140.307
+srv 8 query time 140.699
+srv 4 query time 140.720
+srv 1 query time 140.729
+srv 17 query time 141.201
+srv 14 query time 141.327
+srv 21 query time 141.936
+srv 5 query time 141.952
+srv 30 query time 142.067
+srv 27 query time 142.116
+srv 33 query time 142.178
+srv 23 query time 142.309
+srv 7 query time 142.335
+srv 38 query time 142.338
+srv 9 query time 142.415
+srv 13 query time 142.435
+srv 0 query time 142.768
+srv 48 query time 142.918
+srv 3 query time 142.925
+srv 10 query time 143.025
+srv 16 query time 143.208
+srv 6 query time 143.581
+srv 2 query time 143.663
+srv 12 query time 143.689
+srv 11 query time 143.872
+srv 28 query time 145.726
+srv 34 query time 145.834
+srv 24 query time 146.319
+srv 22 query time 146.609
+srv 22 quitting 
+srv 48 quitting 
+srv 1 quitting 
+srv 10 quitting 
+srv 16 quitting 
+srv 26 quitting 
+srv 9 quitting 
+srv 63 quitting 
+srv 24 quitting 
+srv 42 quitting 
+srv 5 quitting 
+srv 25 quitting 
+srv 44 quitting 
+srv 17 quitting 
+srv 35 quitting 
+srv 0 quitting 
+srv 47 quitting 
+srv 50 quitting 
+srv 56 quitting 
+srv 11 quitting 
+srv 39 quitting 
+srv 13 quitting 
+srv 7 quitting 
+srv 34 quitting 
+srv 23 quitting 
+srv 62 quitting 
+srv 46 quitting 
+srv 12 quitting 
+srv 31 quitting 
+srv 4 quitting 
+srv 2 quitting 
+Server 10 verifying consistency..
+srv 33 quitting 
+Server 9 verifying consistency..
+srv 43 quitting 
+srv 8 quitting 
+srv 54 quitting 
+srv 53 quitting 
+srv 19 quitting 
+srv 55 quitting 
+srv 37 quitting 
+srv 6 quitting 
+srv 61 quitting 
+srv 15 quitting 
+Server 48 verifying consistency..
+srv 51 quitting 
+srv 14 quitting 
+srv 52 quitting 
+srv 21 quitting 
+srv 3 quitting 
+Server 33 verifying consistency..
+Server 26 verifying consistency..
+srv 49 quitting 
+srv 32 quitting 
+srv 45 quitting 
+Server 5 verifying consistency..
+srv 18 quitting 
+srv 59 quitting 
+Server 50 verifying consistency..
+srv 38 quitting 
+Server 7 verifying consistency..
+srv 60 quitting 
+srv 27 quitting 
+srv 41 quitting 
+Server 3 verifying consistency..
+Server 22 verifying consistency..
+Server 31 verifying consistency..
+srv 28 quitting 
+Server 49 verifying consistency..
+srv 58 quitting 
+srv 57 quitting 
+Server 25 verifying consistency..
+Server 24 verifying consistency..
+Server 53 verifying consistency..
+Server 59 verifying consistency..
+Server 39 verifying consistency..
+Server 6 verifying consistency..
+Server 15 verifying consistency..
+Server 27 verifying consistency..
+Server 12 verifying consistency..
+srv 29 quitting 
+srv 30 quitting 
+Server 46 verifying consistency..
+srv 36 quitting 
+Server 1 verifying consistency..
+Server 21 verifying consistency..
+Server 2 verifying consistency..
+Server 57 verifying consistency..
+Server 44 verifying consistency..
+Server 8 verifying consistency..
+Server 45 verifying consistency..
+Server 54 verifying consistency..
+Server 18 verifying consistency..
+Server 0 verifying consistency..
+Server 56 verifying consistency..
+srv 40 quitting 
+Server 11 verifying consistency..
+Server 60 verifying consistency..
+Server 51 verifying consistency..
+Server 36 verifying consistency..
+Server 16 verifying consistency..
+Server 28 verifying consistency..
+Server 32 verifying consistency..
+Server 17 verifying consistency..
+Server 42 verifying consistency..
+Server 63 verifying consistency..
+Server 40 verifying consistency..
+srv 20 quitting 
+Server 61 verifying consistency..
+Server 38 verifying consistency..
+Server 62 verifying consistency..
+Server 14 verifying consistency..
+Server 58 verifying consistency..
+Server 43 verifying consistency..
+Server 20 verifying consistency..
+Server 55 verifying consistency..
+Server 4 verifying consistency..
+Server 52 verifying consistency..
+Server 13 verifying consistency..
+Server 23 verifying consistency..
+Server 37 verifying consistency..
+Server 34 verifying consistency..
+Server 41 verifying consistency..
+Server 29 verifying consistency..
+Server 35 verifying consistency..
+Server 47 verifying consistency..
+Server 30 verifying consistency..
+Server 19 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+srv 32 commits 10000000
+srv 33 commits 10000000
+srv 34 commits 10000000
+srv 35 commits 10000000
+srv 36 commits 10000000
+srv 37 commits 10000000
+srv 38 commits 10000000
+srv 39 commits 10000000
+srv 40 commits 10000000
+srv 41 commits 10000000
+srv 42 commits 10000000
+srv 43 commits 10000000
+srv 44 commits 10000000
+srv 45 commits 10000000
+srv 46 commits 10000000
+srv 47 commits 10000000
+srv 48 commits 10000000
+srv 49 commits 10000000
+srv 50 commits 10000000
+srv 51 commits 10000000
+srv 52 commits 10000000
+srv 53 commits 10000000
+srv 54 commits 10000000
+srv 55 commits 10000000
+srv 56 commits 10000000
+srv 57 commits 10000000
+srv 58 commits 10000000
+srv 59 commits 10000000
+srv 60 commits 10000000
+srv 61 commits 10000000
+srv 62 commits 10000000
+srv 63 commits 10000000
+total commits 640000000
+== results ==
+Server 0: 0.070043000M TPS
+Server 1: 0.071058000M TPS
+Server 2: 0.069607000M TPS
+Server 3: 0.069966000M TPS
+Server 4: 0.071063000M TPS
+Server 5: 0.070446000M TPS
+Server 6: 0.069647000M TPS
+Server 7: 0.070257000M TPS
+Server 8: 0.071073000M TPS
+Server 9: 0.070217000M TPS
+Server 10: 0.069917000M TPS
+Server 11: 0.069506000M TPS
+Server 12: 0.069594000M TPS
+Server 13: 0.070207000M TPS
+Server 14: 0.070757000M TPS
+Server 15: 0.071331000M TPS
+Server 16: 0.069828000M TPS
+Server 17: 0.070820000M TPS
+Server 18: 0.072433000M TPS
+Server 19: 0.071311000M TPS
+Server 20: 0.072318000M TPS
+Server 21: 0.070454000M TPS
+Server 22: 0.068208000M TPS
+Server 23: 0.070269000M TPS
+Server 24: 0.068343000M TPS
+Server 25: 0.071627000M TPS
+Server 26: 0.071373000M TPS
+Server 27: 0.070365000M TPS
+Server 28: 0.068621000M TPS
+Server 29: 0.072150000M TPS
+Server 30: 0.070389000M TPS
+Server 31: 0.074002000M TPS
+Server 32: 0.071272000M TPS
+Server 33: 0.070334000M TPS
+Server 34: 0.068571000M TPS
+Server 35: 0.071874000M TPS
+Server 36: 0.075565000M TPS
+Server 37: 0.071477000M TPS
+Server 38: 0.070255000M TPS
+Server 39: 0.074366000M TPS
+Server 40: 0.071431000M TPS
+Server 41: 0.072821000M TPS
+Server 42: 0.073713000M TPS
+Server 43: 0.072590000M TPS
+Server 44: 0.072853000M TPS
+Server 45: 0.072764000M TPS
+Server 46: 0.073676000M TPS
+Server 47: 0.077888000M TPS
+Server 48: 0.069970000M TPS
+Server 49: 0.077303000M TPS
+Server 50: 0.072929000M TPS
+Server 51: 0.072560000M TPS
+Server 52: 0.072217000M TPS
+Server 53: 0.071450000M TPS
+Server 54: 0.077134000M TPS
+Server 55: 0.079636000M TPS
+Server 56: 0.078828000M TPS
+Server 57: 0.078586000M TPS
+Server 58: 0.075000000M TPS
+Server 59: 0.079105000M TPS
+Server 60: 0.075856000M TPS
+Server 61: 0.075494000M TPS
+Server 62: 0.077375000M TPS
+Server 63: 0.075279000M TPS
+Total tps: 4.627372000M
+./ycsb -s 64 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    64
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+Assinging core 20 to srv 5
+Assinging core 24 to srv 6
+srv 1 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 load time 0.000
+Assinging core 28 to srv 7
+srv (0): Loading stock..
+srv 4 load time 0.000
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 load time 0.000
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 32 to srv 8
+Assinging core 36 to srv 9
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 40 to srv 10
+Assinging core 44 to srv 11
+Assinging core 48 to srv 12
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 10 load time 0.000
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 11 load time 0.000
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 52 to srv 13
+Assinging core 56 to srv 14
+Assinging core 60 to srv 15
+srv 12 load time 0.000
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.000
+srv 13 load time 0.000
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 64 to srv 16
+Assinging core 68 to srv 17
+Assinging core 1 to srv 18
+Assinging core 5 to srv 19
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+srv 16 load time 0.000
+srv 16 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.000
+srv 18 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 17 load time 0.000
+srv 17 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 17 to srv 22
+srv 19 load time 0.000
+srv 19 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 21 to srv 23
+srv 20 load time 0.000
+srv 20 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.000
+srv 21 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 22 load time 0.000
+srv 22 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+srv 23 load time 0.000
+srv 23 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 37 to srv 27
+Assinging core 41 to srv 28
+srv 24 load time 0.000
+srv 24 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 25 load time 0.000
+srv 25 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 45 to srv 29
+srv 26 load time 0.000
+srv 26 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 49 to srv 30
+srv 27 load time 0.000
+srv 27 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 28 load time 0.000
+srv 28 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 load time 0.000
+srv 29 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 53 to srv 31
+Assinging core 57 to srv 32
+Assinging core 61 to srv 33
+Assinging core 65 to srv 34
+srv 30 load time 0.000
+srv 30 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 69 to srv 35
+srv 31 load time 0.000
+srv 34 load time 0.000
+srv 34 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 2 to srv 36
+srv 33 load time 0.000
+srv 33 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 31 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 32 load time 0.000
+srv 32 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 35 load time 0.000
+srv 35 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 6 to srv 37
+Assinging core 10 to srv 38
+Assinging core 14 to srv 39
+Assinging core 18 to srv 40
+srv 37 load time 0.000
+srv 38 load time 0.000
+srv 38 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 37 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 36 load time 0.000
+srv 36 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 22 to srv 41
+srv 40 load time 0.000
+srv 40 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 39 load time 0.000
+srv 39 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 26 to srv 42
+Assinging core 30 to srv 43
+Assinging core 34 to srv 44
+Assinging core 38 to srv 45
+srv 42 load time 0.000
+srv 42 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 42 to srv 46
+srv 44 load time 0.000
+srv 44 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 46 to srv 47
+srv 45 load time 0.000
+srv 45 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 50 to srv 48
+srv 46 load time 0.000
+srv 46 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 47 load time 0.000
+srv 47 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 54 to srv 49
+Assinging core 58 to srv 50
+Assinging core 62 to srv 51
+srv 41 load time 0.000
+Assinging core 66 to srv 52
+srv 50 load time 0.000
+srv 50 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 70 to srv 53
+srv 41 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 48 load time 0.000
+srv 48 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 51 load time 0.000
+srv 51 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 3 to srv 54
+srv 52 load time 0.000
+srv 52 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 7 to srv 55
+srv 53 load time 0.000
+srv 53 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 11 to srv 56
+srv 54 load time 0.000
+srv 54 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 55 load time 0.000
+srv 55 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 43 load time 0.000
+srv 43 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 49 load time 0.000
+srv 49 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 15 to srv 57
+Assinging core 19 to srv 58
+Assinging core 23 to srv 59
+srv 56 load time 0.000
+srv 56 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 57 load time 0.000
+srv 57 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 27 to srv 60
+srv 58 load time 0.000
+srv 58 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 31 to srv 61
+srv 59 load time 0.000
+srv 59 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 35 to srv 62
+srv 60 load time 0.000
+srv 60 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 61 load time 0.000
+srv 61 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 39 to srv 63
+srv 62 load time 0.000
+srv 62 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 63 load time 0.000
+srv 63 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 33.571
+srv 0 rec count: 32552816 partition sz 9661499-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 63 starting txns
+srv 62 starting txns
+srv 25 starting txns
+srv 32 starting txns
+srv 23 starting txns
+srv 20 starting txns
+srv 31 starting txns
+srv 28 starting txns
+srv 61 starting txns
+srv 27 starting txns
+srv 19 starting txns
+srv 18 starting txns
+srv 21 starting txns
+srv 24 starting txns
+srv 34 starting txns
+srv 53 starting txns
+srv 33 starting txns
+srv 30 starting txns
+srv 29 starting txns
+srv 58 starting txns
+srv 55 starting txns
+srv 56 starting txns
+srv 26 starting txns
+srv 47 starting txns
+srv 35 starting txns
+srv 52 starting txns
+srv 40 starting txns
+srv 57 starting txns
+srv 22 starting txns
+srv 15 starting txns
+srv 37 starting txns
+srv 11 starting txns
+srv 54 starting txns
+srv 44 starting txns
+srv 4 starting txns
+srv 42 starting txns
+srv 38 starting txns
+srv 17 starting txns
+srv 60 starting txns
+srv 14 starting txns
+srv 2 starting txns
+srv 51 starting txns
+srv 41 starting txns
+srv 36 starting txns
+srv 5 starting txns
+srv 48 starting txns
+srv 8 starting txns
+srv 12 starting txns
+srv 6 starting txns
+srv 43 starting txns
+srv 45 starting txns
+srv 3 starting txns
+srv 7 starting txns
+srv 59 starting txns
+srv 50 starting txns
+srv 46 starting txns
+srv 10 starting txns
+srv 16 starting txns
+srv 9 starting txns
+srv 49 starting txns
+srv 13 starting txns
+srv 1 starting txns
+srv 39 starting txns
+srv 57 query time 116.750
+srv 60 query time 117.013
+srv 54 query time 117.169
+srv 63 query time 118.041
+srv 55 query time 118.942
+srv 58 query time 119.813
+srv 56 query time 120.215
+srv 62 query time 120.611
+srv 59 query time 120.822
+srv 51 query time 122.456
+srv 38 query time 125.346
+srv 44 query time 125.668
+srv 61 query time 125.753
+srv 45 query time 126.076
+srv 42 query time 126.141
+srv 52 query time 126.495
+srv 50 query time 127.329
+srv 41 query time 127.481
+srv 40 query time 127.887
+srv 49 query time 129.343
+srv 2 query time 129.722
+srv 36 query time 129.966
+srv 47 query time 130.080
+srv 12 query time 130.565
+srv 13 query time 130.663
+srv 46 query time 130.705
+srv 3 query time 130.873
+srv 8 query time 130.912
+srv 9 query time 131.482
+srv 16 query time 131.510
+srv 15 query time 131.599
+srv 10 query time 131.638
+srv 43 query time 131.803
+srv 5 query time 131.887
+srv 39 query time 132.084
+srv 14 query time 132.207
+srv 4 query time 132.250
+srv 7 query time 132.591
+srv 11 query time 132.689
+srv 48 query time 132.878
+srv 28 query time 132.901
+srv 17 query time 133.114
+srv 6 query time 133.275
+srv 1 query time 133.410
+srv 19 query time 133.655
+srv 37 query time 133.664
+srv 35 query time 133.882
+srv 53 query time 134.135
+srv 23 query time 134.400
+srv 24 query time 134.540
+srv 26 query time 134.578
+srv 0 query time 134.858
+srv 22 query time 134.876
+srv 27 query time 135.232
+srv 25 query time 136.029
+srv 21 query time 136.132
+srv 29 query time 137.050
+srv 20 query time 137.229
+srv 31 query time 137.578
+srv 18 query time 137.807
+srv 30 query time 138.202
+srv 34 query time 138.611
+srv 32 query time 139.381
+srv 33 query time 139.867
+srv 33 quitting 
+srv 18 quitting 
+srv 54 quitting 
+srv 4 quitting 
+srv 6 quitting 
+srv 47 quitting 
+srv 25 quitting 
+srv 3 quitting 
+srv 41 quitting 
+srv 37 quitting 
+srv 48 quitting 
+Server 33 verifying consistency..
+srv 26 quitting 
+srv 59 quitting 
+srv 0 quitting 
+srv 5 quitting 
+srv 40 quitting 
+srv 56 quitting 
+srv 50 quitting 
+srv 38 quitting 
+srv 21 quitting 
+srv 13 quitting 
+srv 39 quitting 
+srv 15 quitting 
+srv 35 quitting 
+srv 57 quitting 
+srv 24 quitting 
+srv 27 quitting 
+srv 10 quitting 
+srv 1 quitting 
+srv 52 quitting 
+srv 22 quitting 
+srv 14 quitting 
+srv 23 quitting 
+srv 29 quitting 
+srv 11 quitting 
+srv 34 quitting 
+srv 44 quitting 
+srv 43 quitting 
+srv 19 quitting 
+srv 7 quitting 
+srv 61 quitting 
+Server 0 verifying consistency..
+srv 42 quitting 
+srv 32 quitting 
+srv 46 quitting 
+srv 45 quitting 
+srv 9 quitting 
+srv 31 quitting 
+srv 8 quitting 
+Server 27 verifying consistency..
+Server 23 verifying consistency..
+Server 43 verifying consistency..
+srv 62 quitting 
+srv 30 quitting 
+srv 17 quitting 
+Server 18 verifying consistency..
+srv 16 quitting 
+Server 42 verifying consistency..
+Server 5 verifying consistency..
+srv 60 quitting 
+srv 2 quitting 
+srv 28 quitting 
+Server 15 verifying consistency..
+Server 10 verifying consistency..
+Server 29 verifying consistency..
+srv 12 quitting 
+Server 7 verifying consistency..
+Server 25 verifying consistency..
+srv 36 quitting 
+srv 55 quitting 
+Server 61 verifying consistency..
+Server 4 verifying consistency..
+Server 32 verifying consistency..
+Server 46 verifying consistency..
+Server 13 verifying consistency..
+Server 41 verifying consistency..
+Server 28 verifying consistency..
+srv 58 quitting 
+Server 35 verifying consistency..
+Server 52 verifying consistency..
+srv 63 quitting 
+srv 49 quitting 
+Server 11 verifying consistency..
+Server 21 verifying consistency..
+srv 51 quitting 
+srv 53 quitting 
+Server 54 verifying consistency..
+Server 48 verifying consistency..
+Server 40 verifying consistency..
+Server 34 verifying consistency..
+Server 9 verifying consistency..
+Server 14 verifying consistency..
+Server 59 verifying consistency..
+Server 30 verifying consistency..
+srv 20 quitting 
+Server 36 verifying consistency..
+Server 37 verifying consistency..
+Server 55 verifying consistency..
+Server 24 verifying consistency..
+Server 38 verifying consistency..
+Server 39 verifying consistency..
+Server 3 verifying consistency..
+Server 45 verifying consistency..
+Server 49 verifying consistency..
+Server 6 verifying consistency..
+Server 57 verifying consistency..
+Server 17 verifying consistency..
+Server 12 verifying consistency..
+Server 19 verifying consistency..
+Server 8 verifying consistency..
+Server 58 verifying consistency..
+Server 63 verifying consistency..
+Server 47 verifying consistency..
+Server 31 verifying consistency..
+Server 51 verifying consistency..
+Server 62 verifying consistency..
+Server 60 verifying consistency..
+Server 22 verifying consistency..
+Server 16 verifying consistency..
+Server 26 verifying consistency..
+Server 50 verifying consistency..
+Server 56 verifying consistency..
+Server 53 verifying consistency..
+Server 2 verifying consistency..
+Server 20 verifying consistency..
+Server 1 verifying consistency..
+Server 44 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+srv 32 commits 10000000
+srv 33 commits 10000000
+srv 34 commits 10000000
+srv 35 commits 10000000
+srv 36 commits 10000000
+srv 37 commits 10000000
+srv 38 commits 10000000
+srv 39 commits 10000000
+srv 40 commits 10000000
+srv 41 commits 10000000
+srv 42 commits 10000000
+srv 43 commits 10000000
+srv 44 commits 10000000
+srv 45 commits 10000000
+srv 46 commits 10000000
+srv 47 commits 10000000
+srv 48 commits 10000000
+srv 49 commits 10000000
+srv 50 commits 10000000
+srv 51 commits 10000000
+srv 52 commits 10000000
+srv 53 commits 10000000
+srv 54 commits 10000000
+srv 55 commits 10000000
+srv 56 commits 10000000
+srv 57 commits 10000000
+srv 58 commits 10000000
+srv 59 commits 10000000
+srv 60 commits 10000000
+srv 61 commits 10000000
+srv 62 commits 10000000
+srv 63 commits 10000000
+total commits 640000000
+== results ==
+Server 0: 0.074151000M TPS
+Server 1: 0.074957000M TPS
+Server 2: 0.077087000M TPS
+Server 3: 0.076410000M TPS
+Server 4: 0.075614000M TPS
+Server 5: 0.075822000M TPS
+Server 6: 0.075033000M TPS
+Server 7: 0.075419000M TPS
+Server 8: 0.076387000M TPS
+Server 9: 0.076055000M TPS
+Server 10: 0.075965000M TPS
+Server 11: 0.075364000M TPS
+Server 12: 0.076590000M TPS
+Server 13: 0.076532000M TPS
+Server 14: 0.075638000M TPS
+Server 15: 0.075988000M TPS
+Server 16: 0.076039000M TPS
+Server 17: 0.075123000M TPS
+Server 18: 0.072565000M TPS
+Server 19: 0.074819000M TPS
+Server 20: 0.072870000M TPS
+Server 21: 0.073457000M TPS
+Server 22: 0.074142000M TPS
+Server 23: 0.074405000M TPS
+Server 24: 0.074327000M TPS
+Server 25: 0.073513000M TPS
+Server 26: 0.074306000M TPS
+Server 27: 0.073947000M TPS
+Server 28: 0.075244000M TPS
+Server 29: 0.072965000M TPS
+Server 30: 0.072358000M TPS
+Server 31: 0.072685000M TPS
+Server 32: 0.071745000M TPS
+Server 33: 0.071496000M TPS
+Server 34: 0.072144000M TPS
+Server 35: 0.074692000M TPS
+Server 36: 0.076943000M TPS
+Server 37: 0.074814000M TPS
+Server 38: 0.079779000M TPS
+Server 39: 0.075709000M TPS
+Server 40: 0.078194000M TPS
+Server 41: 0.078443000M TPS
+Server 42: 0.079276000M TPS
+Server 43: 0.075870000M TPS
+Server 44: 0.079574000M TPS
+Server 45: 0.079317000M TPS
+Server 46: 0.076507000M TPS
+Server 47: 0.076875000M TPS
+Server 48: 0.075256000M TPS
+Server 49: 0.077313000M TPS
+Server 50: 0.078536000M TPS
+Server 51: 0.081661000M TPS
+Server 52: 0.079054000M TPS
+Server 53: 0.074551000M TPS
+Server 54: 0.085346000M TPS
+Server 55: 0.084074000M TPS
+Server 56: 0.083184000M TPS
+Server 57: 0.085652000M TPS
+Server 58: 0.083463000M TPS
+Server 59: 0.082766000M TPS
+Server 60: 0.085460000M TPS
+Server 61: 0.079520000M TPS
+Server 62: 0.082911000M TPS
+Server 63: 0.084716000M TPS
+Total tps: 4.920618000M
+./ycsb -s 64 -d 0 -b 1 -i 10000000 -o 10 -t 640000000 -w 100
+ # clients:    1
+ # servers:    64
+ Key range:    0..2^29
+ Write ratio:  100
+ Total #recs: 640000000 
+ Iterations:   10000000
+Assinging core 0 to srv 0
+Assinging core 4 to srv 1
+Assinging core 8 to srv 2
+Assinging core 12 to srv 3
+Assinging core 16 to srv 4
+srv 1 load time 0.000
+srv 3 load time 0.000
+srv 1 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 20 to srv 5
+srv 2 load time 0.000
+srv 2 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 3 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 24 to srv 6
+srv 4 load time 0.000
+srv 4 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 28 to srv 7
+Assinging core 32 to srv 8
+srv 5 load time 0.000
+srv 5 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 36 to srv 9
+srv 6 load time 0.000
+srv 6 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 40 to srv 10
+srv 7 load time 0.000
+srv 7 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 44 to srv 11
+srv 8 load time 0.000
+srv 8 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 48 to srv 12
+srv 10 load time 0.000
+Assinging core 52 to srv 13
+srv 10 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 9 load time 0.000
+srv 9 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 56 to srv 14
+srv 11 load time 0.000
+srv 11 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 60 to srv 15
+srv 12 load time 0.000
+srv 12 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 64 to srv 16
+srv 13 load time 0.000
+srv 13 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 68 to srv 17
+srv 15 load time 0.000
+srv 15 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 14 load time 0.000
+srv 14 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 1 to srv 18
+srv 16 load time 0.000
+srv 16 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading stock..
+Assinging core 5 to srv 19
+srv 17 load time 0.000
+srv 17 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 18 load time 0.000
+srv 18 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 9 to srv 20
+Assinging core 13 to srv 21
+Assinging core 17 to srv 22
+srv 19 load time 0.000
+srv 19 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 20 load time 0.000
+srv 20 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 21 load time 0.000
+srv 21 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 21 to srv 23
+srv 22 load time 0.000
+srv 22 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 25 to srv 24
+Assinging core 29 to srv 25
+Assinging core 33 to srv 26
+srv 23 load time 0.000
+srv 23 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 24 load time 0.000
+srv 24 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 37 to srv 27
+srv 25 load time 0.000
+srv 25 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 26 load time 0.000
+srv 26 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 41 to srv 28
+Assinging core 45 to srv 29
+Assinging core 49 to srv 30
+Assinging core 53 to srv 31
+srv 27 load time 0.000
+srv 27 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 57 to srv 32
+srv 28 load time 0.000
+srv 28 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 load time 0.000
+srv 29 load time 0.000
+srv 31 load time 0.000
+srv 31 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 30 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 29 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 61 to srv 33
+Assinging core 65 to srv 34
+Assinging core 69 to srv 35
+Assinging core 2 to srv 36
+Assinging core 6 to srv 37
+srv 33 load time 0.000
+srv 33 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 32 load time 0.000
+Assinging core 10 to srv 38
+srv 32 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 35 load time 0.000
+srv 35 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 36 load time 0.000
+srv 34 load time 0.000
+srv 34 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 36 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 37 load time 0.000
+Assinging core 14 to srv 39
+srv 37 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 38 load time 0.000
+srv 38 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 18 to srv 40
+srv 39 load time 0.000
+srv 39 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 22 to srv 41
+Assinging core 26 to srv 42
+Assinging core 30 to srv 43
+srv 40 load time 0.000
+srv 40 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 34 to srv 44
+Assinging core 38 to srv 45
+srv 42 load time 0.000
+srv 42 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 42 to srv 46
+srv 43 load time 0.000
+Assinging core 46 to srv 47
+srv 44 load time 0.000
+srv 43 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 41 load time 0.000
+srv 41 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 44 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 45 load time 0.000
+srv 45 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 46 load time 0.000
+srv 46 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 50 to srv 48
+Assinging core 54 to srv 49
+srv 47 load time 0.000
+srv 47 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 58 to srv 50
+srv 48 load time 0.000
+srv 48 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 62 to srv 51
+srv 49 load time 0.000
+srv 49 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 66 to srv 52
+Assinging core 70 to srv 53
+srv 50 load time 0.000
+srv 50 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 3 to srv 54
+srv 51 load time 0.000
+srv 51 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 7 to srv 55
+srv 52 load time 0.000
+srv 52 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 53 load time 0.000
+srv 53 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 54 load time 0.000
+srv 54 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 11 to srv 56
+srv 55 load time 0.000
+srv 55 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 15 to srv 57
+Assinging core 19 to srv 58
+Assinging core 23 to srv 59
+srv 57 load time 0.000
+srv 57 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 27 to srv 60
+srv 56 load time 0.000
+srv 56 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 58 load time 0.000
+srv 58 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 31 to srv 61
+srv 59 load time 0.000
+srv 59 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 60 load time 0.000
+srv 60 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+Assinging core 35 to srv 62
+Assinging core 39 to srv 63
+srv 61 load time 0.000
+srv 61 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 62 load time 0.000
+srv 62 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv 63 load time 0.000
+srv 63 rec count: 0 partition sz 0-KB tx count: 10000000, per_txn_op cnt: 10
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 33.742
+srv 0 rec count: 32552816 partition sz 9661499-KB tx count: 10000000, per_txn_op cnt: 10
+srv 0 starting txns
+srv 62 starting txns
+srv 59 starting txns
+srv 54 starting txns
+srv 63 starting txns
+srv 56 starting txns
+srv 55 starting txns
+srv 61 starting txns
+srv 60 starting txns
+srv 57 starting txns
+srv 58 starting txns
+srv 47 starting txns
+srv 4 starting txns
+srv 19 starting txns
+srv 38 starting txns
+srv 5 starting txns
+srv 8 starting txns
+srv 1 starting txns
+srv 31 starting txns
+srv 17 starting txns
+srv 26 starting txns
+srv 48 starting txns
+srv 18 starting txns
+srv 39 starting txns
+srv 46 starting txns
+srv 45 starting txns
+srv 36 starting txns
+srv 12 starting txns
+srv 50 starting txns
+srv 37 starting txns
+srv 44 starting txns
+srv 20 starting txns
+srv 2 starting txns
+srv 24 starting txns
+srv 27 starting txns
+srv 6 starting txns
+srv 30 starting txns
+srv 40 starting txns
+srv 41 starting txns
+srv 3 starting txns
+srv 21 starting txns
+srv 42 starting txns
+srv 43 starting txns
+srv 49 starting txns
+srv 52 starting txns
+srv 7 starting txns
+srv 29 starting txns
+srv 9 starting txns
+srv 35 starting txns
+srv 25 starting txns
+srv 33 starting txns
+srv 11 starting txns
+srv 32 starting txns
+srv 51 starting txns
+srv 10 starting txns
+srv 28 starting txns
+srv 16 starting txns
+srv 22 starting txns
+srv 34 starting txns
+srv 15 starting txns
+srv 23 starting txns
+srv 14 starting txns
+srv 53 starting txns
+srv 13 starting txns
+srv 56 query time 119.108
+srv 57 query time 122.197
+srv 59 query time 123.244
+srv 58 query time 123.396
+srv 54 query time 123.462
+srv 60 query time 124.384
+srv 63 query time 124.912
+srv 18 query time 125.394
+srv 62 query time 125.923
+srv 19 query time 127.825
+srv 55 query time 128.405
+srv 61 query time 128.771
+srv 53 query time 130.907
+srv 26 query time 132.883
+srv 39 query time 133.115
+srv 6 query time 133.126
+srv 44 query time 133.455
+srv 42 query time 133.566
+srv 47 query time 133.901
+srv 49 query time 133.969
+srv 50 query time 134.068
+srv 10 query time 134.559
+srv 38 query time 134.938
+srv 21 query time 135.010
+srv 36 query time 135.029
+srv 33 query time 135.237
+srv 41 query time 135.405
+srv 2 query time 135.455
+srv 12 query time 135.511
+srv 46 query time 135.857
+srv 43 query time 135.877
+srv 7 query time 136.064
+srv 24 query time 136.162
+srv 52 query time 136.332
+srv 3 query time 136.366
+srv 40 query time 136.396
+srv 15 query time 136.584
+srv 27 query time 136.601
+srv 13 query time 136.612
+srv 35 query time 136.773
+srv 14 query time 136.870
+srv 48 query time 137.146
+srv 32 query time 137.267
+srv 8 query time 137.366
+srv 28 query time 137.375
+srv 16 query time 137.526
+srv 17 query time 137.616
+srv 11 query time 137.669
+srv 5 query time 138.066
+srv 4 query time 138.212
+srv 9 query time 138.748
+srv 25 query time 138.879
+srv 1 query time 138.908
+srv 20 query time 138.913
+srv 37 query time 138.947
+srv 30 query time 139.093
+srv 22 query time 139.123
+srv 0 query time 139.235
+srv 34 query time 139.258
+srv 45 query time 139.503
+srv 51 query time 139.679
+srv 31 query time 139.901
+srv 23 query time 140.358
+srv 29 query time 141.110
+srv 29 quitting 
+srv 3 quitting 
+srv 12 quitting 
+srv 0 quitting 
+srv 2 quitting 
+srv 1 quitting 
+srv 43 quitting 
+srv 11 quitting 
+srv 51 quitting 
+srv 48 quitting 
+srv 31 quitting 
+srv 30 quitting 
+srv 47 quitting 
+srv 63 quitting 
+srv 56 quitting 
+srv 21 quitting 
+srv 37 quitting 
+srv 59 quitting 
+srv 34 quitting 
+srv 27 quitting 
+srv 53 quitting 
+srv 33 quitting 
+srv 54 quitting 
+srv 23 quitting 
+srv 60 quitting 
+srv 25 quitting 
+srv 44 quitting 
+srv 17 quitting 
+srv 41 quitting 
+srv 20 quitting 
+srv 14 quitting 
+srv 28 quitting 
+srv 16 quitting 
+srv 52 quitting 
+srv 7 quitting 
+srv 39 quitting 
+srv 46 quitting 
+srv 19 quitting 
+srv 35 quitting 
+srv 26 quitting 
+srv 5 quitting 
+srv 57 quitting 
+srv 13 quitting 
+Server 48 verifying consistency..
+srv 58 quitting 
+srv 38 quitting 
+Server 47 verifying consistency..
+srv 61 quitting 
+srv 15 quitting 
+srv 9 quitting 
+srv 4 quitting 
+Server 41 verifying consistency..
+srv 55 quitting 
+srv 62 quitting 
+Server 29 verifying consistency..
+Server 12 verifying consistency..
+Server 38 verifying consistency..
+Server 31 verifying consistency..
+srv 18 quitting 
+srv 40 quitting 
+srv 6 quitting 
+Server 27 verifying consistency..
+Server 54 verifying consistency..
+Server 20 verifying consistency..
+srv 50 quitting 
+Server 0 verifying consistency..
+srv 49 quitting 
+Server 5 verifying consistency..
+Server 51 verifying consistency..
+Server 61 verifying consistency..
+srv 36 quitting 
+Server 34 verifying consistency..
+Server 37 verifying consistency..
+srv 45 quitting 
+Server 53 verifying consistency..
+Server 33 verifying consistency..
+Server 25 verifying consistency..
+Server 56 verifying consistency..
+Server 28 verifying consistency..
+Server 7 verifying consistency..
+srv 24 quitting 
+Server 46 verifying consistency..
+Server 26 verifying consistency..
+Server 2 verifying consistency..
+Server 14 verifying consistency..
+Server 15 verifying consistency..
+Server 21 verifying consistency..
+Server 18 verifying consistency..
+Server 30 verifying consistency..
+srv 10 quitting 
+Server 3 verifying consistency..
+Server 4 verifying consistency..
+Server 59 verifying consistency..
+Server 19 verifying consistency..
+srv 32 quitting 
+Server 62 verifying consistency..
+srv 42 quitting 
+Server 39 verifying consistency..
+Server 16 verifying consistency..
+Server 35 verifying consistency..
+Server 40 verifying consistency..
+srv 22 quitting 
+srv 8 quitting 
+Server 9 verifying consistency..
+Server 63 verifying consistency..
+Server 44 verifying consistency..
+Server 23 verifying consistency..
+Server 17 verifying consistency..
+Server 24 verifying consistency..
+Server 55 verifying consistency..
+Server 11 verifying consistency..
+Server 60 verifying consistency..
+Server 6 verifying consistency..
+Server 1 verifying consistency..
+Server 57 verifying consistency..
+Server 49 verifying consistency..
+Server 50 verifying consistency..
+Server 13 verifying consistency..
+Server 8 verifying consistency..
+Server 43 verifying consistency..
+Server 52 verifying consistency..
+Server 36 verifying consistency..
+Server 22 verifying consistency..
+Server 58 verifying consistency..
+Server 10 verifying consistency..
+Server 32 verifying consistency..
+Server 42 verifying consistency..
+Server 45 verifying consistency..
+srv 0 commits 10000000
+srv 1 commits 10000000
+srv 2 commits 10000000
+srv 3 commits 10000000
+srv 4 commits 10000000
+srv 5 commits 10000000
+srv 6 commits 10000000
+srv 7 commits 10000000
+srv 8 commits 10000000
+srv 9 commits 10000000
+srv 10 commits 10000000
+srv 11 commits 10000000
+srv 12 commits 10000000
+srv 13 commits 10000000
+srv 14 commits 10000000
+srv 15 commits 10000000
+srv 16 commits 10000000
+srv 17 commits 10000000
+srv 18 commits 10000000
+srv 19 commits 10000000
+srv 20 commits 10000000
+srv 21 commits 10000000
+srv 22 commits 10000000
+srv 23 commits 10000000
+srv 24 commits 10000000
+srv 25 commits 10000000
+srv 26 commits 10000000
+srv 27 commits 10000000
+srv 28 commits 10000000
+srv 29 commits 10000000
+srv 30 commits 10000000
+srv 31 commits 10000000
+srv 32 commits 10000000
+srv 33 commits 10000000
+srv 34 commits 10000000
+srv 35 commits 10000000
+srv 36 commits 10000000
+srv 37 commits 10000000
+srv 38 commits 10000000
+srv 39 commits 10000000
+srv 40 commits 10000000
+srv 41 commits 10000000
+srv 42 commits 10000000
+srv 43 commits 10000000
+srv 44 commits 10000000
+srv 45 commits 10000000
+srv 46 commits 10000000
+srv 47 commits 10000000
+srv 48 commits 10000000
+srv 49 commits 10000000
+srv 50 commits 10000000
+srv 51 commits 10000000
+srv 52 commits 10000000
+srv 53 commits 10000000
+srv 54 commits 10000000
+srv 55 commits 10000000
+srv 56 commits 10000000
+srv 57 commits 10000000
+srv 58 commits 10000000
+srv 59 commits 10000000
+srv 60 commits 10000000
+srv 61 commits 10000000
+srv 62 commits 10000000
+srv 63 commits 10000000
+total commits 640000000
+== results ==
+Server 0: 0.071820000M TPS
+Server 1: 0.071990000M TPS
+Server 2: 0.073825000M TPS
+Server 3: 0.073331000M TPS
+Server 4: 0.072352000M TPS
+Server 5: 0.072429000M TPS
+Server 6: 0.075117000M TPS
+Server 7: 0.073494000M TPS
+Server 8: 0.072798000M TPS
+Server 9: 0.072073000M TPS
+Server 10: 0.074316000M TPS
+Server 11: 0.072637000M TPS
+Server 12: 0.073794000M TPS
+Server 13: 0.073199000M TPS
+Server 14: 0.073061000M TPS
+Server 15: 0.073215000M TPS
+Server 16: 0.072713000M TPS
+Server 17: 0.072666000M TPS
+Server 18: 0.079748000M TPS
+Server 19: 0.078232000M TPS
+Server 20: 0.071987000M TPS
+Server 21: 0.074068000M TPS
+Server 22: 0.071878000M TPS
+Server 23: 0.071246000M TPS
+Server 24: 0.073441000M TPS
+Server 25: 0.072005000M TPS
+Server 26: 0.075254000M TPS
+Server 27: 0.073206000M TPS
+Server 28: 0.072793000M TPS
+Server 29: 0.070866000M TPS
+Server 30: 0.071894000M TPS
+Server 31: 0.071479000M TPS
+Server 32: 0.072850000M TPS
+Server 33: 0.073943000M TPS
+Server 34: 0.071809000M TPS
+Server 35: 0.073113000M TPS
+Server 36: 0.074058000M TPS
+Server 37: 0.071969000M TPS
+Server 38: 0.074108000M TPS
+Server 39: 0.075123000M TPS
+Server 40: 0.073315000M TPS
+Server 41: 0.073852000M TPS
+Server 42: 0.074869000M TPS
+Server 43: 0.073596000M TPS
+Server 44: 0.074931000M TPS
+Server 45: 0.071683000M TPS
+Server 46: 0.073606000M TPS
+Server 47: 0.074681000M TPS
+Server 48: 0.072915000M TPS
+Server 49: 0.074644000M TPS
+Server 50: 0.074589000M TPS
+Server 51: 0.071592000M TPS
+Server 52: 0.073350000M TPS
+Server 53: 0.076390000M TPS
+Server 54: 0.080996000M TPS
+Server 55: 0.077878000M TPS
+Server 56: 0.083957000M TPS
+Server 57: 0.081835000M TPS
+Server 58: 0.081039000M TPS
+Server 59: 0.081139000M TPS
+Server 60: 0.080396000M TPS
+Server 61: 0.077657000M TPS
+Server 62: 0.079413000M TPS
+Server 63: 0.080056000M TPS
+Total tps: 4.768279000M
