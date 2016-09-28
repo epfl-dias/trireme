@@ -332,7 +332,7 @@ int no_wait_acquire(struct elem *e, char optype)
 
 int bwait_acquire(int s, struct partition *p,
     int c, int task_id, int op_id, struct elem *e, char optype,
-    uint64_t req_ts, struct lock_entry **pl)
+    struct lock_entry **pl)
 {
   struct lock_entry *l;
   int r, conflict;

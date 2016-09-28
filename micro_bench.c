@@ -260,6 +260,19 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
   }
 
+#if ENABLE_BWAIT_CC
+  // sort ops based on key
+  for (int i = 0; i < ops_per_txn; i++) {
+      for (int j = i + 1; j < ops_per_txn; j++) {
+        if (query->ops[i].key > query->ops[j].key) {
+            struct hash_op tmp = query->ops[i];
+            query->ops[i] = query->ops[j];
+            query->ops[j] = tmp;
+        }
+      }
+  }
+#endif
+
   p->q_idx++;
 }
 

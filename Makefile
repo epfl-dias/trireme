@@ -1,5 +1,7 @@
 ARCH   = INTEL64
 
+PLATFORM = $(shell uname -n | tr a-z A-Z)
+
 #optional DFLAGS: DEBUG, PRINT_PROGRESS, VERIFY_CONSISTENCY (for hash_insert), GATHER_STATS
 # 								configs: SHARED_EVERYTHING, SHARED_NOTHING
 # 								latching: SE_LATCH (enables latching in shared everything)
@@ -12,7 +14,7 @@ ARCH   = INTEL64
 # compile shared nothing with pthread_spinlock
 # compile trireme with nothing
 DFLAGS =
-CFLAGS = -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -g -ggdb -O2 -fno-omit-frame-pointer -D$(ARCH) $(DFLAGS)
+CFLAGS = -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -g -ggdb -O2 -fno-omit-frame-pointer -D$(ARCH) -D$(PLATFORM) $(DFLAGS) 
 LFLAGS = -lpthread -lm -lrt #-ltcmalloc 
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
