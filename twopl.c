@@ -4,7 +4,6 @@
 
 extern int write_threshold;
 
-#if ENABLE_WAIT_DIE_CC
 int wait_die_check_acquire(int s, struct partition *p,
     int c, int tid, int opid, struct elem *e, char optype, uint64_t req_ts)
 {
@@ -26,14 +25,14 @@ int wait_die_check_acquire(int s, struct partition *p,
         conflict = 1;
     }
   }
- 
+
   if (conflict) {
-    /* There was a conflict. In wait die case, we can wait if 
-     * req_ts is < ts of all owner txns 
+    /* There was a conflict. In wait die case, we can wait if
+     * req_ts is < ts of all owner txns
      */
     int wait = 1;
     LIST_FOREACH(l, &e->owners, next) {
-      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c)) || 
+      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c)) ||
           ((l->ts == req_ts) && (l->s == c) && (l->task_id < tid))) {
         wait = 0;
         break;
@@ -53,7 +52,7 @@ int wait_die_check_acquire(int s, struct partition *p,
 }
 
 int wait_die_acquire(int s, struct partition *p,
-    int c, int task_id, int op_id, struct elem *e, char optype, 
+    int c, int task_id, int op_id, struct elem *e, char optype,
     uint64_t req_ts, struct lock_entry **pl)
 {
   struct lock_entry *l;
@@ -75,7 +74,7 @@ int wait_die_acquire(int s, struct partition *p,
   }
 #endif
 
-  dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64 "\n", s, 
+  dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64 "\n", s,
       c, e->key, e->ref_count);
 
   if (optype == OPTYPE_LOOKUP) {
@@ -95,11 +94,11 @@ int wait_die_acquire(int s, struct partition *p,
         conflict = 1;
     }
   }
- 
+
   /* if somebody has lock or wait die is signaling a conflict
-   * we need to check if this txn must wait or abort. If it must 
-   * wait, then we should add it to waiters list and continue. 
-   * Sometime later, someone will move us to the owner list and reply back 
+   * we need to check if this txn must wait or abort. If it must
+   * wait, then we should add it to waiters list and continue.
+   * Sometime later, someone will move us to the owner list and reply back
    * to the requestor
    *
    * If it must abort, then we should unlock all locks acquired,
@@ -108,12 +107,12 @@ int wait_die_acquire(int s, struct partition *p,
   */
   if (conflict) {
 
-    /* There was a conflict. In wait die case, we can wait if 
-     * req_ts is < ts of all owner txns 
+    /* There was a conflict. In wait die case, we can wait if
+     * req_ts is < ts of all owner txns
      */
     int wait = 1;
     LIST_FOREACH(l, &e->owners, next) {
-      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c)) || 
+      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < c)) ||
           ((l->ts == req_ts) && (l->s == c) && (l->task_id < task_id))) {
         wait = 0;
         break;
@@ -122,11 +121,11 @@ int wait_die_acquire(int s, struct partition *p,
 
     if (wait) {
 
-      dprint("srv(%d): cl %d %"PRIu64" rc %"PRIu64" waiting \n", 
+      dprint("srv(%d): cl %d %"PRIu64" rc %"PRIu64" waiting \n",
           s, c, e->key, e->ref_count);
 
       // if we are allowed to wait, make a new lock entry and add it to
-      // waiters list. 
+      // waiters list.
       struct lock_entry *last_lock = NULL;
       LIST_FOREACH(l, &e->waiters, next) {
 
@@ -134,7 +133,7 @@ int wait_die_acquire(int s, struct partition *p,
         if (l->s == c && l->task_id == task_id && l->op_id == op_id)
           assert(0);
 
-        // break if this is where we have to insert ourself 
+        // break if this is where we have to insert ourself
         if (l->ts < req_ts || (l->ts == req_ts && l->s < c) ||
           ((l->ts == req_ts) && (l->s == c) && (l->task_id < task_id)))
           break;
@@ -165,7 +164,7 @@ int wait_die_acquire(int s, struct partition *p,
 
       r = LOCK_WAIT;
     } else {
-      dprint("srv(%d): cl %d %"PRIu64" rc %"PRIu64" aborted \n", 
+      dprint("srv(%d): cl %d %"PRIu64" rc %"PRIu64" aborted \n",
           s, c, e->key, e->ref_count);
 
       r = LOCK_ABORT;
@@ -188,7 +187,7 @@ int wait_die_acquire(int s, struct partition *p,
     target->op_id = op_id;
     *pl = target;
 
-    dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64 
+    dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64
         " adding to owners\n", s, c, e->key, e->ref_count);
 
     LIST_INSERT_HEAD(&e->owners, target, next);
@@ -199,7 +198,7 @@ int wait_die_acquire(int s, struct partition *p,
   return r;
 }
 
-void wait_die_release(int s, struct partition *p, int c, int task_id, 
+void wait_die_release(int s, struct partition *p, int c, int task_id,
     int op_id, struct elem *e)
 {
   // find out lock on the owners list
@@ -211,7 +210,7 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
 
   if (l) {
     // free lock
-    dprint("srv(%d): cl %d key %" PRIu64 " rc %" PRIu64 
+    dprint("srv(%d): cl %d key %" PRIu64 " rc %" PRIu64
         " being removed from owners\n", s, c, e->key, e->ref_count);
 
     LIST_REMOVE(l, next);
@@ -235,17 +234,14 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
   plmalloc_free(p, l, sizeof(struct lock_entry));
 
   // if there are no more owners, then refcount should be 1
-  if (LIST_EMPTY(&e->owners) && e->ref_count != 1) {
-    printf("found key %"PRIu64" with ref count %d\n", e->key, e->ref_count);
-    fflush(stdout);
-    assert(0);
+  if (!LIST_EMPTY(&e->owners)) {
+    assert(e->ref_count != 1);
+    return;
+  } else {
+    assert(e->ref_count == 1);
   }
 
-  /* If lock_free is set, that means the new lock mode is decided by 
-   * the head of waiter list. If lock_free is not set, we still have
-   * some readers. So only pending readers can be allowed. Keep 
-   * popping items from wait list as long as we have readers.
-   */
+  /* Go through wait list and find new owner(s) */
   l = LIST_FIRST(&e->waiters);
   while (l) {
     char conflict = 0;
@@ -260,7 +256,7 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
     if (conflict) {
       break;
     } else {
-      /* there's no conflict only if there is a shared lock and we're 
+      /* there's no conflict only if there is a shared lock and we're
        * requesting a shared lock, or if there's no lock
        */
       assert((e->ref_count & DATA_READY_MASK) == 0);
@@ -282,14 +278,13 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
     l->ready = 1;
     mp_send_reply(s, l->s, l->task_id, l->op_id, e);
 
-    dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n", 
+    dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n",
         s, e->key, l->s);
 
     // go to next element
     l = LIST_FIRST(&e->waiters);
   }
 }
-#endif
 
 void no_wait_release(struct partition *p, struct elem *e)
 {
@@ -335,3 +330,106 @@ int no_wait_acquire(struct elem *e, char optype)
   return LOCK_SUCCESS;
 }
 
+int bwait_acquire(int s, struct partition *p,
+    int c, int task_id, int op_id, struct elem *e, char optype,
+    uint64_t req_ts, struct lock_entry **pl)
+{
+  struct lock_entry *l;
+  int r, conflict;
+
+  *pl = NULL;
+
+#if VERIFY_CONSISTENCY
+  /* we cannot be on the owners list */
+  LIST_FOREACH(l, &e->owners, next) {
+    if (l->s == c && l->task_id == task_id && l->op_id == op_id)
+      assert(0);
+  }
+
+  /* we cannot be on the waiters list */
+  LIST_FOREACH(l, &e->waiters, next) {
+    if (l->s == c && l->task_id == task_id && l->op_id == op_id)
+      assert(0);
+  }
+#endif
+
+  dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64 "\n", s,
+      c, e->key, e->ref_count);
+
+  if (optype == OPTYPE_LOOKUP) {
+    conflict = !is_value_ready(e);
+  } else {
+    assert(optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
+    conflict = (!is_value_ready(e)) || (e->ref_count > 1);
+  }
+
+  // if there is a conflict, add to lock list
+  if (conflict) {
+    struct lock_entry *target = plmalloc_alloc(p, sizeof(struct lock_entry));
+    assert(target);
+    target->s = c;
+
+    target->optype = optype;
+    target->ready = 0;
+    target->task_id = task_id;
+    target->op_id = op_id;
+    *pl = target;
+
+    LIST_INSERT_HEAD(&e->waiters, target, next);
+    r = LOCK_WAIT;
+  } else {
+
+    if (optype == OPTYPE_LOOKUP)
+      e->ref_count++;
+    else
+      e->ref_count = DATA_READY_MASK | 2;
+
+    // insert a lock in the owners list
+    struct lock_entry *target = plmalloc_alloc(p, sizeof(struct lock_entry));
+    assert(target);
+    target->s = c;
+    target->optype = optype;
+    target->ready = 1;
+    target->task_id = task_id;
+    target->op_id = op_id;
+    *pl = target;
+
+    dprint("srv(%d): cl %d %" PRIu64 " rc %" PRIu64
+        " adding to owners\n", s, c, e->key, e->ref_count);
+
+    LIST_INSERT_HEAD(&e->owners, target, next);
+
+    r = LOCK_SUCCESS;
+  }
+
+  return r;
+}
+
+void bwait_release(int s, struct partition *p, int c, int task_id,
+    int op_id, struct elem *e)
+{
+    return wait_die_release(s, p, c, task_id, op_id, e);
+}
+
+int bwait_check_acquire(struct elem *e, char optype)
+{
+  int r;
+
+  if (optype == OPTYPE_LOOKUP) {
+    if (!is_value_ready(e)) {
+      r = LOCK_WAIT;
+    } else {
+      r = LOCK_SUCCESS;
+    }
+  } else {
+    assert(optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
+    if (!is_value_ready(e) || e->ref_count > 1) {
+      r = LOCK_WAIT;
+    } else {
+      r = LOCK_SUCCESS;
+    }
+  }
+
+  return r;
+
+}

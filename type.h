@@ -62,6 +62,33 @@ typedef unsigned int taslock_t;
 #define LATCH_INIT(latch, nservers) pthread_spin_init(latch, 0)
 #define LATCH_ACQUIRE(latch, state) pthread_spin_lock(latch)
 #define LATCH_RELEASE(latch, state)  pthread_spin_unlock(latch)
+
+#elif HTLOCK
+typedef struct htlock_global
+{
+    volatile uint32_t nxt;
+    volatile uint32_t cur;
+    uint8_t padding[CACHELINE - 8];
+} htlock_global_t;
+
+typedef struct htlock_local
+{
+    volatile int32_t nxt;
+    volatile int32_t cur;
+    uint8_t padding[CACHELINE - 8];
+} htlock_local_t;
+
+typedef struct __attribute__ ((aligned (CACHELINE))) htlock
+{
+    htlock_global_t* global;
+    htlock_local_t* local[NUMBER_OF_SOCKETS];
+} htlock_t;
+
+#define LATCH_T htlock_t
+#define LATCH_INIT(latch, nservers) {create_htlock(latch); init_htlock(latch);}
+#define LATCH_ACQUIRE(latch, state) htlock_lock(latch)
+#define LATCH_RELEASE(latch, state)  htlock_release(latch)
+
 #else
 #define LATCH_T pthread_mutex_t
 #define LATCH_INIT(latch, nservers) pthread_mutex_init(latch, NULL)
@@ -84,10 +111,8 @@ struct elem {
 #if SHARED_EVERYTHING
   LATCH_T latch;
 #endif
-#if ENABLE_WAIT_DIE_CC
   struct lock_list waiters; 
   struct lock_list owners;
-#endif
 } __attribute__ ((aligned (CACHELINE)));
 
 LIST_HEAD(elist, elem);

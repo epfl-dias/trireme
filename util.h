@@ -41,10 +41,10 @@ static inline int min(int a, int b)
 // even though this is defined in SSE2 it is 
 // easier and more compatible to do it this way
 // and not include sse2 headers and build flags
-static inline void _mm_pause() 
-{
-  __asm __volatile("pause");
-}
+//static inline void _mm_pause()
+//{
+// __asm __volatile("pause");
+//}
 
 static inline unsigned xchg_32(void *ptr, unsigned x)
 {

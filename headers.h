@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <math.h>
 #include <inttypes.h>
+#include <xmmintrin.h>
 
 #include <ucontext.h>
 #include "const.h"
@@ -26,6 +27,8 @@
 #include "tlock.h"
 #elif TAS_LOCK
 #include "taslock.h"
+#elif HTLOCK
+#include "htlock.h"
 #endif
 
 #endif

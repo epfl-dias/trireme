@@ -11,6 +11,8 @@
 #define TXN_COMMIT 0
 #define TXN_ABORT 1
 
+#define NUMBER_OF_SOCKETS 4
+
 #define CACHELINE 64 
 #define MAX_CLIENTS 128 // must be power of 2
 #ifndef MAX_SERVERS
