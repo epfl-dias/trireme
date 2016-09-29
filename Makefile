@@ -14,7 +14,7 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 # compile shared nothing with pthread_spinlock
 # compile trireme with nothing
 DFLAGS =
-CFLAGS = -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -g -ggdb -O2 -fno-omit-frame-pointer -D$(ARCH) -D$(PLATFORM) $(DFLAGS) 
+CFLAGS = -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -g -ggdb -O3 -fno-omit-frame-pointer -D$(ARCH) -D$(PLATFORM) $(DFLAGS)
 LFLAGS = -lpthread -lm -lrt #-ltcmalloc 
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 

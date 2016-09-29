@@ -18,6 +18,7 @@ void task_unblock(struct task *t);
 #if NO_CUSTOM_SWAP_CONTEXT
 #define lightweight_swapcontext(out, in) swapcontext(out, in)
 #else
+__attribute__ ((noinline))
 void lightweight_swapcontext(ucontext_t *out, ucontext_t *in)
 {
 
@@ -40,10 +41,10 @@ __asm__(
 
   "movq  %rdi, "oRDI"(%rdi)\n"
   "movq  %rsi, "oRSI"(%rdi)\n"
-  "movq  %rdx, "oRDX"(%rdi)\n"
-  "movq  %rcx, "oRCX"(%rdi)\n"
-  "movq  %r8, "oR8"(%rdi)\n"
-  "movq  %r9, "oR9"(%rdi)\n"
+//  "movq  %rdx, "oRDX"(%rdi)\n"
+//  "movq  %rcx, "oRCX"(%rdi)\n"
+//  "movq  %r8, "oR8"(%rdi)\n"
+//  "movq  %r9, "oR9"(%rdi)\n"
 
   "movq  (%rsp), %rcx\n"
   "movq  %rcx, "oRIP"(%rdi)\n"
@@ -84,10 +85,10 @@ __asm__(
 
   /* Setup registers used for passing args.  */
   "movq  "oRDI"(%rsi), %rdi\n"
-  "movq  "oRDX"(%rsi), %rdx\n"
-  "movq  "oRCX"(%rsi), %rcx\n"
-  "movq  "oR8"(%rsi), %r8\n"
-  "movq  "oR9"(%rsi), %r9\n"
+//  "movq  "oRDX"(%rsi), %rdx\n"
+//  "movq  "oRCX"(%rsi), %rcx\n"
+//  "movq  "oR8"(%rsi), %r8\n"
+//  "movq  "oR9"(%rsi), %r9\n"
 
   /* Setup finally  %rsi.  */
   "movq  "oRSI"(%rsi), %rsi\n"
