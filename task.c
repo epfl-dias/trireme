@@ -195,6 +195,12 @@ struct hash_query *get_next_query(struct hash_table *hash_table, int s,
 
   assert(idx < NQUERIES_PER_TASK);
 
+  /* if one person is done, everybody is done */
+  for (int i = 0; i < hash_table->nservers; i++) {
+    if (hash_table->partitions[i].q_idx == niters)
+        return NULL;
+  }
+
   do {
     struct hash_query *next_query = &ctask->queries[idx];
 
