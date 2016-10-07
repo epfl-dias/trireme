@@ -260,7 +260,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
   }
 
-#if ENABLE_BWAIT_CC
+#if ENABLE_KEY_SORTING
   // sort ops based on key
   for (int i = 0; i < ops_per_txn; i++) {
       for (int j = i + 1; j < ops_per_txn; j++) {
@@ -354,7 +354,11 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     uint64_t *int_val = (uint64_t *)value;
 
     for (int j = 0; j < YCSB_NFIELDS; j++) {
-      assert (int_val[j] == op->key);
+      //assert (int_val[j] == op->key);
+      uint64_t val = int_val[j];
+
+      if (op->optype == OPTYPE_UPDATE)
+          int_val[j] = ++val;
     }
   }
 

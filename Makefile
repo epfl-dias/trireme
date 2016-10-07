@@ -7,7 +7,9 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 # 								latching: SE_LATCH (enables latching in shared everything)
 # 								lock types:  PTHREAD_SPINLOCK, PTHREAD_MUTEX, ANDERSON_LOCK, TICKET_LOCK, HTLOCK
 # 								CC types: ENABLE_WAIT_DIE_CC ENABLE_BWAIT_CC
+# 								ENABLE_KEY_SORTING
 # 								trireme-specific options: ENABLE_OP_BATCHING
+# 								hyperthreading: HT_ENABLED
 # compile shared everything with se_latch and pthread_spinlock.
 # non se_latch config is only for microbenchmark readonly case
 # 

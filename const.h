@@ -10,6 +10,7 @@
 #define TRUE 1
 #define TXN_COMMIT 0
 #define TXN_ABORT 1
+#define ABORT_PENALTY 100000 // same as dbx1000
 
 #define NUMBER_OF_SOCKETS 4
 

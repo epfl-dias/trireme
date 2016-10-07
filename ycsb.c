@@ -3,6 +3,7 @@
 #include "benchmark.h"
 #include "hashprotocol.h"
 #include "smphashtable.h"
+#include "partition.h"
 
 #if defined(INTEL64)
   // Event Select values for Intel I7 core processor
@@ -139,6 +140,12 @@ int main(int argc, char *argv[])
         exit(-1);
     }
   }
+
+#if ENABLE_BWAIT
+#if !defined(ENABLE_KEY_SORTING)
+#error  "Error. bwait requires key sorting\n"
+#endif
+#endif
 
   if (first_core == -1) first_core = nclients;
 
@@ -333,7 +340,7 @@ void run_benchmark()
   stats_get_nupdates(hash_table);
   stats_get_naborts(hash_table);
 #endif
- 
+
   destroy_hash_table(hash_table);
 }
 

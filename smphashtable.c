@@ -32,8 +32,30 @@ static int coreids[] = {
     91,92,93,94,95,96,97,98,99,100,
     101,102,103,104,105,106,107,108,109,110
 };
-#else
 
+#elif DIASCLD33
+#if HT_ENABLED
+#define NCORES 144
+
+static int coreids[] = {
+    0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,
+    1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61,65,69,73,77,81,85,89,93,97,101,105,109,113,117,121,125,129,133,137,141,
+    2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,74,78,82,86,90,94,98,102,106,110,114,118,122,126,130,134,138,142,
+    3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79,83,87,91,95,99,103,107,111,115,119,123,127,131,135,139,143,
+};
+
+#else
+#define NCORES 72
+
+static int coreids[] = {
+    0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,
+    1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61,65,69,
+    2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,
+    3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71
+};
+#endif
+
+#else
 // fill this up for diascld33
 #define NCORES 0
 static int coreids[] = {
@@ -57,7 +79,12 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
   struct hash_table *hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
   hash_table->keys = NULL;
   hash_table->nservers = nservers;
-  hash_table->nrecs = nrecs / nservers;
+
+  // set per partition nrecs to total+1 so later when we det server, we get 0
+  if (nrecs < nservers)
+      hash_table->nrecs = nrecs + 1;
+  else
+      hash_table->nrecs = nrecs / nservers;
   hash_table->partitions = memalign(CACHELINE, nservers * sizeof(struct partition));
   hash_table->g_partition = memalign(CACHELINE, sizeof(struct partition));
 
@@ -277,6 +304,11 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       if (r == LOCK_SUCCESS) {
         ; // great we have the lock
       } else if (r == LOCK_WAIT) {
+
+#if SHARED_EVERYTHING
+        assert(0);
+#endif
+
         /* we have to spin now until value is ready. But we also need to
          * service other requests
          */
@@ -824,10 +856,10 @@ void process_requests(struct hash_table *hash_table, int s)
    * XXX: This requires determining for a given core, all others in socket.
    * This can be determined programatically. For now, we hack it in and
    * make it specific to diascld33 -- the 4 socket server where mapping is
-   * 0,4,8,...72: s0
-   * 1,5,9,...73: s1
-   * 2,6,10,...74: s3
-   * 3,7,11,...75: s4
+   * 0,4,8,...68: s0
+   * 1,5,9,...69: s1
+   * 2,6,10,...70: s3
+   * 3,7,11,...71: s4
    *
    * s will range from 0 to nservers. Given s, s/18 is socketid
    * on which this server sits. Then, based on above mapping min clientid is
@@ -1218,9 +1250,11 @@ void *hash_table_server(void* args)
   tend = now();
 
   printf("srv %d query time %.3f\n", s, tend - tstart);
+  printf("srv %d total txns %d \n", s, p->q_idx);
+
   fflush(stdout);
 
-  p->tps = niters / (tend - tstart);
+  p->tps = p->q_idx / (tend - tstart);
 
   pthread_mutex_lock(&hash_table->create_client_lock);
 

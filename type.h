@@ -206,6 +206,7 @@ struct partition {
   size_t nrecs;
   size_t size;
   struct bucket *table;
+  uint64_t q_idx;
 
   // tasks
   struct task unblock_task;
@@ -229,7 +230,6 @@ struct partition {
 
   struct txn_ctx txn_ctx;
   unsigned int seed;
-  uint64_t q_idx;
 
 #if SHARED_EVERYTHING
   /* each partition is assoc with a thread. In se case, some partitions 
