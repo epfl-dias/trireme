@@ -13,13 +13,6 @@ static volatile int nready = 0;
 const char *optype_str[] = {"","lookup","insert","update","release"};
 #define OPTYPE_STR(optype) optype_str[optype >> 60]
 
-extern struct benchmark *g_benchmark;
-extern double alpha;
-extern int niters;
-extern int batch_size;
-extern int ops_per_txn, nhot_servers, nhot_recs;
-extern struct hash_table *hash_table;
-
 #if DIASSRV8
 #define NCORES 80
 
@@ -74,28 +67,22 @@ int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table,
 int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
     int client_id, int server, hash_key key, short opid);
 
-struct hash_table *create_hash_table(size_t nrecs, int nservers)
+struct hash_table *create_hash_table()
 {
+  int nrecs_per_partition = g_nrecs / g_nservers;
   struct hash_table *hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
+
   hash_table->keys = NULL;
-  hash_table->nservers = nservers;
-
-  // set per partition nrecs to total+1 so later when we det server, we get 0
-  if (nrecs < nservers)
-      hash_table->nrecs = nrecs + 1;
-  else
-      hash_table->nrecs = nrecs / nservers;
-  hash_table->partitions = memalign(CACHELINE, nservers * sizeof(struct partition));
+  hash_table->partitions = memalign(CACHELINE, g_nservers * sizeof(struct partition));
   hash_table->g_partition = memalign(CACHELINE, sizeof(struct partition));
+  hash_table->boxes = memalign(CACHELINE, MAX_CLIENTS * sizeof(struct box_array));
 
-  hash_table->nclients = 0;
   pthread_mutex_init(&hash_table->create_client_lock, NULL);
 
-  hash_table->boxes = memalign(CACHELINE, MAX_CLIENTS * sizeof(struct box_array));
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
 
 #if SHARED_EVERYTHING
-    init_hash_partition(&hash_table->partitions[i], nrecs, nservers,
+    init_hash_partition(&hash_table->partitions[i], g_nrecs,
         i == 0 /*alloc buckets only for first partition*/);
 
     /* make other partition buckets point to first partition's buckets */
@@ -103,24 +90,34 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
       hash_table->partitions[i].table = hash_table->partitions[0].table;
 
 #else
-    init_hash_partition(&hash_table->partitions[i], nrecs / nservers, nservers,
-            1 /*always alloc buckets*/);
+    if (i == (g_nservers - 1)) {
+        // last server. dump remaining records here
+        init_hash_partition(&hash_table->partitions[i],
+                g_nrecs - i * nrecs_per_partition, 1);
+
+        // usually, we load only multiples of nserver. so just check
+        assert ((g_nrecs - i * nrecs_per_partition) == nrecs_per_partition);
+
+    } else {
+        init_hash_partition(&hash_table->partitions[i], 
+                nrecs_per_partition, 1);
+    }
 #endif
   }
 
-  init_hash_partition(hash_table->g_partition, nrecs / nservers, nservers, 1);
+  init_hash_partition(hash_table->g_partition, g_nrecs / g_nservers, 1);
 
-  hash_table->threads = (pthread_t *)malloc(nservers * sizeof(pthread_t));
-  hash_table->thread_data = (struct thread_args *)malloc(nservers * sizeof(struct thread_args));
+  hash_table->threads = (pthread_t *)malloc(g_nservers * sizeof(pthread_t));
+  hash_table->thread_data = (struct thread_args *)malloc(g_nservers * sizeof(struct thread_args));
 
   create_hash_table_client(hash_table);
 
   /*
-  if (alpha != 0) {
+  if (g_alpha != 0) {
     printf("Generating zipfian distribution: ");
     fflush(stdout);
 
-    hash_table->keys = zipf_get_keys(alpha, nrecs, niters * nservers);
+    hash_table->keys = zipf_get_keys(g_alpha, g_nrecs, g_niters * g_nservers);
   } else
     hash_table->keys = NULL;
   */
@@ -139,7 +136,7 @@ void destroy_hash_table(struct hash_table *hash_table)
    * In shared nothing and trireme, partition destruction happens in each
    * thread.
    */
-  for (i = 0; i < hash_table->nservers; i++) {
+  for (i = 0; i < g_nservers; i++) {
     act_psize += hash_table->partitions[i].size;
   }
 
@@ -154,7 +151,7 @@ void destroy_hash_table(struct hash_table *hash_table)
   free(hash_table->partitions);
   free(hash_table->g_partition);
 
-  for (int i = 0; i < hash_table->nservers; i++)
+  for (int i = 0; i < g_nservers; i++)
     free(hash_table->boxes[i].boxes);
 
   free(hash_table->boxes);
@@ -164,15 +161,15 @@ void destroy_hash_table(struct hash_table *hash_table)
   free(hash_table);
 }
 
-void start_hash_table_servers(struct hash_table *hash_table, int first_core)
+void start_hash_table_servers(struct hash_table *hash_table)
 {
   int r;
   void *value;
   hash_table->quitting = 0;
 
-  assert(NCORES >= hash_table->nservers);
+  assert(NCORES >= g_nservers);
 
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     hash_table->thread_data[i].id = i;
     hash_table->thread_data[i].core = coreids[i];
     hash_table->thread_data[i].hash_table = hash_table;
@@ -183,26 +180,15 @@ void start_hash_table_servers(struct hash_table *hash_table, int first_core)
     assert(r == 0);
   }
 
-  for (int i = 0; i < hash_table->nservers; i++) {
-    r = pthread_join(hash_table->threads[i], &value);
-    assert(r == 0);
-  }
-}
+  /* wait for everybody to start */
+  while (nready != g_nservers) ;
 
-void stop_hash_table_servers(struct hash_table *hash_table)
-{
-  int r;
-  void *value;
-
-  // flush all client buffers
-  for (int i = 0; i < hash_table->nservers; i++) {
-    for (int k = 0; k < hash_table->nclients; k++) {
-      buffer_flush(&hash_table->boxes[k].boxes[i].in);
-    }
-  }
+  /* sleep for preconfigured time */
+  usleep(RUN_TIME);
 
   hash_table->quitting = 1;
-  for (int i = 0; i < hash_table->nservers; i++) {
+
+  for (int i = 0; i < g_nservers; i++) {
     r = pthread_join(hash_table->threads[i], &value);
     assert(r == 0);
   }
@@ -210,11 +196,11 @@ void stop_hash_table_servers(struct hash_table *hash_table)
 
 void create_hash_table_client(struct hash_table *hash_table)
 {
-  for (int i = 0; i < hash_table->nservers; i++) {
-    hash_table->boxes[i].boxes = memalign(CACHELINE, hash_table->nservers * sizeof(struct box));
+  for (int i = 0; i < g_nservers; i++) {
+    hash_table->boxes[i].boxes = memalign(CACHELINE, g_nservers * sizeof(struct box));
     assert((unsigned long) &hash_table->boxes[i] % CACHELINE == 0);
 
-    for (int j = 0; j < hash_table->nservers; j++) {
+    for (int j = 0; j < g_nservers; j++) {
       memset((void*)&hash_table->boxes[i].boxes[j], 0, sizeof(struct box));
       assert((unsigned long) &hash_table->boxes[i].boxes[j].in % CACHELINE == 0);
       assert((unsigned long) &hash_table->boxes[i].boxes[j].out % CACHELINE == 0);
@@ -617,6 +603,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
   int nops = query->nops;
   int nremote = 0;
   int server = -1;
+  int nrecs_per_partition = p->nrecs;
   //void **values = (void **) memalign(CACHELINE, sizeof(void *) * nops);
   //assert(values);
 
@@ -635,7 +622,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
   // do all local first. if any local fails, no point sending remote requests
   for (i = 0; i < nops; i++) {
     struct hash_op *op = &query->ops[i];
-    server = op->key / hash_table->nrecs;
+    server = op->key / nrecs_per_partition;
 
     // if local, get it
     if (server == s) {
@@ -652,7 +639,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
   // now send all remote requests
   for (i = 0; i < nops; i++) {
     struct hash_op *op = &query->ops[i];
-    server = op->key / hash_table->nrecs;
+    server = op->key / nrecs_per_partition;
 
     if (server != s) {
       if (op->optype == OPTYPE_LOOKUP) {
@@ -757,14 +744,13 @@ void process_releases(struct hash_table *hash_table, int s)
   struct box_array *boxes = hash_table->boxes;
   uint64_t inbuf[ONEWAY_BUFFER_SIZE];
   struct partition *p = &hash_table->partitions[s];
-  int nservers = hash_table->nservers;
   int s_coreid = hash_table->thread_data[s].core;
   char skip_list[BITNSLOTS(MAX_SERVERS)];
 
   memset(skip_list, 0, sizeof(skip_list));
 
 #if ENABLE_SOCKET_LOCAL_TXN
-  for (int i = 0; i < nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
       int t_coreid = hash_table->thread_data[i].core;
 
       // check only cores in our own socket of leader cores in other sockets
@@ -776,7 +762,7 @@ void process_releases(struct hash_table *hash_table, int s)
   }
 #endif
 
-  for (int i = 0; i < nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     if (i == s)
       continue;
 
@@ -827,7 +813,6 @@ void process_requests(struct hash_table *hash_table, int s)
   struct box_array *boxes = hash_table->boxes;
   uint64_t inbuf[ONEWAY_BUFFER_SIZE];
   struct partition *p = &hash_table->partitions[s];
-  int nservers = hash_table->nservers;
   int s_coreid = hash_table->thread_data[s].core;
   char skip_list[BITNSLOTS(MAX_SERVERS)];
 
@@ -868,7 +853,7 @@ void process_requests(struct hash_table *hash_table, int s)
   /* check only socket-local guys plus first core on other sockets
    * Enforce this by setting appropriate bits in the skip list
    */
-  for (int i = 0; i < nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
       int t_coreid = hash_table->thread_data[i].core;
 
       // check only cores in our own socket of leader cores in other sockets
@@ -884,7 +869,7 @@ void process_requests(struct hash_table *hash_table, int s)
   process_releases(hash_table, s);
 #endif
 
-  for (int i = 0; i < nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     if (i == s)
       continue;
 
@@ -1185,14 +1170,15 @@ void *hash_table_server(void* args)
 #else
 
 #if ENABLE_ASYMMETRIC_MESSAGING
+  /* load only few partitions in case of asym msg. */
   if (s < nhot_servers)
       g_benchmark->load_data(hash_table, s);
 #else
 
-  /* always load for trireme */
+  /* always load for sn/trireme */
   g_benchmark->load_data(hash_table, s);
 
-#endif //ENABLE_ASYMMETRIC_MESSAGING
+#endif
 
 #endif
 
@@ -1201,7 +1187,7 @@ void *hash_table_server(void* args)
   printf("srv %d load time %.3f\n", s, tend - tstart);
   printf("srv %d rec count: %d partition sz %lu-KB "
       "tx count: %d, per_txn_op cnt: %d\n", s, p->ninserts, p->size / 1024,
-      niters, ops_per_txn);
+      g_niters, g_ops_per_txn);
 
   //double avg;
   //double stddev;
@@ -1215,7 +1201,7 @@ void *hash_table_server(void* args)
 
   pthread_mutex_unlock(&hash_table->create_client_lock);
 
-  while (nready != hash_table->nservers) ;
+  while (nready != g_nservers) ;
 
   printf("srv %d starting txns\n", s);
   fflush(stdout);
@@ -1235,39 +1221,6 @@ void *hash_table_server(void* args)
       task_libinit(s);
 #else
   task_libinit(s);
-#endif
-
-#if 0
-  for (i = 0; i < niters; i++) {
-    // run query as txn
-    g_benchmark->get_next_query(hash_table, s, query);
-
-    r = TXN_COMMIT;
-
-    do {
-      if (batch_size == 1)
-        r = g_benchmark->run_txn(hash_table, s, query, r);
-      else
-        r = run_batch_txn(hash_table, s, query);
-
-      // see if we need to answer someone
-#if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
-      process_requests(hash_table, s);
-#endif
-
-      if (r == TXN_ABORT) {
-        dprint("srv(%d): rerunning aborted txn %d\n", s, i);
-      }
-
-    } while (r == TXN_ABORT);
-
-#if PRINT_PROGRESS
-    if (i % 100000 == 0)
-    //if (i % 1000 == 0)
-      printf("srv(%d): completed txn %d\n", s, i);
-#endif
-
-  }
 #endif
 
   tend = now();
@@ -1331,7 +1284,7 @@ int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table,
 {
   uint64_t msg_data[2];
 
-  assert(server >= 0 && server < hash_table->nservers);
+  assert(server >= 0 && server < g_nservers);
 
   dprint("srv(%d): sending lookup for key %"PRIu64" to srv %d\n", client_id, key, server);
 
@@ -1370,7 +1323,7 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
 {
   uint64_t msg_data[2];
 
-  assert(server >= 0 && server < hash_table->nservers);
+  assert(server >= 0 && server < g_nservers);
 
   dprint("srv(%d): sending update for key %"PRIu64" to srv %d\n", client_id,
       key, server);
@@ -1513,7 +1466,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 
 void smp_flush_all(struct hash_table *hash_table, int client_id)
 {
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     /* printf("srv(%d): flushing buffer %d rd count %d wcount %d twcount %d\n",
         client_id, i, hash_table->boxes[client_id].boxes[i].in.rd_index,
         hash_table->boxes[client_id].boxes[i].in.wr_index,
@@ -1556,7 +1509,7 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id,
   assert(0);
 #endif
 
-  assert (s < hash_table->nservers && client_id < hash_table->nservers);
+  assert (s < g_nservers && client_id < g_nservers);
 
   // XXX: we are exploiting the 48-bit address here.
   uint64_t msg_data = MAKE_HASH_MSG(task_id, op_id, (uint64_t)e, HASHOP_RELEASE);
@@ -1615,7 +1568,7 @@ void mp_send_reply(int s, int c, short task_id, short op_id, struct elem *e)
  */
 void stats_reset(struct hash_table *hash_table)
 {
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     hash_table->partitions[i].ninserts = 0;
     hash_table->partitions[i].nlookups_local = 0;
     hash_table->partitions[i].nupdates_local = 0;
@@ -1629,7 +1582,7 @@ void stats_reset(struct hash_table *hash_table)
 int stats_get_ncommits(struct hash_table *hash_table)
 {
   int ncommits = 0;
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     printf("srv %d commits %d\n", i,
       hash_table->partitions[i].ncommits);
 
@@ -1645,7 +1598,7 @@ int stats_get_ncommits(struct hash_table *hash_table)
 int stats_get_nlookups(struct hash_table *hash_table)
 {
   int nlookups = 0;
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     printf("srv %d lookups local: %d remote %d\n", i,
       hash_table->partitions[i].nlookups_local,
       hash_table->partitions[i].nlookups_remote);
@@ -1662,7 +1615,7 @@ int stats_get_nlookups(struct hash_table *hash_table)
 int stats_get_nupdates(struct hash_table *hash_table)
 {
   int nupdates = 0;
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     printf("srv %d updates local: %d remote %d \n", i,
       hash_table->partitions[i].nupdates_local,
       hash_table->partitions[i].nupdates_remote);
@@ -1679,7 +1632,7 @@ int stats_get_nupdates(struct hash_table *hash_table)
 int stats_get_naborts(struct hash_table *hash_table)
 {
   int naborts = 0;
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     printf("srv %d aborts local: %d remote %d \n", i,
       hash_table->partitions[i].naborts_local,
       hash_table->partitions[i].naborts_remote);
@@ -1695,7 +1648,7 @@ int stats_get_naborts(struct hash_table *hash_table)
 int stats_get_ninserts(struct hash_table *hash_table)
 {
   int ninserts = 0;
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     printf("Server %d : %d tuples %lu-KB mem \n", i,
       hash_table->partitions[i].ninserts, hash_table->partitions[i].size / 1024);
     ninserts += hash_table->partitions[i].ninserts;
@@ -1742,7 +1695,7 @@ void stats_get_mem(struct hash_table *hash_table, size_t *used, size_t *total)
   struct partition *p;
   size_t m = 0, u = 0;
 
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     p = &hash_table->partitions[i];
 
     m += p->nrecs;
@@ -1753,18 +1706,13 @@ void stats_get_mem(struct hash_table *hash_table, size_t *used, size_t *total)
   *used = u;
 }
 
-void stats_set_track_cpu_usage(struct hash_table *hash_table, int track_cpu_usage)
-{
-  hash_table->track_cpu_usage = track_cpu_usage;
-}
-
 double stats_get_cpu_usage(struct hash_table *hash_table)
 {
   struct partition *p;
   uint64_t busy = 0;
   uint64_t idle = 0;
 
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     p = &hash_table->partitions[i];
     busy += p->busyclock;
     idle += p->idleclock;
@@ -1777,7 +1725,7 @@ double stats_get_tps(struct hash_table *hash_table)
 {
   double tps = 0;
 
-  for (int i = 0; i < hash_table->nservers; i++) {
+  for (int i = 0; i < g_nservers; i++) {
     printf("Server %d: %0.9fM TPS\n", i,
       (double)hash_table->partitions[i].tps / 1000000);
 

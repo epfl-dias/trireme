@@ -4,12 +4,6 @@
 #include "benchmark.h"
 #include <sys/mman.h>
 
-extern int batch_size;
-extern int niters;
-extern struct hash_table *hash_table;
-extern struct benchmark *g_benchmark;
-extern int dist_threshold;
-
 int task_create(struct partition *p);
 int task_join(struct task *root_task);
 void task_destroy(struct task *t, struct partition *p);
@@ -127,7 +121,7 @@ void unblock_fn(int s, int tid)
     dprint("srv(%d): Unblock task looping again\n", s);
 
     // we're done if waiters and ready list is empty
-    if (p->q_idx == niters && TAILQ_EMPTY(&p->wait_list) && 
+    if (p->q_idx == g_niters && TAILQ_EMPTY(&p->wait_list) && 
         TAILQ_EMPTY(&p->ready_list)) {
       printf("srv(%d): Unblock task killing self\n", s);
       task_destroy(self, p);
@@ -151,8 +145,7 @@ void unblock_fn(int s, int tid)
 
     //smp_flush_all(hash_table, s);
 
-    int nservers = hash_table->nservers;
-    for (int i = 0; i < nservers; i++) {
+    for (int i = 0; i < g_nservers; i++) {
       struct onewaybuffer *b = &boxes[s].boxes[i].out;
       int count = b->wr_index - b->rd_index;
 
@@ -195,11 +188,15 @@ struct hash_query *get_next_query(struct hash_table *hash_table, int s,
 
   assert(idx < NQUERIES_PER_TASK);
 
+#if 0
   /* if one person is done, everybody is done */
-  for (int i = 0; i < hash_table->nservers; i++) {
-    if (hash_table->partitions[i].q_idx == niters)
+  for (int i = 0; i < g_nservers; i++) {
+    if (hash_table->partitions[i].q_idx == g_niters)
         return NULL;
   }
+#endif
+  if (hash_table->quitting)
+      return NULL;
 
   do {
     struct hash_query *next_query = &ctask->queries[idx];
@@ -207,13 +204,13 @@ struct hash_query *get_next_query(struct hash_table *hash_table, int s,
     switch(next_query->state) {
       case HASH_QUERY_EMPTY:
       case HASH_QUERY_COMMITTED:
-        if (p->q_idx < niters) {
+        if (p->q_idx < g_niters) {
           // we have txn left to run. get a fresh one and issue it
           g_benchmark->get_next_query(hash_table, s, next_query);
           target_query = next_query;
         } else {
           // we are done with all txns. only remaining aborted ones left.
-          assert(p->q_idx == niters);
+          assert(p->q_idx == g_niters);
         }
 
         break;        
@@ -272,7 +269,7 @@ void child_fn(int s, int tid)
     }
 
     // After each txn, call process request
-    if (dist_threshold != 100)
+    if (g_dist_threshold != 100)
       process_requests(hash_table, s);
 
 #if PRINT_PROGRESS
@@ -301,17 +298,17 @@ void root_fn(int s, int tid)
   struct partition *p = &hash_table->partitions[s];
   struct task *self = &p->root_task;
 
-  assert(batch_size <= NTASKS - 2);
+  assert(g_batch_size <= NTASKS - 2);
 
   // add unblock task to ready list
   TAILQ_INSERT_TAIL(&p->ready_list, &p->unblock_task, next);
   
-  for (i = 0; i < batch_size; i++) {
+  for (i = 0; i < g_batch_size; i++) {
       r = task_create(p);
       assert(r == 1);
     }
 
-    for (i = 0; i < batch_size; i++) {
+    for (i = 0; i < g_batch_size; i++) {
       int t = task_join(self);
     }
 

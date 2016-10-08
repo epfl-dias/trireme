@@ -26,10 +26,6 @@ struct lock_item {
 #pragma message ("Using pthread mutex")
 #endif
 
-extern struct hash_table *hash_table;
-extern struct benchmark *g_benchmark;
-extern int write_threshold;
-
 #if ENABLE_WAIT_DIE_CC
 int selock_wait_die_acquire(struct partition *p, struct elem *e, 
     char optype, uint64_t req_ts)
@@ -179,7 +175,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
   }
 
 #else
-  assert(g_benchmark == &micro_bench && write_threshold == 100);
+  assert(g_benchmark == &micro_bench && g_write_threshold == 100);
   r = 1;
 #endif // SE_LATCH
 
@@ -277,7 +273,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
   LATCH_RELEASE(&e->latch, &alock_state);
 
 #else
-  assert(g_benchmark == &micro_bench && write_threshold == 100);
+  assert(g_benchmark == &micro_bench && g_write_threshold == 100);
 #endif // SE_LATCH
 
 }
@@ -316,7 +312,7 @@ int selock_nowait_acquire(struct partition *p, struct elem *e, char optype,
 
   LATCH_RELEASE(&e->latch, &alock_state);
 #else
-  assert(g_benchmark == &micro_bench && write_threshold == 100);
+  assert(g_benchmark == &micro_bench && g_write_threshold == 100);
   r = 1;
 #endif
 
@@ -336,7 +332,7 @@ void selock_nowait_release(struct partition *p, struct elem *e)
   LATCH_RELEASE(&e->latch, &alock_state);
 
 #else
-  assert(g_benchmark == &micro_bench && write_threshold == 100);
+  assert(g_benchmark == &micro_bench && g_write_threshold == 100);
 #endif
 }
 

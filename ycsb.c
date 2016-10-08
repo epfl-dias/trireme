@@ -1,3 +1,5 @@
+#define __MAIN__
+
 #include "ia32perf.h"
 #include "headers.h"
 #include "benchmark.h"
@@ -5,52 +7,13 @@
 #include "smphashtable.h"
 #include "partition.h"
 
-#if defined(INTEL64)
-  // Event Select values for Intel I7 core processor
-  // Counter Mask (8 bits) - INV - EN - ANY - INT - PC - E - OS - USR - UMASK (8 bits) - Event Select (8 bits)
-  #define NEVT 2
-  uint64_t evts[NEVT] = {
-    0x00410224, // L2 Misses
-    0x0041412E, // L2 Misses
-  };
-#elif defined(AMD64)
-  // Reserved (22 bits) - HO - GO - Reserved (4 bits) - Event Select (8 bits)
-  // Counter Mask (8 bits) - INV - EN - ANY - INT - PC - E - OS - USR - UMASK (8 bits) - Event Select (8 bits)
-  #define NEVT 2
-  uint64_t evts[NEVT] = {
-    0x000041077E, // L2 Misses
-    0x04004107E1, // L3 Misses, needs to be ORed with (core# << (12))
-  };
-#else
-  #define NEVT 0
-#endif
-
 int queries_per_txn = 1;
-int nservers        = 1;
-int nclients        = 1;
-int first_core      = -1;
-int batch_size      = 1;
-int ops_per_txn     = 1;
-int nremote_ops     = 2;
-int niters          = 1000000;
-size_t size         = 1000000;
 int query_mask      = (1 << 29) - 1;
 int query_shift     = 2;
-int write_threshold = 20;
-int dist_threshold = 10;
-int alpha = 0;
-size_t nhot_recs = 0;
-int nhot_servers = 0;
 
-int track_cpu_usage = 0;
 int QID[MAX_CLIENTS];
 
-struct hash_table *hash_table;
-struct benchmark *g_benchmark;
 int iters_per_client; 
-
-uint64_t pmccount[NEVT][MAX_SERVERS + MAX_CLIENTS];
-uint64_t pmclast[NEVT][MAX_SERVERS + MAX_CLIENTS];
 
 struct client_data {
   unsigned int seed;
@@ -67,47 +30,53 @@ int main(int argc, char *argv[])
 {
   int opt_char;
 
+  /* defaults */
+  g_nservers = 1;
+  g_nrecs = 1000000;
+  g_alpha = 0;
+  g_niters = 100000000;
+  g_nhot_servers = 0;
+  g_nhot_recs = 0;
+  g_ops_per_txn = 1;
+  g_nremote_ops = 2;
+  g_write_threshold = 20;
+  g_dist_threshold = 10;
+  g_batch_size = 1;
+
   while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:r:h:p:")) != -1) {
     switch (opt_char) {
       case 'a':
-        alpha = atoi(optarg);
+        g_alpha = atoi(optarg);
         break;
       case 'h':
-        nhot_recs = atol(optarg);
+        g_nhot_recs = atol(optarg);
         break;
       case 'p':
-        nhot_servers = atoi(optarg);
+        g_nhot_servers = atoi(optarg);
         break;
       case 's':
-        nservers = atoi(optarg);
-        assert(nservers < MAX_SERVERS);
-        break;
-      case 'c':
-        nclients = atoi(optarg);
-        assert(nclients < MAX_CLIENTS);
-        break;
-      case 'f':
-        first_core = atoi(optarg);
+        g_nservers = atoi(optarg);
+        assert(g_nservers < MAX_SERVERS);
         break;
       case 'i':
-        niters = atoi(optarg);
+        g_niters = atoi(optarg);
         break;
       case 't':
-        size = atol(optarg);
+        g_nrecs = atol(optarg);
         break;
       case 'w':
-        write_threshold = atoi(optarg);
+        g_write_threshold = atoi(optarg);
         break;
       case 'd':
-        dist_threshold = atoi(optarg);
+        g_dist_threshold = atoi(optarg);
         break;
       case 'r':
-        nremote_ops = atoi(optarg);
+        g_nremote_ops = atoi(optarg);
         break;
       case 'b':
-        batch_size = atoi(optarg);
+        g_batch_size = atoi(optarg);
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
-        if (batch_size != 1) {
+        if (g_batch_size != 1) {
           printf("batching not allowed in se/sn modes\n");
           assert(0);
         }
@@ -115,11 +84,8 @@ int main(int argc, char *argv[])
 
         break;
       case 'o':
-        ops_per_txn = atoi(optarg);
-        assert(ops_per_txn < MAX_OPS_PER_QUERY);
-        break;
-      case 'u':
-        track_cpu_usage = 1;
+        g_ops_per_txn = atoi(optarg);
+        assert(g_ops_per_txn < MAX_OPS_PER_QUERY);
         break;
       default:
         printf("benchmark options are: \n"
@@ -127,16 +93,14 @@ int main(int argc, char *argv[])
                "   -h fraction of records to use for hot bernoulli range\n"
                "   -p #servers to use for holding hot bernoulli range\n"
                "   -s number of servers / partitions\n"
-               "   -c number of clients\n"
                "   -d ratio of distributed to local txns\n"
                "   -b batch size \n"
                "   -i number of iterations\n"
                "   -o ops per iteration\n"
                "   -t max #records\n"
-               "   -m log of max hash key\n"
                "   -w hash insert ratio over total number of queries\n"
-               "   -r nremote operations per txn\n"
-               "   -u show server cpu usage\n");
+               "   -r nremote operations per txn\n");
+
         exit(-1);
     }
   }
@@ -150,18 +114,24 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
-  if (first_core == -1) first_core = nclients;
+#if ENABLE_ASYMMETRIC_MESSAGING
 
-  assert(nremote_ops <= ops_per_txn && nremote_ops < MAX_OPS_PER_QUERY);
-
-  if (alpha) {
-#if SHARED_EVERYTHING
-    assert(nhot_recs > 1 && nhot_servers == 1);
-#else
-    assert(nhot_recs != 0);
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+#error "Asymmetric messaging valid only in msgpassing mode\n"
 #endif
-    assert(nhot_servers != 0);
-    assert(nhot_servers <= nservers);
+
+#endif
+
+  assert(g_nremote_ops <= g_ops_per_txn && g_nremote_ops < MAX_OPS_PER_QUERY);
+
+  if (g_alpha) {
+#if SHARED_EVERYTHING
+    assert(g_nhot_recs > 1 && g_nhot_servers == 1);
+#else
+    assert(g_nhot_recs != 0);
+#endif
+    assert(g_nhot_servers != 0);
+    assert(g_nhot_servers <= g_nservers);
   }
 
   // set benchmark to micro for now
@@ -174,166 +144,16 @@ int main(int argc, char *argv[])
 void run_benchmark() 
 {
   srand(19890811);
-  //iters_per_client = niters / nclients;
 
-  printf(" # clients:    %d\n", nclients);
-  printf(" # servers:    %d\n", nservers);
+  printf(" # servers:    %d\n", g_nservers);
   printf(" Key range:    0..2^%d\n", 31-query_shift);
-  printf(" Write ratio:  %d\n", write_threshold);
-  printf(" Total #recs: %ld \n", size);
-  printf(" Iterations:   %d\n", niters);
+  printf(" Write ratio:  %d\n", g_write_threshold);
+  printf(" Total #recs: %ld \n", g_nrecs);
+  printf(" Iterations:   %d\n", g_niters);
 
-  hash_table = create_hash_table(size, nservers);
+  hash_table = create_hash_table();
 
-  start_hash_table_servers(hash_table, first_core);
-
-#if 0
-  stats_set_track_cpu_usage(hash_table, track_cpu_usage);
-  cdata = malloc(nclients * sizeof(struct client_data));
-  for (int i = 0; i < nclients; i++) {
-    cdata[i].seed = rand();
-    QID[i] = size / nclients * i;
-  }
- 
-  // start the clients
-  //ProfilerStart("cpu.info");
-  double tstart = now();
-
-  start_hash_table_servers(hash_table, first_core);
-
-  /* insert the data first. 
-   * amount of data to insert = cache size
-   * number of records to insert (i.e number of iters) = cachesize/recsize 
-   */
-  write_threshold = (double)RAND_MAX;
-
-  qgen = &get_next_query;
-  int r;
-  pthread_t *ithreads = (pthread_t *)malloc(nclients * sizeof(pthread_t));
-  int *thread_id = (int *)malloc(nclients * sizeof(pthread_t));
-  for (int i = 0; i < nclients; i++) {
-    thread_id[i] = i;
-    r = pthread_create(&ithreads[i], NULL, load_data,
-        (void *) &thread_id[i]);
-    assert(r == 0);
-  }
-
-  void *value;
-  for (int i = 0; i < nclients; i++) {
-    r = pthread_join(ithreads[i], &value);
-    assert(r == 0);
-  }
-
-  double tend = now();
-  double insert_time = tend - tstart;
-
-  size = stats_get_ninserts(hash_table);
-  fprintf(stderr, "loaded %lu pairs.\n", size);
-
-  /* now start lookups */
-
-  stats_reset(hash_table);
-  //write_threshold = 0;
-  qgen = &get_mixed_query;
-  write_threshold = tmp_wt;
-  niters = tmp_iters;
-  iters_per_client = niters / nclients;
-
-  srand(19890811);
-  for (int i = 0; i < nclients; i++) {
-    cdata[i].seed = rand();
-    //QID[i] = size / nclients * i;
-  }
-
-  for (int i = 0; i < nclients; i++) {
-    for (int k = 0; k < NEVT; k++) {
-      if (StartCounter(i, k, evts[k])) {
-        printf("Failed to start counter on cpu %d, "
-                "make sure you have run \"modprobe msr\"" 
-            " and are running benchmark with sudo privileges\n", i);
-      }
-      ReadCounter(i, k, &pmclast[k][i]);
-    }
-  }
-
-  for (int i = first_core; i < first_core + nservers; i++) {
-    for (int k = 0; k < NEVT; k++) {
-      if (StartCounter(i, k, evts[k])) {
-        printf("Failed to start counter on cpu %d, "
-                "make sure you have run \"modprobe msr\"" 
-            " and are running benchmark with sudo privileges\n", i);
-      }
-
-      ReadCounter(i, k, &pmclast[k][i]);
-    }
-  }
-
-  tstart = now();
-
-  fprintf(stderr, "Starting lookup threads now..\n");
- 
-  pthread_t *lthreads = (pthread_t *)malloc(nclients * sizeof(pthread_t));
-  for (int i = 0; i < nclients; i++) {
-    thread_id[i] = i;
-
-    r = pthread_create(&lthreads[i], NULL, run_tests /* ycsb_client */, (void *) &thread_id[i]);
-    assert(r == 0);
-  }
-
-  printf("waiting for lookup threads now..\n");
-
-  for (int i = 0; i < nclients; i++) {
-    r = pthread_join(lthreads[i], &value);
-    assert(r == 0);
-  }
- 
-  tend = now();
-
-  stop_hash_table_servers(hash_table);
-
-  double clients_totalpmc[NEVT] = { 0 };
-  double servers_totalpmc[NEVT] = { 0 };
-  for (int i = 0; i < nclients; i++) {
-    for (int k = 0; k < NEVT; k++) {
-      uint64_t tmp;
-      ReadCounter(i, k, &tmp);
-      clients_totalpmc[k] += tmp - pmclast[k][i];
-    }
-  }
-  for (int i = first_core; i < first_core + nservers; i++) {
-    for (int k = 0; k < NEVT; k++) {
-      uint64_t tmp;
-      ReadCounter(i, k, &tmp);
-      servers_totalpmc[k] += tmp - pmclast[k][i];
-    }
-  }
-
-  //ProfilerStop();
-
-  // print out all the important information
-  printf("== results ==\n");
-  printf(" Loading time:      %.3f\n", insert_time);
-  printf(" Lookup time:      %.3f\n", tend - tstart);
-  printf(" Abort rate: %.3f(%d,%d)\n", (double)stats_get_naborts(hash_table) / stats_get_nlookups(hash_table), stats_get_naborts(hash_table), stats_get_nlookups(hash_table));
-  printf(" Update ratio: %.3f(%d,%d)\n", (double)stats_get_nupdates(hash_table) / stats_get_nlookups(hash_table), stats_get_nupdates(hash_table), stats_get_nlookups(hash_table));
-
-  printf(" Servr CPU usage: %.3f\n", stats_get_cpu_usage(hash_table));
-  if (NEVT > 0) {
-    printf(" L2 Misses per iteration: clients - %.3f, servers - %.3f, total - %.3f\n", 
-        clients_totalpmc[0] / niters, servers_totalpmc[0] / niters, (clients_totalpmc[0] + servers_totalpmc[0]) / niters);
-  }
-  if (NEVT > 1) {
-    printf(" L3 Misses per iteration: clients - %.3f, servers - %.3f, total - %.3f\n", 
-        clients_totalpmc[1] / niters, servers_totalpmc[1] / niters, (clients_totalpmc[1] + servers_totalpmc[1]) / niters);
-  }
-
-  free(thread_id);
-  free(ithreads);
-  free(lthreads);
-  free(cdata);
-#endif
-
-  //assert(stats_get_ncommits(hash_table) == niters * nservers);
+  start_hash_table_servers(hash_table);
 
   printf("== results ==\n");
   printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
@@ -347,172 +167,3 @@ void run_benchmark()
   destroy_hash_table(hash_table);
 }
 
-#if 0
-void get_next_query(int client_id, struct hash_query *query)
-{
-  enum optype optype = OPTYPE_INSERT;
-
-  unsigned long r = QID[client_id]++;
-
-  query->optype = optype;
-  query->key = r & query_mask;
-  query->size = YCSB_REC_SZ;
-}
-
-void get_mixed_query(int client_id, struct hash_query *query)
-{
-  enum optype optype =  
-    (rand_r(&cdata[client_id].seed) < write_threshold) ? OPTYPE_UPDATE : OPTYPE_LOOKUP; 
-  //unsigned long r = QID[client_id]++;
-  unsigned long r = (unsigned long) (size * 
-    ((double)rand_r(&cdata[client_id].seed) / RAND_MAX));
-  assert (r < size);
-
-  query->optype = optype;
-  query->key = r & query_mask;
-  query->size = 0;
-}
-
-void get_random_query(int client_id, struct hash_query *query)
-{
-  enum optype optype = 
-    (rand_r(&cdata[client_id].seed) < write_threshold) ? OPTYPE_INSERT : OPTYPE_LOOKUP; 
-  unsigned long r = rand_r(&cdata[client_id].seed);
-
-  query->optype = optype;
-  query->key = (r >> query_shift) & query_mask;
-  query->size = 0;
-  if (optype == OPTYPE_INSERT) {
-    //query->size = sizeof(struct ycsb_record);
-    query->size = YCSB_REC_SZ;
-  }
-}
-
-void handle_query_result(int client_id, struct hash_query *query, void *value, int status)
-{
-  uint64_t *r = (uint64_t *)value;
-
-  if (r == NULL) {
-    assert (status == ABORT);
-    return;
-  }
-
-  if (query->optype == OPTYPE_LOOKUP) {
-    if (r != NULL && status == COMMIT) {
-      if (*r != query->key) {
-        printf("ERROR: values %" PRId64 "-- %d do not match\n", *r, client_id);
-        exit(1);
-      }
-
-        mp_release_value(hash_table, client_id, value);
-    }
-  } else if (status == COMMIT) {
-    assert(r != NULL);
-
-    if (query->optype == OPTYPE_INSERT)
-      *r = query->key;
-    else {
-      assert(query->optype == OPTYPE_UPDATE);
-      if (*r != query->key) {
-        printf("UPD ERROR: values %" PRId64 "-- %d do not match\n", *r, client_id);
-        exit(1);
-      }
-    }
-
-    mp_mark_ready(hash_table, client_id, value);
-  }
-}
-
-int run_transaction(int cid, struct hash_query *ops, int nops)
-{
-  int i, r;
-  void **values = (void **)memalign(CACHELINE, batch_size * sizeof(void *));
-
-  for (i = 0; i < nops; i++)
-      values[i] = 0;
-
-  smp_hash_doall(hash_table, cid, nops, ops, values);
-
-  // even if one value is null, we need to abort
-  r = COMMIT;
-  for (i = 0; i < nops; i++) {
-    if (values[i] == NULL) {
-      r = ABORT;
-      break;
-    }
-  }
-
-  for (int k = 0; k < nops; k++) {
-    handle_query_result(cid, &ops[k], values[k], r);
-  }
-
-  free(values);
-
-  return r;
-}
-
-void *run_tests(void *args)
-{
-  int c = *(int *)args;
-  set_affinity(c);
-    
-  int cid = create_hash_table_client(hash_table);
-    
-  struct hash_query *queries = (struct hash_query *)memalign(CACHELINE, batch_size * sizeof(struct hash_query));
-  int i = 0;
-
-  while (i < iters_per_client) {
-    int nqueries = min(iters_per_client - i, batch_size);
-    for (int k = 0; k < nqueries; k++) {
-      //get_random_query(c, &queries[k]);
-      (*qgen)(c, &queries[k]);
-    }
-
-    while (run_transaction(cid, queries, nqueries) == ABORT)
-      ;
-
-    i += nqueries;
-
-    // flush out the buffer so that all remaining releases go out
-    smp_flush_all(hash_table, cid);
-  }
-
-  free(queries);
-
-  return NULL;
-}
-
-void *load_data(void *args)
-{
-  int c = *(int *)args;
-  set_affinity(c);
-    
-  int cid = create_hash_table_client(hash_table);
-    
-  struct hash_query *queries = (struct hash_query *)memalign(CACHELINE, batch_size * sizeof(struct hash_query));
-  void **values = (void **)memalign(CACHELINE, batch_size * sizeof(void *));
-  int i = 0;
-  while (i < iters_per_client) {
-    int nqueries = min(iters_per_client - i, batch_size);
-    for (int k = 0; k < nqueries; k++) {
-      //get_random_query(c, &queries[k]);
-      (*qgen)(c, &queries[k]);
-      values[k] = 0;
-    }
-    smp_hash_doall(hash_table, cid, nqueries, queries, values);
-
-    for (int k = 0; k < nqueries; k++) {
-      handle_query_result(cid, &queries[k], values[k], COMMIT);
-    }
-    i += nqueries;
-
-    // flush out the buffer so that all remaining releases go out
-    smp_flush_all(hash_table, cid);
-  }
-
-  free(queries);
-  free(values);
-  return NULL;
-}
-
-#endif

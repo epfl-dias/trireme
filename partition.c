@@ -5,13 +5,11 @@
 #include "tpcc.h"
 #include "plmalloc.h"
 
-void init_hash_partition(struct partition *p, size_t nrecs, 
-    int nservers, char alloc)
+void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
 {
   int i;
 
   assert((unsigned long)p % CACHELINE == 0);
-  p->nservers = nservers;
   p->nrecs = nrecs;
   p->size = 0;
 
@@ -36,11 +34,8 @@ void init_hash_partition(struct partition *p, size_t nrecs,
   p->idleclock = 0;
   p->seed = rand();
 
-#if SHARED_EVERYTHING
-  for (i = 0; i < MAX_SERVERS; i++)
-    p->se_ready = STATE_READY;
-#elif SHARED_NOTHING
-  LATCH_INIT(&p->latch, p->nservers);
+#if SHARED_NOTHING
+  LATCH_INIT(&p->latch, g_nservers);
 #endif
 
   if (alloc) {
@@ -49,7 +44,7 @@ void init_hash_partition(struct partition *p, size_t nrecs,
     for (i = 0; i < p->nhash; i++) {
       LIST_INIT(&(p->table[i].chain));
 #if SE_LATCH
-      LATCH_INIT(&p->table[i].latch, p->nservers);
+      LATCH_INIT(&p->table[i].latch, g_nservers);
 #endif
     }
   }
@@ -184,7 +179,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   assert (e);
 
 #if SHARED_EVERYTHING
-  LATCH_INIT(&e->latch, p->nservers);
+  LATCH_INIT(&e->latch, g_nservers);
 #endif
 
   e->key = key;

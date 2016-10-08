@@ -201,12 +201,14 @@ struct task {
 } __attribute__ ((aligned (CACHELINE)));
 
 struct partition {
-  int nservers;
-  int nhash;
-  size_t nrecs;
-  size_t size;
   struct bucket *table;
   uint64_t q_idx;
+  int nhash;
+  size_t nrecs;
+
+#if SHARED_NOTHING
+  LATCH_T latch;
+#endif
 
   // tasks
   struct task unblock_task;
@@ -219,6 +221,7 @@ struct partition {
   TAILQ_HEAD(free_list, task) free_list; 
 
   // stats
+  size_t size;
   int ninserts;
   int ncommits;
   int nlookups_local;
@@ -230,16 +233,6 @@ struct partition {
 
   struct txn_ctx txn_ctx;
   unsigned int seed;
-
-#if SHARED_EVERYTHING
-  /* each partition is assoc with a thread. In se case, some partitions 
-   * might not have any data. None the less, for the time being, we can
-   * use partition structure to keep thread-local state
-   */
-  sethread_state_t se_ready;
-#elif SHARED_NOTHING
-  LATCH_T latch;
-#endif
 
   uint64_t tps;
 
@@ -283,23 +276,17 @@ struct thread_args {
  * Hash Table data structure
  */
 struct hash_table {
-  int nservers;
-  volatile int nclients;
-  size_t nrecs;
-
-  pthread_mutex_t create_client_lock;
-
-  volatile int quitting;
-  pthread_t *threads;
-  struct thread_args *thread_data;
-
   struct partition *partitions;
   struct partition *g_partition; /* used for item table */
+
   struct box_array *boxes;
   uint64_t *keys;
 
-  // stats
-  int track_cpu_usage;
+  volatile int quitting;
+
+  pthread_t *threads;
+  struct thread_args *thread_data;
+  pthread_mutex_t create_client_lock;
 };
 
 #endif

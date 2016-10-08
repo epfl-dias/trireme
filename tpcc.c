@@ -52,8 +52,6 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
     struct secondary_record *sr, struct tpcc_query *q,
     short *opids, short *nopids);
 
-extern int dist_threshold;
-
 static int set_last_name(int num, char* name)
 {
   static const char *n[] =
@@ -79,7 +77,7 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   int x = URand(&p->seed, 1, 100);
   int y = URand(&p->seed, 1, 100);
 
-  if(x <= 85 || dist_threshold == 100) {
+  if(x <= 85 || g_dist_threshold == 100) {
     // home warehouse
     q->c_d_id = q->d_id;
     q->c_w_id = s + 1;
@@ -87,8 +85,8 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
     q->c_d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
 
     // remote warehouse if we have >1 wh
-    if(p->nservers > 1) {
-      while((q->c_w_id = URand(&p->seed, 1, p->nservers)) == (s + 1))
+    if(g_nservers > 1) {
+      while((q->c_w_id = URand(&p->seed, 1, g_nservers)) == (s + 1))
         ; 
 
     } else {
@@ -115,7 +113,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
   q->w_id = s + 1;
-  //q->w_id = URand(&p->seed, 1, hash_table->nservers);
+  //q->w_id = URand(&p->seed, 1, g_nservers);
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
   q->rbk = URand(&p->seed, 1, 100);
@@ -141,14 +139,14 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
     } while(dup);     
 
     int x = URand(&p->seed, 1, 100);
-    if (dist_threshold == 100)
+    if (g_dist_threshold == 100)
       x = 2;
 
-    if (x > 1 || p->nservers == 1) {
+    if (x > 1 || g_nservers == 1) {
     //if (1) {
       i->ol_supply_w_id = s + 1;
     } else {
-      while ((i->ol_supply_w_id = URand(&p->seed, 1, p->nservers)) == q->w_id)
+      while ((i->ol_supply_w_id = URand(&p->seed, 1, g_nservers)) == q->w_id)
         ;
 
       q->remote = 1;
@@ -596,7 +594,7 @@ void se_tpcc_load_data(struct hash_table *hash_table, int id)
    */
   assert(id == 0);
 
-  for (int i = 0; i < hash_table->nservers; i++)
+  for (int i = 0; i < g_nservers; i++)
     tpcc_load_warehouse(hash_table, i + 1 /*wid*/, id);
 }
 
@@ -637,7 +635,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   assert(BITTEST(bits, 0) == 0);
 
   npartitions = 0;
-  for (i = 1; i <= hash_table->nservers; i++) {
+  for (i = 1; i <= g_nservers; i++) {
     if (BITTEST(bits, i)) { 
       partitions[npartitions++] = i;
       LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
@@ -905,7 +903,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   assert(BITTEST(bits, 0) == 0);
 
   npartitions = 0;
-  for (i = 1; i <= hash_table->nservers; i++) {
+  for (i = 1; i <= g_nservers; i++) {
     if (BITTEST(bits, i)) { 
       partitions[npartitions++] = i;
       LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);

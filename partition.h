@@ -10,8 +10,7 @@
 
 typedef void release_value_f(struct elem *e);
 
-void init_hash_partition(struct partition *p, size_t max_size, int nservers, 
-    char alloc);
+void init_hash_partition(struct partition *p, size_t max_size, char alloc);
 
 size_t destroy_hash_partition(struct partition *p);
 

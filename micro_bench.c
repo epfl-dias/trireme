@@ -4,16 +4,6 @@
 #include "benchmark.h"
 #include "twopl.h"
 
-extern int ops_per_txn;
-extern int nremote_ops;
-extern int batch_size;
-extern int niters;
-extern int dist_threshold;
-extern int write_threshold;
-extern int alpha;
-extern size_t nhot_recs;
-extern int nhot_servers;
-
 void micro_load_data(struct hash_table *hash_table, int id)
 {
   struct elem *e;
@@ -50,17 +40,16 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
     struct hash_op *op, char is_local)
 {
   struct partition *p = &hash_table->partitions[s];
-  int nservers = hash_table->nservers;
 #if SHARED_EVERYTHING
   uint64_t nrecs = p->nrecs; 
-  uint64_t nrecs_per_server = nrecs / nservers;
+  uint64_t nrecs_per_server = nrecs / g_nservers;
 #else
   uint64_t nrecs_per_server = p->nrecs; 
-  uint64_t nrecs = nrecs_per_server * nservers;
+  uint64_t nrecs = nrecs_per_server * g_nservers;
 #endif
   int r = URand(&p->seed, 1, 99);
  
-  if (r > write_threshold) {
+  if (r > g_write_threshold) {
     op->optype = OPTYPE_UPDATE;
   } else {
     op->optype = OPTYPE_LOOKUP;
@@ -80,11 +69,11 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
    */
   if (hash_table->keys) {
     p->q_idx++;
-    assert(p->q_idx * s < niters * nservers);
+    assert(p->q_idx * s < g_niters * g_nservers);
 
     op->key = hash_table->keys[p->q_idx * s];
 
-  } else if (alpha != 0) {
+  } else if (g_alpha != 0) {
 
     /* Get key based on bernoulli distribution. In case of shared nothing 
      * and Trireme configs, there is one more parameter in addition to
@@ -105,14 +94,14 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
     if (!is_local) {
 
       // pick random hot record
-      delta = URand(&p->seed, 0, nhot_recs - 1);
+      delta = URand(&p->seed, 0, g_nhot_recs - 1);
 
       // pick random hot server
-      tserver = URand(&p->seed, 0, nhot_servers - 1);
+      tserver = URand(&p->seed, 0, g_nhot_servers - 1);
       
     } else {
       // pick random cold record
-      delta = URand(&p->seed, nhot_recs + 1, nrecs_per_server - 1);
+      delta = URand(&p->seed, g_nhot_recs + 1, nrecs_per_server - 1);
 
       // cold is always local
       tserver = s;
@@ -124,7 +113,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
   } else {
     delta = URand(&p->seed, 0, nrecs_per_server - 1);
-    tserver = URand(&p->seed, 0, nservers - 1);
+    tserver = URand(&p->seed, 0, g_nservers - 1);
     int t_coreid = hash_table->thread_data[tserver].core; 
 
 #if ENABLE_SOCKET_LOCAL_TXN
@@ -139,13 +128,13 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
       if (is_first_core) {
         // only socket remote
         while ((t_coreid % 4) == (s_coreid % 4)) {
-          tserver = URand(&p->seed, 0, nservers - 1);
+          tserver = URand(&p->seed, 0, g_nservers - 1);
           t_coreid = hash_table->thread_data[tserver].core; 
         }
       } else {
         // only socket local
         while ((tserver == s) || (t_coreid % 4) != (s_coreid % 4)) {
-          tserver = URand(&p->seed, 0, nservers - 1);
+          tserver = URand(&p->seed, 0, g_nservers - 1);
           t_coreid = hash_table->thread_data[tserver].core; 
         }
       }
@@ -153,7 +142,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
 #else
     while (!is_local && tserver == s) {
-      tserver = URand(&p->seed, 0, nservers - 1);
+      tserver = URand(&p->seed, 0, g_nservers - 1);
       t_coreid = hash_table->thread_data[tserver].core; 
     }
 #endif
@@ -179,12 +168,11 @@ static void se_make_operation(struct hash_table *hash_table, int s,
     struct hash_op *op, char is_local)
 {
   struct partition *p = &hash_table->partitions[s];
-  int nservers = hash_table->nservers;
   uint64_t nrecs = p->nrecs; 
-  uint64_t nrecs_per_server = nrecs / nservers;
+  uint64_t nrecs_per_server = nrecs / g_nservers;
   int r = URand(&p->seed, 1, 99);
  
-  if (r > write_threshold) {
+  if (r > g_write_threshold) {
     op->optype = OPTYPE_UPDATE;
   } else {
     op->optype = OPTYPE_LOOKUP;
@@ -194,13 +182,13 @@ static void se_make_operation(struct hash_table *hash_table, int s,
   // use zipfian if available
   if (hash_table->keys) {
     p->q_idx++;
-    assert(p->q_idx * s < niters * nservers);
+    assert(p->q_idx * s < g_niters * g_nservers);
 
     op->key = hash_table->keys[p->q_idx * s];
   } else {
     
     // use alpha parameter as the probability
-    if (alpha == 0) {
+    if (g_alpha == 0) {
        // Just pick random key
         op->key = URand(&p->seed, 0, nrecs - 1);
     } else {
@@ -210,10 +198,10 @@ static void se_make_operation(struct hash_table *hash_table, int s,
        */
       if (!is_local) {
         //hot range
-        op->key = URand(&p->seed, 0, nhot_recs - 1);
+        op->key = URand(&p->seed, 0, g_nhot_recs - 1);
       } else {
         //cold range
-        op->key = URand(&p->seed, nhot_recs + 1, nrecs - 1);
+        op->key = URand(&p->seed, g_nhot_recs + 1, nrecs - 1);
       }
     }
   }
@@ -224,18 +212,18 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   struct hash_query *query = (struct hash_query *) arg;
   struct partition *p = &hash_table->partitions[s];
   int r = URand(&p->seed, 1, 99);
-  char is_local = (r < dist_threshold || hash_table->nservers == 1);
+  char is_local = (r < g_dist_threshold || g_nservers == 1);
   char is_duplicate;
   
-  query->nops = ops_per_txn;
+  query->nops = g_ops_per_txn;
 
-  for (int i = 0; i < ops_per_txn; i++) {
+  for (int i = 0; i < g_ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
 
     do {
       // only first NREMOTE_OPS are remote in cross-partition txns
-      if (is_local || i >= nremote_ops) {
-      //if (is_local || i >= nhot_recs) {
+      if (is_local || i >= g_nremote_ops) {
+      //if (is_local || i >= g_nhot_recs) {
 #if SHARED_EVERYTHING
         se_make_operation(hash_table, s, op, 1);
 #else
@@ -262,8 +250,8 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
 #if ENABLE_KEY_SORTING
   // sort ops based on key
-  for (int i = 0; i < ops_per_txn; i++) {
-      for (int j = i + 1; j < ops_per_txn; j++) {
+  for (int i = 0; i < g_ops_per_txn; i++) {
+      for (int j = i + 1; j < g_ops_per_txn; j++) {
         if (query->ops[i].key > query->ops[j].key) {
             struct hash_op tmp = query->ops[i];
             query->ops[i] = query->ops[j];
@@ -283,6 +271,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
   struct txn_ctx *txn_ctx = &ctask->txn_ctx;
   int i, r;
   void *value;
+  int nrecs_per_partition = hash_table->partitions[0].nrecs;
 
   txn_start(hash_table, s, status, txn_ctx);
 
@@ -299,7 +288,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
   npartitions = nbits = 0;
 
   for (i = 0; i < query->nops; i++) {
-    tserver = query->ops[i].key / hash_table->nrecs;
+    tserver = query->ops[i].key / nrecs_per_partition;
     if (BITTEST(bits, tserver)) {
       ;
     } else {
@@ -313,7 +302,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
   }
 
-  for (i = 0; i < hash_table->nservers; i++) {
+  for (i = 0; i < g_nservers; i++) {
     if (BITTEST(bits, i)) {
       dprint("srv %d latching lock %d\n", s, i);
       LATCH_ACQUIRE(&hash_table->partitions[i].latch, &alock_state);
@@ -331,7 +320,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
   r = TXN_COMMIT;
   for (i = 0; i < query->nops; i++) {
     struct hash_op *op = &query->ops[i];
-    int tserver = op->key / hash_table->nrecs;
+    int tserver = op->key / nrecs_per_partition;
 
     // try ith operation i+1 times before aborting only with NOWAIT CC
 #if ENABLE_WAIT_DIE_CC || defined(SHARED_NOTHING)
