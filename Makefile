@@ -10,6 +10,7 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 # 								ENABLE_KEY_SORTING
 # 								trireme-specific options: ENABLE_OP_BATCHING
 # 								hyperthreading: HT_ENABLED
+# 								assymetric client--server: ENABLE_ASYMMETRIC_MESSAGING
 # compile shared everything with se_latch and pthread_spinlock.
 # non se_latch config is only for microbenchmark readonly case
 # 

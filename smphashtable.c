@@ -17,7 +17,7 @@ extern struct benchmark *g_benchmark;
 extern double alpha;
 extern int niters;
 extern int batch_size;
-extern int ops_per_txn, nhot_servers;
+extern int ops_per_txn, nhot_servers, nhot_recs;
 extern struct hash_table *hash_table;
 
 #if DIASSRV8
@@ -103,10 +103,8 @@ struct hash_table *create_hash_table(size_t nrecs, int nservers)
       hash_table->partitions[i].table = hash_table->partitions[0].table;
 
 #else
-
     init_hash_partition(&hash_table->partitions[i], nrecs / nservers, nservers,
-        1 /*always alloc buckets*/);
-
+            1 /*always alloc buckets*/);
 #endif
   }
 
@@ -813,7 +811,7 @@ void process_releases(struct hash_table *hash_table, int s)
 
 #if ENABLE_WAIT_DIE_CC
       wait_die_release(s, p, i, tid, opid, t);
-#elif ENABLE_BWAIT_RELEASE
+#elif ENABLE_BWAIT_CC
       bwait_release(s, p, i, tid, opid, t);
 #else
       no_wait_release(p, t);
@@ -1051,6 +1049,9 @@ void process_requests(struct hash_table *hash_table, int s)
       char abort = 0;
 
       if (req->r == LOCK_ABORT) {
+#if ENABLE_BWAIT_CC
+        assert(0);
+#endif
         abort = 1;
         dprint("srv (%d): cl %d tid %d opid %d %s %" PRIu64 " aborted\n",
             s, i, req->tid, req->opid,
@@ -1083,6 +1084,9 @@ void process_requests(struct hash_table *hash_table, int s)
 #endif
 
             if (reqs[k].r == LOCK_ABORT) {
+#if ENABLE_BWAIT_CC
+                assert(0);
+#endif
               req->r = LOCK_ABORT;
               abort = 1;
             }
@@ -1179,8 +1183,17 @@ void *hash_table_server(void* args)
   if (s == 0)
     g_benchmark->load_data(hash_table, s);
 #else
+
+#if ENABLE_ASYMMETRIC_MESSAGING
+  if (s < nhot_servers)
+      g_benchmark->load_data(hash_table, s);
+#else
+
   /* always load for trireme */
   g_benchmark->load_data(hash_table, s);
+
+#endif //ENABLE_ASYMMETRIC_MESSAGING
+
 #endif
 
   double tend = now();
@@ -1212,7 +1225,17 @@ void *hash_table_server(void* args)
 
   tstart = now();
 
+#if ENABLE_ASYMMETRIC_MESSAGING
+
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+#error "Asymmetric messaging valid only in msgpassing mode\n"
+#endif
+
+  if (s >= nhot_servers)
+      task_libinit(s);
+#else
   task_libinit(s);
+#endif
 
 #if 0
   for (i = 0; i < niters; i++) {
@@ -1254,7 +1277,14 @@ void *hash_table_server(void* args)
 
   fflush(stdout);
 
+#if ENABLE_ASYMMETRIC_MESSAGING
+  if (s < nhot_servers)
+      p->tps = 0;
+  else
+      p->tps = p->q_idx / (tend - tstart);
+#else
   p->tps = p->q_idx / (tend - tstart);
+#endif
 
   pthread_mutex_lock(&hash_table->create_client_lock);
 

@@ -141,9 +141,12 @@ int main(int argc, char *argv[])
     }
   }
 
-#if ENABLE_BWAIT
+#if ENABLE_BWAIT_CC
 #if !defined(ENABLE_KEY_SORTING)
 #error  "Error. bwait requires key sorting\n"
+#endif
+#if defined(SHARED_EVERYTHING)
+#error "SE doesn't support bwait yet\n"
 #endif
 #endif
 
