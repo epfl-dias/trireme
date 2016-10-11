@@ -12,6 +12,9 @@ void micro_load_data(struct hash_table *hash_table, int id)
 
   uint64_t qid = id * p->nrecs;
   uint64_t eqid = qid + p->nrecs;
+
+  printf("Partition %d loading start record %"PRIu64" to end"
+          "record %"PRIu64"\n", id, qid, eqid);
   
   while (qid < eqid) {
     p->ninserts++;
@@ -40,13 +43,8 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
     struct hash_op *op, char is_local)
 {
   struct partition *p = &hash_table->partitions[s];
-#if SHARED_EVERYTHING
-  uint64_t nrecs = p->nrecs; 
-  uint64_t nrecs_per_server = nrecs / g_nservers;
-#else
   uint64_t nrecs_per_server = p->nrecs; 
   uint64_t nrecs = nrecs_per_server * g_nservers;
-#endif
   int r = URand(&p->seed, 1, 99);
  
   if (r > g_write_threshold) {
@@ -342,13 +340,11 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     // in both lookup and update, we just check the value
     uint64_t *int_val = (uint64_t *)value;
 
-    for (int j = 0; j < YCSB_NFIELDS; j++) {
-      //assert (int_val[j] == op->key);
-      uint64_t val = int_val[j];
+    uint64_t val = int_val[0];
+    assert(val == op->key);
 
-      if (op->optype == OPTYPE_UPDATE)
-          int_val[j] = ++val;
-    }
+    if (op->optype == OPTYPE_UPDATE)
+        int_val[1]++;
   }
 
 #if SHARED_NOTHING

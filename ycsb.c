@@ -122,6 +122,7 @@ int main(int argc, char *argv[])
 
 #endif
 
+  printf("%d remote ops %d ops per txn \n", g_nremote_ops, g_ops_per_txn);
   assert(g_nremote_ops <= g_ops_per_txn && g_nremote_ops < MAX_OPS_PER_QUERY);
 
   if (g_alpha) {

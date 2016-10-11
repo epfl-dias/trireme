@@ -90,18 +90,7 @@ struct hash_table *create_hash_table()
       hash_table->partitions[i].table = hash_table->partitions[0].table;
 
 #else
-    if (i == (g_nservers - 1)) {
-        // last server. dump remaining records here
-        init_hash_partition(&hash_table->partitions[i],
-                g_nrecs - i * nrecs_per_partition, 1);
-
-        // usually, we load only multiples of nserver. so just check
-        assert ((g_nrecs - i * nrecs_per_partition) == nrecs_per_partition);
-
-    } else {
-        init_hash_partition(&hash_table->partitions[i], 
-                nrecs_per_partition, 1);
-    }
+    init_hash_partition(&hash_table->partitions[i], nrecs_per_partition, 1);
 #endif
   }
 
@@ -255,7 +244,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
       if (!e) {
-        dprint("srv(%d): lookup key %"PRIu64"failed\n", s, op->key);
+        printf("srv(%d): lookup key %"PRIu64"failed\n", s, op->key);
         assert(0);
       }
 
@@ -1171,7 +1160,7 @@ void *hash_table_server(void* args)
 
 #if ENABLE_ASYMMETRIC_MESSAGING
   /* load only few partitions in case of asym msg. */
-  if (s < nhot_servers)
+  if (s < g_nhot_servers)
       g_benchmark->load_data(hash_table, s);
 #else
 
@@ -1217,7 +1206,7 @@ void *hash_table_server(void* args)
 #error "Asymmetric messaging valid only in msgpassing mode\n"
 #endif
 
-  if (s >= nhot_servers)
+  if (s >= g_nhot_servers)
       task_libinit(s);
 #else
   task_libinit(s);
@@ -1231,7 +1220,7 @@ void *hash_table_server(void* args)
   fflush(stdout);
 
 #if ENABLE_ASYMMETRIC_MESSAGING
-  if (s < nhot_servers)
+  if (s < g_nhot_servers)
       p->tps = 0;
   else
       p->tps = p->q_idx / (tend - tstart);
@@ -1480,7 +1469,7 @@ void smp_flush_all(struct hash_table *hash_table, int client_id)
 /**
  * Value Memory Management Operations
  */
-int is_value_ready(struct elem *e)
+inline int is_value_ready(struct elem *e)
 {
   return (e->ref_count & DATA_READY_MASK) == 0 ? 1 : 0;
 }
