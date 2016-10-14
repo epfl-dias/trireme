@@ -45,13 +45,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
   struct partition *p = &hash_table->partitions[s];
   uint64_t nrecs_per_server = p->nrecs; 
   uint64_t nrecs = nrecs_per_server * g_nservers;
-  int r = URand(&p->seed, 1, 99);
- 
-  if (r > g_write_threshold) {
-    op->optype = OPTYPE_UPDATE;
-  } else {
-    op->optype = OPTYPE_LOOKUP;
-  }
+
   op->size = 0;
 
   hash_key delta = 0;
@@ -149,7 +143,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
       // remote op
       op->key = delta + (tserver * nrecs_per_server);
 
-#if !defined (SHARED_NOTHING) && !defined(SHARED_EVERYTHING) && ENABLE_SOCKET_LOCAL_TXN == 1
+#if !defined (SHARED_NOTHING) && !defined(SHARED_EVERYTHING) && defined(ENABLE_SOCKET_LOCAL_TXN)
       if (hash_table->thread_data[tserver].core % 4 !=  s_coreid % 4) {
         assert(is_first_core);
       }
@@ -168,13 +162,7 @@ static void se_make_operation(struct hash_table *hash_table, int s,
   struct partition *p = &hash_table->partitions[s];
   uint64_t nrecs = p->nrecs; 
   uint64_t nrecs_per_server = nrecs / g_nservers;
-  int r = URand(&p->seed, 1, 99);
- 
-  if (r > g_write_threshold) {
-    op->optype = OPTYPE_UPDATE;
-  } else {
-    op->optype = OPTYPE_LOOKUP;
-  }
+
   op->size = 0;
 
   // use zipfian if available
@@ -217,6 +205,21 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
   for (int i = 0; i < g_ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
+
+    /*
+    int r = URand(&p->seed, 1, 99);
+ 
+    if (r > g_write_threshold) {
+        op->optype = OPTYPE_UPDATE;
+    } else {
+        op->optype = OPTYPE_LOOKUP;
+    }
+    */
+
+    if (i < g_write_threshold)
+        op->optype = OPTYPE_UPDATE;
+    else
+        op->optype = OPTYPE_LOOKUP;
 
     do {
       // only first NREMOTE_OPS are remote in cross-partition txns
@@ -343,8 +346,10 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     uint64_t val = int_val[0];
     assert(val == op->key);
 
-    if (op->optype == OPTYPE_UPDATE)
+    if (op->optype == OPTYPE_UPDATE) {
+        int_val[0] = op->key;
         int_val[1]++;
+    }
   }
 
 #if SHARED_NOTHING

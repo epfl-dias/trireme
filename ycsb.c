@@ -37,10 +37,10 @@ int main(int argc, char *argv[])
   g_niters = 100000000;
   g_nhot_servers = 0;
   g_nhot_recs = 0;
-  g_ops_per_txn = 1;
+  g_ops_per_txn = 2;
   g_nremote_ops = 2;
   g_write_threshold = 20;
-  g_dist_threshold = 10;
+  g_dist_threshold = 100;
   g_batch_size = 1;
 
   while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:r:h:p:")) != -1) {
@@ -115,11 +115,25 @@ int main(int argc, char *argv[])
 #endif
 
 #if ENABLE_ASYMMETRIC_MESSAGING
-
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
 #error "Asymmetric messaging valid only in msgpassing mode\n"
 #endif
+#endif
 
+#if RWTICKET_LOCK
+#if defined(ENABLE_WAIT_DIE_CC) || !defined(SHARED_EVERYTHING)
+#error "RW ticket lock only works in nowait, shared everything mode\n"
+#endif
+#endif
+
+#if !defined(SE_LATCH)
+#pragma message ( "Not using record latching\n" )
+  printf("WARNING: Not using record latching\n");
+#endif
+
+#if !defined(SE_INDEX_LATCH)
+#pragma message ( "Not using index latching\n" )
+  printf("WARNING: Not using index latching\n");
 #endif
 
   printf("%d remote ops %d ops per txn \n", g_nremote_ops, g_ops_per_txn);

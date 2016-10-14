@@ -269,8 +269,10 @@ void child_fn(int s, int tid)
     }
 
     // After each txn, call process request
+#if !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
     if (g_dist_threshold != 100)
       process_requests(hash_table, s);
+#endif
 
 #if PRINT_PROGRESS
     if (p->q_idx % 100000 == 0) {

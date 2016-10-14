@@ -36,12 +36,46 @@ typedef struct {
 #define LATCH_ACQUIRE alock_acquire
 #define LATCH_RELEASE alock_release
 
+#elif RW_LOCK
+
+typedef struct
+{
+    unsigned int spinlock;
+    unsigned readers;
+} rwlock_t;
+
+#define LATCH_T rwlock_t
+#define LATCH_INIT(latch, nservers) rwlock_init(latch)
+#define LATCH_ACQUIRE
+#define LATCH_RELEASE
+
+#elif RWTICKET_LOCK
+typedef union
+{
+  uint64_t u;
+  struct {
+    uint32_t wr;
+  } i;
+  struct {
+    uint16_t writers;
+    uint16_t readers;
+    uint16_t next;
+    uint16_t pad;
+  } s;
+}rwticket_t;
+
+#define LATCH_T rwticket_t
+#define LATCH_INIT(latch, nservers) rwticket_init(latch)
+#define LATCH_ACQUIRE
+#define LATCH_RELEASE
+
 #elif TICKET_LOCK
 
 typedef struct
 {
-  volatile unsigned short ticket;
-  volatile unsigned short users;
+  volatile uint32_t ticket;
+  //char padding[CACHELINE - 4];
+  volatile uint32_t users;
 } tlock_t;
 
 #define LATCH_T tlock_t
@@ -57,7 +91,17 @@ typedef unsigned int taslock_t;
 #define LATCH_ACQUIRE(latch, state) taslock_acquire(latch)
 #define LATCH_RELEASE(latch, state) taslock_release(latch)
 
+#elif SIMPLE_SPINLOCK
+
+typedef unsigned int sspinlock_t;
+
+#define LATCH_T sspinlock_t
+#define LATCH_INIT(latch, nservers) sspinlock_init(latch)
+#define LATCH_ACQUIRE(latch, state) sspinlock_acquire(latch)
+#define LATCH_RELEASE(latch, state) sspinlock_release(latch)
+
 #elif PTHREAD_SPINLOCK
+
 #define LATCH_T pthread_spinlock_t
 #define LATCH_INIT(latch, nservers) pthread_spin_init(latch, 0)
 #define LATCH_ACQUIRE(latch, state) pthread_spin_lock(latch)
@@ -89,6 +133,16 @@ typedef struct __attribute__ ((aligned (CACHELINE))) htlock
 #define LATCH_ACQUIRE(latch, state) htlock_lock(latch)
 #define LATCH_RELEASE(latch, state)  htlock_release(latch)
 
+#elif CLH_LOCK
+
+typedef struct
+{
+    volatile uint8_t locked;
+} clh_qnode;
+
+typedef volatile clh_qnode *clh_qnode_ptr;
+typedef clh_qnode_ptr clh_lock;
+
 #else
 #define LATCH_T pthread_mutex_t
 #define LATCH_INIT(latch, nservers) pthread_mutex_init(latch, NULL)
@@ -107,9 +161,12 @@ struct elem {
   uint64_t ref_count;
   LIST_ENTRY(elem) chain;
   char *value;
-  //uint64_t local_values[2];
 #if SHARED_EVERYTHING
+#if CLH_LOCK
+  clh_lock *lock;
+#else
   LATCH_T latch;
+#endif // CLH_LOCK
 #endif
   struct lock_list waiters; 
   struct lock_list owners;
@@ -155,7 +212,7 @@ struct mem_heap {
  * struct partition  - hash table partition for server
  */
 struct bucket {
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_T latch;
 #endif
   struct elist chain;
@@ -208,6 +265,11 @@ struct partition {
 
 #if SHARED_NOTHING
   LATCH_T latch;
+#endif
+
+#if CLH_LOCK
+  clh_qnode *my_qnode;
+  clh_qnode *my_pred;
 #endif
 
   // tasks

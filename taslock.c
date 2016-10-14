@@ -24,7 +24,7 @@ void taslock_acquire(taslock_t *t)
 
 void taslock_release(taslock_t *t)
 {
-  __sync_synchronize();
+  COMPILER_BARRIER();
   *t = TASLOCK_FREE;
 }
 

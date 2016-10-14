@@ -1,6 +1,21 @@
 #ifndef __CONST_H__
 #define __CONST_H__
 
+#if DIASSRV8
+#define NCORES 80
+#define NUMBER_OF_SOCKETS 8
+#elif DIASCLD33
+#define NUMBER_OF_SOCKETS 4
+#if HT_ENABLED
+#define NCORES 144
+#else
+#define NCORES 72
+#endif
+#else
+#define NCORES 4
+#define NUMBER_OF_SOCKETS 1
+#endif
+
 #define TXN_BATCH 1
 #define TXN_SINGLE 0
 
@@ -11,8 +26,6 @@
 #define TXN_COMMIT 0
 #define TXN_ABORT 1
 #define ABORT_PENALTY 100000 // same as dbx1000
-
-#define NUMBER_OF_SOCKETS 4
 
 #define CACHELINE 64 
 #define MAX_CLIENTS 128 // must be power of 2
@@ -42,6 +55,9 @@
 #else
 //#define ENABLE_SOCKET_LOCAL_TXN 1
 #endif
+
+#define LATCH_SUCCESS 0
+#define LATCH_FAILURE 1
 
 #define LOCK_SUCCESS 0
 #define LOCK_ABORT 1

@@ -30,6 +30,14 @@
 #include "taslock.h"
 #elif HTLOCK
 #include "htlock.h"
+#elif RWTICKET_LOCK
+#include "rwticket_lock.h"
+#elif SIMPLE_SPINLOCK
+#include "sspinlock.h"
+#elif RW_LOCK
+#include "rwlock.h"
+#elif CLH_LOCK
+#include "clh.h"
 #endif
 
 #endif

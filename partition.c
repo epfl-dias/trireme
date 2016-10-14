@@ -38,15 +38,23 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
   LATCH_INIT(&p->latch, g_nservers);
 #endif
 
+#if CLH_LOCK
+    p->my_qnode = (clh_qnode*) malloc(sizeof(clh_qnode));
+    p->my_qnode->locked=0;
+    p->my_pred = NULL;
+    __sync_synchronize();
+#endif
+
   if (alloc) {
     p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));
     assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
     for (i = 0; i < p->nhash; i++) {
       LIST_INIT(&(p->table[i].chain));
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
       LATCH_INIT(&p->table[i].latch, g_nservers);
 #endif
     }
+
   }
 
   /* initialize partition-local heap */
@@ -103,7 +111,7 @@ void hash_remove(struct partition *p, struct elem *e)
   int h = hash_get_bucket(p, e->key);
   struct bucket *b = &p->table[h];
 
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_ACQUIRE(&b->latch, &alock_state);
 #endif
 
@@ -120,7 +128,7 @@ void hash_remove(struct partition *p, struct elem *e)
 
   dprint("Deleted %"PRId64"\n", e->key);
 
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_RELEASE(&b->latch, &alock_state);
 #endif
 
@@ -132,7 +140,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   int h = hash_get_bucket(p, key);
   struct bucket *b = &p->table[h];
 
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_ACQUIRE(&b->latch, &alock_state); 
 #endif
 
@@ -147,7 +155,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
     e = LIST_NEXT(e, chain);
   }
 
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_RELEASE(&b->latch, &alock_state); 
 #endif
 
@@ -167,7 +175,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   assert (e == NULL || (key & ORDER_TID));
 #endif
 
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_ACQUIRE(&b->latch, &alock_state); 
 #endif
 
@@ -179,7 +187,16 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   assert (e);
 
 #if SHARED_EVERYTHING
+#if CLH_LOCK
+  e->lock = (clh_lock *) malloc(sizeof(clh_lock));
+  clh_qnode *sentinel = (clh_qnode *) malloc(sizeof(clh_qnode));
+  sentinel->locked=0;
+  *(e->lock) = sentinel;
+  __sync_synchronize();
+
+#else
   LATCH_INIT(&e->latch, g_nservers);
+#endif // CLH_LOCK
 #endif
 
   e->key = key;
@@ -203,7 +220,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 
   LIST_INSERT_HEAD(eh, e, chain);
 
-#if SE_LATCH
+#if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_RELEASE(&b->latch, &alock_state); 
 #endif
 

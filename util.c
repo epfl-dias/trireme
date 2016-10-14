@@ -102,4 +102,3 @@ int make_numeric_string(unsigned int *seed, int min, int max, char* str)
   return cnt;
 }
 
-

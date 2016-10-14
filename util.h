@@ -22,9 +22,20 @@
 #define BITTEST(a, b) ((a)[BITSLOT(b)] & BITMASK(b))
 #define BITNSLOTS(nb) ((nb + CHAR_BIT - 1) / CHAR_BIT)
 
+#define COMPILER_BARRIER() __asm__ __volatile__("" ::: "memory")
+
 pid_t gettid(void);
 void set_affinity(int cpu_id);
 double now();
+
+static inline void* swap_pointer(volatile void* ptr, void *x) {
+    __asm__ __volatile__("xchgq %0,%1"
+            :"=r" ((unsigned long long) x)
+            :"m" (*(volatile long long *)ptr), "0" ((unsigned long long) x)
+            :"memory");
+
+    return x;
+}
 
 static inline int max(int a, int b) 
 { 
@@ -37,14 +48,6 @@ static inline int min(int a, int b)
   if (a < b) return a; 
   else return b; 
 }
-
-// even though this is defined in SSE2 it is 
-// easier and more compatible to do it this way
-// and not include sse2 headers and build flags
-//static inline void _mm_pause()
-//{
-// __asm __volatile("pause");
-//}
 
 static inline unsigned xchg_32(void *ptr, unsigned x)
 {
@@ -62,6 +65,16 @@ read_tsc(void)
   uint32_t a, d;
   __asm __volatile("rdtsc" : "=a" (a), "=d" (d));
   return ((uint64_t) a) | (((uint64_t) d) << 32);
+}
+
+
+static inline void nop_rep(uint32_t num_reps)
+{
+    uint32_t i;
+    for (i = 0; i < num_reps; i++)
+    {
+        __asm __volatile ("NOP");
+    }
 }
 
 uint64_t *zipf_get_keys(double alpha, uint64_t N, uint64_t nvalues);

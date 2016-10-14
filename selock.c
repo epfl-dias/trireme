@@ -4,27 +4,7 @@
 #include "twopl.h"
 #include "plmalloc.h"
 
-#if 0
-enum lock_t {LOCK_EXCL, LOCK_SHRD, LOCK_NONE};
-
-struct lock_item {
-  lock_t type;
-
-  TAILQ_ENTRY(lock_item) next_owner;
-  TAILQ_ENTRY(lock_item) next_waiter;
-};
-#endif
-
 #if SHARED_EVERYTHING
-
-
-#if ANDERSON_LOCK
-#pragma message ("Using ALOCK")
-#elif PTHREAD_SPINLOCK
-#pragma message ("Using pthread spinlock")
-#else
-#pragma message ("Using pthread mutex")
-#endif
 
 #if ENABLE_WAIT_DIE_CC
 int selock_wait_die_acquire(struct partition *p, struct elem *e, 
@@ -42,6 +22,17 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
   int r = 0;
   char wait = 0;
   int alock_state;
+
+#if !defined(SE_LATCH)
+  // XXX: get rid of this after testing
+#if CLH_LOCK
+  p->my_pred = (clh_qnode *) clh_acquire(e->lock, p->my_qnode);
+  p->my_qnode = clh_release(p->my_qnode, p->my_pred);
+#else
+  LATCH_ACQUIRE(&e->latch, &alock_state);
+  LATCH_RELEASE(&e->latch, &alock_state);
+#endif
+#endif
 
 #if SE_LATCH
   LATCH_ACQUIRE(&e->latch, &alock_state);
@@ -279,6 +270,82 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
 }
 #endif // ENABLE_WAIT_DIE_CC
 
+#if ENABLE_NOWAIT_OWNER_CC
+/*
+ * NOWAIT implementation that maintains an owner list
+ */
+int selock_nowait_with_ownerlist_acquire(struct partition *p, struct elem *e,
+        char optype, uint64_t req_ts)
+{
+  int r = 0, alock_state;
+
+  LATCH_ACQUIRE(&e->latch, &alock_state);
+
+  // there is a conflict if e's refcount indicates an exclusive lock
+  char conflict = !is_value_ready(e);
+
+  // even if no exclusive lock, conflict if we want an update when
+  // there are read locks
+  if (!conflict && (optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT))
+    conflict = e->ref_count > 1;
+
+  /* if there are no conflicts  locks, we reset refcount */
+  if (!conflict) {
+    if (optype == OPTYPE_LOOKUP) {
+   	  e->ref_count++;
+      r = 1;
+    } else {
+      e->ref_count = DATA_READY_MASK | 2;
+      r = 1;
+    }
+  }
+
+  if (r) {
+      // success. add to owner list
+      struct lock_entry *target  = plmalloc_alloc(p, sizeof(struct lock_entry));
+      assert(target);
+      target->s = p - hash_table->partitions; 
+      target->optype = optype;
+      target->ready = 1;
+
+      LIST_INSERT_HEAD(&e->owners, target, next);
+  }
+
+  LATCH_RELEASE(&e->latch, &alock_state);
+
+  return r;
+}
+
+void selock_nowait_with_ownerlist_release(struct partition *p, struct elem *e)
+{
+  struct lock_entry *lock_entry;
+  int s = p - hash_table->partitions;
+  int alock_state;
+
+  LATCH_ACQUIRE(&e->latch, &alock_state);
+
+  // remove from owner list
+  LIST_FOREACH(lock_entry, &e->owners, next) {
+      if (lock_entry->s == s)
+          break;
+  }
+  
+  assert(lock_entry);
+
+  LIST_REMOVE(lock_entry, next);
+
+  plmalloc_free(p, lock_entry, sizeof(*lock_entry));
+
+  e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
+
+  LATCH_RELEASE(&e->latch, &alock_state);
+
+}
+#endif //ENABLE_NOWAIT_OWNER_CC
+
+/*
+ * NOWAIT implementation that does not maintain any lists explicitly
+ */
 int selock_nowait_acquire(struct partition *p, struct elem *e, char optype, 
     uint64_t req_ts)
 {
@@ -289,6 +356,25 @@ int selock_nowait_acquire(struct partition *p, struct elem *e, char optype,
   int alock_state;
 
 #if SE_LATCH
+
+#if RWTICKET_LOCK
+  int nretries = 10;
+  while (nretries-- && !r) {
+    if (optype == OPTYPE_LOOKUP) {
+      r = rwticket_rdtrylock(&e->latch);
+    }  else {
+      r = rwticket_wrtrylock(&e->latch);
+    }
+  }
+
+#elif RW_LOCK
+  if (optype == OPTYPE_LOOKUP) {
+      r = rwlock_rdtrylock(&e->latch);
+  }  else {
+      r = rwlock_wrtrylock(&e->latch);
+  }
+
+#else
   LATCH_ACQUIRE(&e->latch, &alock_state);
 
   // there is a conflict if e's refcount indicates an exclusive lock
@@ -311,10 +397,13 @@ int selock_nowait_acquire(struct partition *p, struct elem *e, char optype,
   }
 
   LATCH_RELEASE(&e->latch, &alock_state);
+#endif //RWTICKET_LOCK
+
 #else
+  // only time latching is disabled is when we are doing ronly bench
   assert(g_benchmark == &micro_bench && g_write_threshold == 100);
   r = 1;
-#endif
+#endif //SE_LATCH
 
   return r;
 }
@@ -325,15 +414,43 @@ void selock_nowait_release(struct partition *p, struct elem *e)
   int alock_state;
 
 #if SE_LATCH
+#if RWTICKET_LOCK
+  /* XXX: We need to know the type of lock we are releasing here.
+   * We can get that information from txn logic. But its a lot of work
+   * refactoring the code to pass it through.
+   *
+   * For now, we assume all reads or all writes. 
+   */
+  assert(g_write_threshold == 0 || g_write_threshold == 100);
+
+  if (g_write_threshold)
+      rwticket_rdunlock(&e->latch);
+  else
+      rwticket_wrunlock(&e->latch);
+
+#elif RW_LOCK
+  /* XXX: We need to know the type of lock we are releasing here.
+   * We can get that information from txn logic. But its a lot of work
+   * refactoring the code to pass it through.
+   *
+   * For now, we assume all reads or all writes. 
+   */
+   assert(g_write_threshold == 0 || g_write_threshold == 100);
+
+  if (g_write_threshold)
+      rwlock_rdunlock(&e->latch);
+  else
+      rwlock_wrunlock(&e->latch);
+
+#else
   LATCH_ACQUIRE(&e->latch, &alock_state);
 
   e->ref_count = (e->ref_count & (~DATA_READY_MASK)) - 1;
 
   LATCH_RELEASE(&e->latch, &alock_state);
+#endif // RWTICKET_LOCK
+#endif //SE_LATCH
 
-#else
-  assert(g_benchmark == &micro_bench && g_write_threshold == 100);
-#endif
 }
 
 int selock_acquire(struct partition *p, struct elem *e, 
@@ -341,6 +458,8 @@ int selock_acquire(struct partition *p, struct elem *e,
 {
 #if ENABLE_WAIT_DIE_CC
   return selock_wait_die_acquire(p, e, optype, req_ts);
+#elif ENABLE_NOWAIT_OWNER_CC
+  return selock_nowait_with_ownerlist_acquire(p, e, optype, req_ts);
 #else
   return selock_nowait_acquire(p, e, optype, req_ts);
 #endif
@@ -350,6 +469,8 @@ void selock_release(struct partition *p, struct elem *e)
 {
 #if ENABLE_WAIT_DIE_CC
   return selock_wait_die_release(p, e);
+#elif ENABLE_NOWAIT_OWNER_CC
+  return selock_nowait_with_ownerlist_release(p, e);
 #else
   return selock_nowait_release(p, e);
 #endif

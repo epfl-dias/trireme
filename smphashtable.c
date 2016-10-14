@@ -14,7 +14,6 @@ const char *optype_str[] = {"","lookup","insert","update","release"};
 #define OPTYPE_STR(optype) optype_str[optype >> 60]
 
 #if DIASSRV8
-#define NCORES 80
 
 static int coreids[] = {
     1,2,3,4,5,6,7,8,9,10,
@@ -29,7 +28,6 @@ static int coreids[] = {
 
 #elif DIASCLD33
 #if HT_ENABLED
-#define NCORES 144
 
 static int coreids[] = {
     0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,
@@ -39,7 +37,6 @@ static int coreids[] = {
 };
 
 #else
-#define NCORES 72
 
 static int coreids[] = {
     0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,
@@ -51,12 +48,12 @@ static int coreids[] = {
 
 #else
 // for now, in default case, set it to 4 cores
-#define NCORES 4
 static int coreids[] = {
     0,1,2,3
 };
 
 #endif
+
 
 // Forward declarations
 void *hash_table_server(void* args);
