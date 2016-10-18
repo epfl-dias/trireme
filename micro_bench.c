@@ -206,20 +206,12 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   for (int i = 0; i < g_ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
 
-    /*
-    int r = URand(&p->seed, 1, 99);
- 
-    if (r > g_write_threshold) {
+    if (URand(&p->seed, 1, 99) > g_write_threshold) {
+        assert(0);
         op->optype = OPTYPE_UPDATE;
     } else {
         op->optype = OPTYPE_LOOKUP;
     }
-    */
-
-    if (i < g_write_threshold)
-        op->optype = OPTYPE_UPDATE;
-    else
-        op->optype = OPTYPE_LOOKUP;
 
     do {
       // only first NREMOTE_OPS are remote in cross-partition txns

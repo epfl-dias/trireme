@@ -23,17 +23,6 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
   char wait = 0;
   int alock_state;
 
-#if !defined(SE_LATCH)
-  // XXX: get rid of this after testing
-#if CLH_LOCK
-  p->my_pred = (clh_qnode *) clh_acquire(e->lock, p->my_qnode);
-  p->my_qnode = clh_release(p->my_qnode, p->my_pred);
-#else
-  LATCH_ACQUIRE(&e->latch, &alock_state);
-  LATCH_RELEASE(&e->latch, &alock_state);
-#endif
-#endif
-
 #if SE_LATCH
   LATCH_ACQUIRE(&e->latch, &alock_state);
 
