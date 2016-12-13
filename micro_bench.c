@@ -207,7 +207,6 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
     struct hash_op *op = &query->ops[i];
 
     if (URand(&p->seed, 1, 99) > g_write_threshold) {
-        assert(0);
         op->optype = OPTYPE_UPDATE;
     } else {
         op->optype = OPTYPE_LOOKUP;

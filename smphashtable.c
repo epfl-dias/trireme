@@ -68,7 +68,11 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
 
 struct hash_table *create_hash_table()
 {
+#if ENABLE_ASYMMETRIC_MESSAGING
+  int nrecs_per_partition = g_nrecs / g_nhot_servers;
+#else
   int nrecs_per_partition = g_nrecs / g_nservers;
+#endif
   struct hash_table *hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
 
   hash_table->keys = NULL;

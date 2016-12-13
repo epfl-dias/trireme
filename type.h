@@ -38,6 +38,8 @@ typedef struct {
 
 #elif RW_LOCK
 
+#if CUSTOM_RW_LOCK
+
 typedef struct
 {
     unsigned int spinlock;
@@ -46,8 +48,38 @@ typedef struct
 
 #define LATCH_T rwlock_t
 #define LATCH_INIT(latch, nservers) rwlock_init(latch)
-#define LATCH_ACQUIRE
-#define LATCH_RELEASE
+#define LATCH_ACQUIRE {assert(0)};
+#define LATCH_RELEASE {assert(0)};
+
+#else
+
+typedef pthread_rwlock_t rwlock_t;
+
+#define LATCH_T pthread_rwlock_t
+#define LATCH_INIT(latch, nservers) pthread_rwlock_init(latch, NULL)
+#define LATCH_ACQUIRE {assert(0)};
+#define LATCH_RELEASE {assert(0)};
+#define rwlock_rdtrylock(latch) !(pthread_rwlock_tryrdlock(latch));
+#define rwlock_wrtrylock(latch) !(pthread_rwlock_trywrlock(latch));
+#define rwlock_wrunlock(latch) pthread_rwlock_unlock(latch)
+#define rwlock_rdunlock(latch) pthread_rwlock_unlock(latch)
+
+#endif //CUSTOM_RW_LOCK
+
+#elif DRW_LOCK
+
+typedef struct
+{
+    struct {
+        unsigned int spinlock;
+        char pad[CACHELINE - 4];
+    } latch[NCORES];
+} drwlock_t;
+
+#define LATCH_T drwlock_t
+#define LATCH_INIT(latch, nservers) drwlock_init(latch)
+#define LATCH_ACQUIRE {assert(0)};
+#define LATCH_RELEASE {assert(0)};
 
 #elif RWTICKET_LOCK
 typedef union

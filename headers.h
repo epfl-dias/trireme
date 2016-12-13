@@ -36,6 +36,8 @@
 #include "sspinlock.h"
 #elif RW_LOCK
 #include "rwlock.h"
+#elif DRW_LOCK
+#include "drwlock.h"
 #elif CLH_LOCK
 #include "clh.h"
 #endif

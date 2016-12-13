@@ -362,6 +362,12 @@ int selock_nowait_acquire(struct partition *p, struct elem *e, char optype,
   }  else {
       r = rwlock_wrtrylock(&e->latch);
   }
+#elif DRW_LOCK
+  if (optype == OPTYPE_LOOKUP) {
+      r = drwlock_rdtrylock(p - &(hash_table->partitions[0]), &e->latch);
+  }  else {
+      r = drwlock_wrtrylock(&e->latch);
+  }
 
 #else
   LATCH_ACQUIRE(&e->latch, &alock_state);
@@ -430,6 +436,20 @@ void selock_nowait_release(struct partition *p, struct elem *e)
       rwlock_rdunlock(&e->latch);
   else
       rwlock_wrunlock(&e->latch);
+
+#elif DRW_LOCK
+  /* XXX: We need to know the type of lock we are releasing here.
+   * We can get that information from txn logic. But its a lot of work
+   * refactoring the code to pass it through.
+   *
+   * For now, we assume all reads or all writes. 
+   */
+   assert(g_write_threshold == 0 || g_write_threshold == 100);
+
+  if (g_write_threshold)
+      drwlock_rdunlock(p - &(hash_table->partitions[0]), &e->latch);
+  else
+      drwlock_wrunlock(&e->latch);
 
 #else
   LATCH_ACQUIRE(&e->latch, &alock_state);

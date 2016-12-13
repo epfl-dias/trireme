@@ -1,6 +1,6 @@
 #include "headers.h"
 
-#if RW_LOCK
+#if CUSTOM_RW_LOCK
 
 #define SIMPLE_SPINLOCK 1
 
@@ -59,4 +59,5 @@ int rwlock_rdtrylock(rwlock_t *l)
 
 #undef SIMPLE_SPINLOCK
 
-#endif
+#endif //CUSTOM_RW_LOCK
+
