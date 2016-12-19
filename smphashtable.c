@@ -424,14 +424,11 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   return value;
 }
 
-void txn_start(struct hash_table *hash_table, int s, int status,
+void txn_start(struct hash_table *hash_table, int s,
     struct txn_ctx *ctx)
 {
   ctx->nops = 0;
-
-  // if previous status was commit, this is a new txn. assign new ts.
-  if (status == TXN_COMMIT)
-    ctx->ts = read_tsc();
+  ctx->ts = read_tsc();
 }
 
 void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
@@ -586,7 +583,7 @@ void txn_commit(struct task *ctask, struct hash_table *hash_table, int s, int mo
 }
 
 int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
-    struct task *ctask, int status)
+    struct task *ctask)
 {
   struct hash_query *query = (struct hash_query *)arg;
   struct partition *p = &hash_table->partitions[s];
@@ -606,7 +603,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
   // batch txns for micro benchmark
   assert(g_benchmark == &micro_bench);
 
-  txn_start(hash_table, s, status, ctx);
+  txn_start(hash_table, s, ctx);
 
   /* XXX: REWRITE THIS TO GATHER ALL REMOTE OPS AND SEND IT USING
    * SMP_HASH_DO_ALL

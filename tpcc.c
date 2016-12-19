@@ -604,7 +604,7 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
 }
 
 int tpcc_run_neworder_txn(struct hash_table *hash_table, int id, 
-    struct tpcc_query *q, struct task *ctask, int status)
+    struct tpcc_query *q, struct task *ctask)
 {
   uint64_t key, pkey;
   struct hash_op op;
@@ -644,7 +644,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
 
 #endif
 
-  txn_start(hash_table, id, status, ctx);
+  txn_start(hash_table, id, ctx);
 
   /*
    * EXEC SQL SELECT c_discount, c_last, c_credit, w_tax
@@ -873,7 +873,7 @@ final:
 }
 
 int tpcc_run_payment_txn (struct hash_table *hash_table, int id, 
-    struct tpcc_query *q, struct task *ctask, int status)
+    struct tpcc_query *q, struct task *ctask)
 {
   struct hash_op op;
   uint64_t key, pkey;
@@ -912,7 +912,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
 
 #endif
 
-  txn_start(hash_table, id, status, ctx);
+  txn_start(hash_table, id, ctx);
 
   /*====================================================+
       EXEC SQL UPDATE warehouse SET w_ytd = w_ytd + :h_amount
@@ -1136,7 +1136,7 @@ void tpcc_free_query(void *p)
 }
 
 int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg, 
-    struct task *ctask, int status)
+    struct task *ctask)
 {
   int r;
   struct tpcc_query *q = (struct tpcc_query *) arg;
@@ -1149,8 +1149,8 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
 #endif
 
-  r = tpcc_run_neworder_txn(hash_table, s, q, ctask, status); 
-  //r = tpcc_run_payment_txn(hash_table, s, q, ctask, status); 
+  r = tpcc_run_neworder_txn(hash_table, s, q, ctask); 
+  //r = tpcc_run_payment_txn(hash_table, s, q, ctask); 
 
   return r;
 }

@@ -248,9 +248,9 @@ void child_fn(int s, int tid)
     dprint("srv(%d): task %d issuing txn \n", s, self->tid);
 
 #if ENABLE_OP_BATCHING
-    r = run_batch_txn(hash_table, self->s, next_query, self, r);
+    r = run_batch_txn(hash_table, self->s, next_query, self);
 #else
-    r = g_benchmark->run_txn(hash_table, self->s, next_query, self, r);
+    r = g_benchmark->run_txn(hash_table, self->s, next_query, self);
 #endif
 
     if (r == TXN_ABORT) {

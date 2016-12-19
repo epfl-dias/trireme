@@ -257,7 +257,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 }
 
 int micro_run_txn(struct hash_table *hash_table, int s, void *arg, 
-    struct task *ctask, int status)
+    struct task *ctask)
 {
   struct hash_query *query = (struct hash_query *) arg;
   struct txn_ctx *txn_ctx = &ctask->txn_ctx;
@@ -265,7 +265,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
   void *value;
   int nrecs_per_partition = hash_table->partitions[0].nrecs;
 
-  txn_start(hash_table, s, status, txn_ctx);
+  txn_start(hash_table, s, txn_ctx);
 
 #if SHARED_NOTHING
   /* we have to acquire all partition locks in partition order. This protocol

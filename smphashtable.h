@@ -35,7 +35,7 @@ double stats_get_cpu_usage(struct hash_table *hash_table);
 double stats_get_tps(struct hash_table *hash_table);
 
 /* txn functions */
-void txn_start(struct hash_table *hash_table, int s, int status, struct txn_ctx *ctx);
+void txn_start(struct hash_table *hash_table, int s, struct txn_ctx *ctx);
 void txn_commit(struct task *t, struct hash_table *hash_table, int s, int mode);
 void txn_abort(struct task *t, struct hash_table *hash_table, int s, int mode);
 void txn_finish(struct task *ctask, struct hash_table *hash_table, int s, 
@@ -48,6 +48,6 @@ int hash_get_server(const struct hash_table *hash_table, hash_key key);
 void process_requests(struct hash_table *hash_table, int s);
 int is_value_ready(struct elem *e);
 int run_batch_txn(struct hash_table *hash_table, int s, void *arg, 
-    struct task *t, int status);
+    struct task *t);
 
 #endif

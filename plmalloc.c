@@ -78,7 +78,6 @@ void plmalloc_init(struct partition *p)
   LIST_INIT(&p->heap.efree_list);
 }
 
-//struct mem_tuple *plmalloc_alloc(struct partition *p, size_t size)
 void *plmalloc_alloc(struct partition *p, size_t size)
 {
   int nslabs = p->heap.nslabs;
