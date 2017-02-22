@@ -6,6 +6,39 @@
 
 #if ENABLE_SILO_CC
 
+void silo_latch_acquire(struct elem *e)
+{
+#if SILO_USE_ATOMICS
+    //should not be called
+    assert(0);
+#else
+    LATCH_ACQUIRE(&e->latch, NULL);
+#endif
+}
+
+void silo_latch_release(struct elem *e)
+{
+#if SILO_USE_ATOMICS
+    assert(e->tid & SILO_LOCK_BIT);
+    e->tid = e->tid & (~SILO_LOCK_BIT);
+#else
+    LATCH_RELEASE(&e->latch, NULL);
+#endif
+}
+
+static int silo_latch_tryacquire(struct elem *e)
+{
+#if SILO_USE_ATOMICS
+    uint64_t tid = e->tid;
+    if (tid & SILO_LOCK_BIT)
+        return 0;
+
+    return __sync_bool_compare_and_swap(&e->tid, tid, tid | SILO_LOCK_BIT);
+#else
+    return !LATCH_TRY_ACQUIRE(&e->latch);
+#endif
+}
+
 static int validate_row(struct op_ctx *ctx, char is_write)
 {
     /* If write, we already have a lock. so all we need to do is simply check
@@ -14,8 +47,23 @@ static int validate_row(struct op_ctx *ctx, char is_write)
      * check the tid
      */
     int r;
+
+#if SILO_USE_ATOMICS
+    uint64_t copy_tid = ctx->e_copy->tid, tid = ctx->e->tid;
+    if (is_write)
+        return ((copy_tid & (~SILO_LOCK_BIT)) == (tid & (~SILO_LOCK_BIT)) ? 
+                TXN_COMMIT : TXN_ABORT);
+
+    if (tid & SILO_LOCK_BIT)
+        return TXN_ABORT;
+    else if (copy_tid != (tid & (~SILO_LOCK_BIT)))
+        return TXN_ABORT;
+    else
+        return TXN_COMMIT;
+
+#else
     if (!is_write) {
-        if (LATCH_TRY_ACQUIRE(&ctx->e->latch) != 0)
+        if (!silo_latch_tryacquire(ctx->e))
             return TXN_ABORT;
     }
 
@@ -25,8 +73,9 @@ static int validate_row(struct op_ctx *ctx, char is_write)
         r = TXN_ABORT;
 
     if (!is_write) {
-        LATCH_RELEASE(&ctx->e->latch, NULL);
+        silo_latch_release(ctx->e);
     }
+#endif
 
     return r;
 }
@@ -118,7 +167,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
         nlocks = 0;
         for (int i = 0; i < wt_idx; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
-            if (LATCH_TRY_ACQUIRE(&octx->e->latch) != 0)
+            if (!silo_latch_tryacquire(octx->e))
                 break;
 
             nlocks++;
@@ -135,7 +184,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
             // we were not able to get all locks. release, sleep and repeat
             for (int i = 0; i < nlocks; i++) {
                 struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
-                LATCH_RELEASE(&octx->e->latch, NULL);
+                silo_latch_release(octx->e);
             }
 
             if ((r = preabort_check(s, ctx, write_set, wt_idx, read_set,
@@ -192,7 +241,7 @@ final:
 
         for (int i = 0; i < nlocks; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
-            LATCH_RELEASE(&octx->e->latch, NULL);
+            silo_latch_release(octx->e);
         }
     } else {
         dprint("srv(%d): silo commiting txn\n", s);
@@ -202,8 +251,14 @@ final:
         for (int i = 0; i < wt_idx; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
             memcpy(octx->e->value, octx->e_copy->value, octx->e->size);
+
+#if SILO_USE_ATOMICS
+            octx->e->tid = p->cur_tid | SILO_LOCK_BIT;
+#else
             octx->e->tid = p->cur_tid;
-            LATCH_RELEASE(&octx->e->latch, NULL);
+#endif
+
+            silo_latch_release(octx->e);
         }
     }
 

@@ -419,13 +419,30 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     if (op->optype == OPTYPE_LOOKUP || op->optype == OPTYPE_UPDATE) {
         int alock_state;
 
-        LATCH_ACQUIRE(&e->latch, &alock_state);
         octx->e_copy = plmalloc_ealloc(p);
-        memcpy(octx->e_copy, e, sizeof(*e));
-
         octx->e_copy->value = plmalloc_alloc(p, e->size);
+
+#if SILO_USE_ATOMICS
+        uint64_t old_tid = 0, new_tid = 1;
+        while (old_tid != new_tid) {
+            old_tid = e->tid;
+            while (old_tid & SILO_LOCK_BIT) {
+                _mm_pause();
+                old_tid = e->tid;
+            }
+
+            memcpy(octx->e_copy, e, sizeof(*e));
+            memcpy(octx->e_copy->value, e->value, e->size);
+            COMPILER_BARRIER();
+        
+            new_tid = e->tid;
+        }
+#else
+        silo_latch_acquire(e);
+        memcpy(octx->e_copy, e, sizeof(*e));
         memcpy(octx->e_copy->value, e->value, e->size);
-        LATCH_RELEASE(&e->latch, &alock_state);
+        silo_latch_release(e);
+#endif //IF_SILO_USE_ATOMICS
 
         dprint("srv(%d): adding %s %s op key %" PRIu64 " ctx-nops %d"
                 " to rd/wt set, etid %d, copytid %d\n",
