@@ -36,9 +36,9 @@ double stats_get_tps(struct hash_table *hash_table);
 
 /* txn functions */
 void txn_start(struct hash_table *hash_table, int s, struct txn_ctx *ctx);
-void txn_commit(struct task *t, struct hash_table *hash_table, int s, int mode);
+int txn_commit(struct task *t, struct hash_table *hash_table, int s, int mode);
 void txn_abort(struct task *t, struct hash_table *hash_table, int s, int mode);
-void txn_finish(struct task *ctask, struct hash_table *hash_table, int s, 
+int txn_finish(struct task *ctask, struct hash_table *hash_table, int s, 
     int status, int mode, short *opids);
 void *txn_op(struct task *t, struct hash_table *hash_table, int s, 
     struct hash_op *op, int target);

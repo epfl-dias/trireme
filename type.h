@@ -137,6 +137,7 @@ typedef unsigned int sspinlock_t;
 #define LATCH_T pthread_spinlock_t
 #define LATCH_INIT(latch, nservers) pthread_spin_init(latch, 0)
 #define LATCH_ACQUIRE(latch, state) pthread_spin_lock(latch)
+#define LATCH_TRY_ACQUIRE(latch) pthread_spin_trylock(latch)
 #define LATCH_RELEASE(latch, state)  pthread_spin_unlock(latch)
 
 #elif HTLOCK
@@ -200,8 +201,13 @@ struct elem {
   LATCH_T latch;
 #endif // CLH_LOCK
 #endif
+
+#if ENABLE_SILO_CC
+  uint64_t tid;
+#else
   struct lock_list waiters; 
   struct lock_list owners;
+#endif
 } __attribute__ ((aligned (CACHELINE)));
 
 LIST_HEAD(elist, elem);
@@ -254,7 +260,7 @@ struct op_ctx {
   int target;
   char optype; 
   struct elem *e;
-  void *old_value;
+  struct elem *e_copy;
 };
 
 struct txn_ctx {
@@ -325,7 +331,10 @@ struct partition {
   int nupdates_remote;
   int naborts_remote;
 
-  struct txn_ctx txn_ctx;
+#if ENABLE_SILO_CC
+  uint64_t cur_tid;
+#endif
+
   unsigned int seed;
 
   uint64_t tps;

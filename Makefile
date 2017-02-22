@@ -14,7 +14,8 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 # 				RW_LOCK (CUSTOM_RW_LOCK or default=PTHREAD_RW_LOCK)
 # 				DRW_LOCK
 #
-#	CC types: ENABLE_WAIT_DIE_CC ENABLE_NOWAIT_OWNER_CC ENABLE_BWAIT_CC ENABLE_KEY_SORTING
+#	CC types: ENABLE_WAIT_DIE_CC ENABLE_NOWAIT_OWNER_CC ENABLE_NOWAIT_CC ENABLE_BWAIT_CC ENABLE_SILO_CC
+#	key ordering: ENABLE_KEY_SORTING
 #
 # 	trireme-specific options: ENABLE_OP_BATCHING
 #
@@ -36,7 +37,7 @@ MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
 LIBSRC =  htlock.c ycsb.c smphashtable.c onewaybuffer.c \
 				 alock.c tlock.c taslock.c rwticket_lock.c sspinlock.c rwlock.c drwlock.c clh.c\
-				 partition.c util.c zipf.c micro_bench.c twopl.c \
+				 partition.c util.c zipf.c micro_bench.c twopl.c silo.c \
 				 ia32msr.c ia32perf.c selock.c \
 					plmalloc.c task.c tpcc.c
 

@@ -8,6 +8,7 @@
 #include "tpcc.h"
 #include "plmalloc.h"
 #include "twopl.h"
+#include "silo.h"
 
 static volatile int nready = 0;
 const char *optype_str[] = {"","lookup","insert","update","release"};
@@ -234,12 +235,16 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_BWAIT_CC
       r = bwait_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */,
           e, t, &l);
-#else
+#elif ENABLE_NOWAIT_CC
       r = no_wait_acquire(e, t);
-#endif
+#else
+#error "No CC algorithm specified"
+#endif //IF_ENABLE_WAIT_DIE_CC
+
       // insert can only succeed
       assert (r == LOCK_SUCCESS);
-#endif
+
+#endif //IF_SHARED_EVERYTHING
 
       break;
 
@@ -273,17 +278,15 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_BWAIT_CC
       r = bwait_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */,
           e, t, &l);
-#else
+#elif ENABLE_NOWAIT_CC
       r = no_wait_acquire(e, t);
-#endif
+#else
+#error "No CC algorithm specified"
+#endif //IF_ENABLE_WAIT_DIE
 
       if (r == LOCK_SUCCESS) {
         ; // great we have the lock
       } else if (r == LOCK_WAIT) {
-
-#if SHARED_EVERYTHING
-        assert(0);
-#endif
 
         /* we have to spin now until value is ready. But we also need to
          * service other requests
@@ -309,7 +312,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     default:
       assert(0);
       break;
-#endif
+#endif //IF_SHARED_EVERYTHING
   }
 
 #if GATHER_STATS
@@ -360,10 +363,16 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 
     e = local_txn_op(ctask, s, ctx, l_p, op);
 
+#if ENABLE_SILO_CC
+    // we never lookup a non-existent record. so this should always succeed
+    assert(e);
+    value = e->value;
+#else
     // it is possible for a local txn to fail as someone else might have
     // acquired a lock before us
     if (e)
       value = e->value;
+#endif
 
   } else {
 
@@ -401,21 +410,51 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     octx->target = target;
 #endif
 
-    if (op->optype == OPTYPE_UPDATE) {
-      //octx->old_value = memalign(CACHELINE, e->size);
-      //struct mem_tuple *m = plmalloc_alloc(p, e->size);
-      //octx->old_value = m;
-      //memcpy(m->data, e->value, e->size);
-      octx->old_value = plmalloc_alloc(p, e->size);
-      memcpy(octx->old_value, e->value, e->size);
+#if ENABLE_SILO_CC
+
+    /* in silo case, we make copy in lookup/update cases for later
+     * validation. While we make a copy, someone could be writing. To avoid
+     * this, we need to latch before making copy
+     */
+    if (op->optype == OPTYPE_LOOKUP || op->optype == OPTYPE_UPDATE) {
+        int alock_state;
+
+        LATCH_ACQUIRE(&e->latch, &alock_state);
+        octx->e_copy = plmalloc_ealloc(p);
+        memcpy(octx->e_copy, e, sizeof(*e));
+
+        octx->e_copy->value = plmalloc_alloc(p, e->size);
+        memcpy(octx->e_copy->value, e->value, e->size);
+        LATCH_RELEASE(&e->latch, &alock_state);
+
+        dprint("srv(%d): adding %s %s op key %" PRIu64 " ctx-nops %d"
+                " to rd/wt set, etid %d, copytid %d\n",
+                s, is_local ? "local":"remote",
+                op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key,
+                ctx->nops, octx->e->tid, octx->e_copy->tid);
+
+        // pass back the newly created value to keep read/write sets thread local
+        value = octx->e_copy->value;
     } else {
-      octx->old_value = NULL;
+        octx->e_copy = NULL;
     }
+
+#else
+
+    // in 2pl, we need to make copy only for updates
+    if (op->optype == OPTYPE_UPDATE) {
+        octx->e_copy = plmalloc_ealloc(p);
+        octx->e_copy->value = plmalloc_alloc(p, e->size);
+        memcpy(octx->e_copy->value, e->value, e->size);
+    } else {
+        octx->e_copy = NULL;
+    }
+
+#endif
 
     dprint("srv(%d): done %s %s op key %" PRIu64 " ctx-nops %d\n",
         s, is_local ? "local":"remote",
         op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key, ctx->nops);
-
 
     ctx->nops++;
   }
@@ -431,13 +470,21 @@ void txn_start(struct hash_table *hash_table, int s,
   ctx->ts = read_tsc();
 }
 
-void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
+int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
     int status, int mode, short *opids)
 {
   struct txn_ctx *ctx = &ctask->txn_ctx;
   struct partition *p = &hash_table->partitions[s];
   int nops = ctx->nops;
   int nrels;
+
+#if ENABLE_SILO_CC
+  // at this point, we need to validate the txn under silo to determine if it
+  // can complete or not
+  assert(status == TXN_COMMIT);
+
+  status = silo_validate(ctask, hash_table, s);
+#endif
 
   while (--nops >= 0) {
     struct op_ctx *octx = &ctx->op_ctx[nops];
@@ -457,12 +504,20 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
     switch (t) {
       case OPTYPE_LOOKUP:
-        assert (octx->old_value == NULL);
 
         // release element
         if (octx->target == s) {
 #if SHARED_EVERYTHING
           selock_release(p, octx->e);
+
+#if ENABLE_SILO_CC
+          assert (octx->e_copy);
+          plmalloc_free(p, octx->e_copy->value, octx->e->size);
+          plmalloc_efree(p, octx->e_copy);
+#else
+          assert (octx->e_copy == NULL);
+#endif //IF_SILO
+
 #else
 #if ENABLE_WAIT_DIE_CC
           wait_die_release(s, p, s, ctask->tid,
@@ -470,10 +525,12 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #elif ENABLE_BWAIT_CC
           bwait_release(s, p, s, ctask->tid,
               opids ? opids[nops]: 0, octx->e);
-#else
+#elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#endif //ENABLE_WAIT_DIE_cc
-#endif //SHARED_EVERYTHING
+#else
+#error "No CC algorithm specified"
+#endif //IF_ENABLE_WAIT_DIE_CC
+#endif //IF_SHARED_EVERYTHING
         } else {
          mp_release_value(hash_table, s, octx->target, ctask->tid,
               opids ? opids[nops] : 0, octx->e);
@@ -485,18 +542,26 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // should never get updates to item table
         assert((octx->e->key & TID_MASK) != ITEM_TID);
 
-        assert(octx->old_value);
+        assert(octx->e_copy);
 
         size_t size = octx->e->size;
 
-        // if this is a single txn that must be aborted, rollback
+#if ENABLE_SILO_CC
+        // In silo's case, we don't need to copy back anything as read/write
+        // sets were already thread local. So just free ecopy.
+#else
+
+        // In 2pl case, the txn would have updated "live" record and not the
+        // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-          //struct mem_tuple *m = octx->old_value;
-          //memcpy(octx->e->value, m->data, size);
-          memcpy(octx->e->value, octx->old_value, size);
+            memcpy(octx->e->value, octx->e_copy->value, size);
         }
 
-        plmalloc_free(p, octx->old_value, size);
+#endif //IF_ENABLE_SILO
+
+
+        plmalloc_free(p, octx->e_copy->value, size);
+        plmalloc_efree(p, octx->e_copy);
 
         if (octx->target == s) {
 #if SHARED_EVERYTHING
@@ -508,8 +573,10 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #elif ENABLE_BWAIT_CC
           bwait_release(s, p, s, ctask->tid,
               opids ? opids[nops] : 0, octx->e);
-#else
+#elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
+#else
+#error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
 #endif //SHARED_EVERYTHING
         } else {
@@ -526,6 +593,9 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // only single mode supported now
         assert(mode == TXN_SINGLE);
 
+        // we should have not allocated a copy for inserts
+        assert(octx->e_copy == NULL);
+
         if (octx->target == s) {
 #if SHARED_EVERYTHING
           selock_release(p, octx->e);
@@ -534,9 +604,12 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           wait_die_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_BWAIT_CC
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
-#else
+#elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
+#else
+#error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
+
 #endif //SHARED_EVERYTHING
 
           /* selock or wait_die/no_wiat will reset ref count once
@@ -563,6 +636,8 @@ void txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
   smp_flush_all(hash_table, s);
 
   ctx->nops = 0;
+
+  return status;
 }
 
 void txn_abort(struct task *ctask, struct hash_table *hash_table, int s, int mode)
@@ -570,10 +645,11 @@ void txn_abort(struct task *ctask, struct hash_table *hash_table, int s, int mod
 #if SHARED_NOTHING
   assert(0);
 #endif
-  return txn_finish(ctask, hash_table, s, TXN_ABORT, mode, NULL);
+
+  txn_finish(ctask, hash_table, s, TXN_ABORT, mode, NULL);
 }
 
-void txn_commit(struct task *ctask, struct hash_table *hash_table, int s, int mode)
+int txn_commit(struct task *ctask, struct hash_table *hash_table, int s, int mode)
 {
 #if SHARED_NOTHING
   assert(0);
@@ -677,7 +753,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
       octx->optype = op->optype;
       octx->e = (struct elem *)HASHOP_GET_VAL(val);
       octx->target = -1;
-      octx->old_value = NULL;
+      octx->e_copy = NULL;
       ctx->nops++;
       opids[nopids++] = opid;
 
@@ -686,10 +762,11 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
         values[opid] = octx->e->value;
 
         if (op->optype == OPTYPE_UPDATE) {
-          octx->old_value = plmalloc_alloc(p, esize);
-          memcpy(octx->old_value, values[opid], esize);
+          octx->e_copy = plmalloc_ealloc(p);
+          octx->e_copy->value = plmalloc_alloc(p, esize);
+          memcpy(octx->e_copy->value, values[opid], esize);
         } else {
-          octx->old_value = NULL;
+          octx->e_copy = NULL;
         }
       } else {
         values[opid] = NULL;
@@ -728,75 +805,6 @@ final:
   return r;
 }
 
-void process_releases(struct hash_table *hash_table, int s)
-{
-  struct box_array *boxes = hash_table->boxes;
-  uint64_t inbuf[ONEWAY_BUFFER_SIZE];
-  struct partition *p = &hash_table->partitions[s];
-  int s_coreid = hash_table->thread_data[s].core;
-  char skip_list[BITNSLOTS(MAX_SERVERS)];
-
-  memset(skip_list, 0, sizeof(skip_list));
-
-#if ENABLE_SOCKET_LOCAL_TXN
-  for (int i = 0; i < g_nservers; i++) {
-      int t_coreid = hash_table->thread_data[i].core;
-
-      // check only cores in our own socket of leader cores in other sockets
-      if (s_coreid % 4 == t_coreid % 4 || t_coreid < 4) {
-        ;
-      } else {
-        BITSET(skip_list, i);
-      }
-  }
-#endif
-
-  for (int i = 0; i < g_nservers; i++) {
-    if (i == s)
-      continue;
-
-    if (BITTEST(skip_list, i)) {
-      continue;
-    }
-
-    struct onewaybuffer *b = &boxes[i].boxes[s].in;
-    int count = b->wr_index - b->rd_index;
-    if (count == 0)
-      continue;
-
-    count = buffer_peek(b, ONEWAY_BUFFER_SIZE, inbuf);
-    assert(count);
-
-    dprint("srv(%d): read %d messages from client %d\n", s, count, i);
-
-    // get all elems
-    int j = 0;
-    while (j < count) {
-      uint64_t optype = inbuf[j] & HASHOP_MASK;
-
-      if (optype != HASHOP_RELEASE)
-        break;
-
-      struct elem *t = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
-      short tid = HASHOP_GET_TID(inbuf[j]);
-      short opid = HASHOP_GET_OPID(inbuf[j]);
-
-      dprint("srv(%d): cl %d before release %" PRIu64 " rc %" PRIu64 "\n",
-          s, i, t->key, t->ref_count);
-
-#if ENABLE_WAIT_DIE_CC
-      wait_die_release(s, p, i, tid, opid, t);
-#elif ENABLE_BWAIT_CC
-      bwait_release(s, p, i, tid, opid, t);
-#else
-      no_wait_release(p, t);
-#endif
-
-      buffer_seek(b, RELEASE_MSG_LENGTH);
-      j += RELEASE_MSG_LENGTH;
-    }
-  }
-}
 void process_requests(struct hash_table *hash_table, int s)
 {
   struct box_array *boxes = hash_table->boxes;
@@ -854,10 +862,6 @@ void process_requests(struct hash_table *hash_table, int s)
   }
 #endif
 
-#if 0
-  process_releases(hash_table, s);
-#endif
-
   for (int i = 0; i < g_nservers; i++) {
     if (i == s)
       continue;
@@ -909,8 +913,12 @@ void process_requests(struct hash_table *hash_table, int s)
           wait_die_release(s, p, i, tid, opid, t);
 #elif ENABLE_BWAIT_CC
           bwait_release(s, p, i, tid, opid, t);
-#else
+#elif ENABLE_NOWAIT_CC
           no_wait_release(p, t);
+#elif ENABLE_SILO_CC
+          assert(0);
+#else
+#error "No CC algorithm specified"
 #endif
 
           j += RELEASE_MSG_LENGTH;
@@ -943,8 +951,12 @@ void process_requests(struct hash_table *hash_table, int s)
           struct lock_entry *l;
 
           r = bwait_acquire(s, p, i, tid, opid, e, OPTYPE_INSERT, &l);
-#else
+#elif ENABLE_NOWAIT_CC
           r = no_wait_acquire(e, OPTYPE_INSERT);
+#elif ENABLE_SILO_CC
+          assert(0);
+#else
+#error "No CC algorithm specified"
 #endif
 
           // insert can only succeed
@@ -1015,9 +1027,13 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_BWAIT_CC
       req->r = bwait_check_acquire(req->e,
           req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
-#else
+#elif ENABLE_NOWAIT_CC
       req->r = no_wait_check_acquire(req->e,
           req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#elif ENABLE_SILO_CC
+          assert(0);
+#else
+#error "No CC algorithm specified"
 #endif
 
       char abort = 0;
@@ -1052,9 +1068,13 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_BWAIT_CC
             reqs[k].r = bwait_check_acquire(reqs[k].e,
                 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
-#else
+#elif ENABLE_NOWAIT_CC
             reqs[k].r = no_wait_check_acquire(reqs[k].e,
                 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#elif ENABLE_SILO_CC
+          assert(0);
+#else
+#error "No CC algorithm specified"
 #endif
 
             if (reqs[k].r == LOCK_ABORT) {
@@ -1076,23 +1096,29 @@ void process_requests(struct hash_table *hash_table, int s)
 
           assert(reqs[k].r != LOCK_INVALID);
 
+          int res;
+
 #if ENABLE_WAIT_DIE_CC
           struct lock_entry *l = NULL;
 
-          int res = wait_die_acquire(s, p, i, reqs[k].tid,
+          res = wait_die_acquire(s, p, i, reqs[k].tid,
               reqs[k].opid, reqs[k].e,
               reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE,
               reqs[k].ts, &l);
 #elif ENABLE_BWAIT_CC
           struct lock_entry *l = NULL;
 
-          int res = bwait_acquire(s, p, i, reqs[k].tid,
+          res = bwait_acquire(s, p, i, reqs[k].tid,
               reqs[k].opid, reqs[k].e,
               reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE,
               &l);
-#else
-          int res = no_wait_acquire(reqs[k].e, reqs[k].optype == HASHOP_LOOKUP ?
+#elif ENABLE_NOWAIT_CC
+          res = no_wait_acquire(reqs[k].e, reqs[k].optype == HASHOP_LOOKUP ?
               OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#elif ENABLE_SILO_CC
+          assert(0);
+#else
+#error "No CC algorithm specified"
 #endif
           assert(res == reqs[k].r);
         }

@@ -864,7 +864,7 @@ final:
   }
 #else
   if (r == TXN_COMMIT)
-    txn_commit(ctask, hash_table, id, TXN_SINGLE);
+    r = txn_commit(ctask, hash_table, id, TXN_SINGLE);
   else
     txn_abort(ctask, hash_table, id, TXN_SINGLE);
 #endif
@@ -1438,8 +1438,9 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
       assert(octx->e->key == sr->sr_rids[opid]);
       assert(octx->e->ref_count & DATA_READY_MASK);
       int esize = octx->e->size;
-      octx->old_value = plmalloc_alloc(p, esize);
-      memcpy(octx->old_value, octx->e->value, esize);
+      octx->e_copy = plmalloc_ealloc(p);
+      octx->e_copy->value = plmalloc_alloc(p, esize);
+      memcpy(octx->e_copy->value, octx->e->value, esize);
 
       // is this cust record a match?
       struct tpcc_customer *tmp = (struct tpcc_customer *) octx->e->value;

@@ -45,6 +45,10 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
     __sync_synchronize();
 #endif
 
+#if ENABLE_SILO_CC
+    p->cur_tid = 0;
+#endif
+
   if (alloc) {
     p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));
     assert((unsigned long) &(p->table[0]) % CACHELINE == 0);

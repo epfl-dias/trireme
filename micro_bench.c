@@ -363,7 +363,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #else
 
   if (r == TXN_COMMIT) {
-    txn_commit(ctask, hash_table, s, TXN_SINGLE);
+    r = txn_commit(ctask, hash_table, s, TXN_SINGLE);
   } else {
     txn_abort(ctask, hash_table, s, TXN_SINGLE);
   }

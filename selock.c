@@ -332,6 +332,7 @@ void selock_nowait_with_ownerlist_release(struct partition *p, struct elem *e)
 }
 #endif //ENABLE_NOWAIT_OWNER_CC
 
+#if ENABLE_NOWAIT_CC
 /*
  * NOWAIT implementation that does not maintain any lists explicitly
  */
@@ -461,6 +462,7 @@ void selock_nowait_release(struct partition *p, struct elem *e)
 #endif //SE_LATCH
 
 }
+#endif//IF_ENABLE_NOWAIT
 
 int selock_acquire(struct partition *p, struct elem *e, 
     char optype, uint64_t req_ts)
@@ -469,8 +471,13 @@ int selock_acquire(struct partition *p, struct elem *e,
   return selock_wait_die_acquire(p, e, optype, req_ts);
 #elif ENABLE_NOWAIT_OWNER_CC
   return selock_nowait_with_ownerlist_acquire(p, e, optype, req_ts);
-#else
+#elif ENABLE_NOWAIT_CC
   return selock_nowait_acquire(p, e, optype, req_ts);
+#elif ENABLE_SILO_CC
+  // with silo, nothing to do
+  return 1;
+#else
+#error "No CC algorithm specified"
 #endif
 }
 
@@ -480,8 +487,13 @@ void selock_release(struct partition *p, struct elem *e)
   return selock_wait_die_release(p, e);
 #elif ENABLE_NOWAIT_OWNER_CC
   return selock_nowait_with_ownerlist_release(p, e);
-#else
+#elif ENABLE_NOWAIT_CC
   return selock_nowait_release(p, e);
+#elif ENABLE_SILO_CC
+  // with silo, nothing to do
+  return;
+#else
+#error "No CC algorithm specified"
 #endif
 }
 

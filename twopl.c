@@ -4,6 +4,7 @@
 
 extern int write_threshold;
 
+#if ENABLE_WAIT_DIE_CC
 int wait_die_check_acquire(int s, struct partition *p,
     int c, int tid, int opid, struct elem *e, char optype, uint64_t req_ts)
 {
@@ -285,7 +286,9 @@ void wait_die_release(int s, struct partition *p, int c, int task_id,
     l = LIST_FIRST(&e->waiters);
   }
 }
+#endif//IF_WAIT_DIE
 
+#if ENABLE_NOWAIT_CC
 void no_wait_release(struct partition *p, struct elem *e)
 {
   mp_release_value_(p, e);
@@ -404,7 +407,9 @@ int bwait_acquire(int s, struct partition *p,
 
   return r;
 }
+#endif//IF_NOWAIT
 
+#if ENABLE_BWAIT_CC
 void bwait_release(int s, struct partition *p, int c, int task_id,
     int op_id, struct elem *e)
 {
@@ -433,3 +438,4 @@ int bwait_check_acquire(struct elem *e, char optype)
   return r;
 
 }
+#endif//IF_BWAIT
