@@ -49,14 +49,14 @@ static int validate_row(struct op_ctx *ctx, char is_write)
     int r;
 
 #if SILO_USE_ATOMICS
-    uint64_t copy_tid = ctx->e_copy->tid, tid = ctx->e->tid;
+    uint64_t copy_tid = ctx->tid_copy, tid = ctx->e->tid;
     if (is_write)
         return ((copy_tid & (~SILO_LOCK_BIT)) == (tid & (~SILO_LOCK_BIT)) ? 
                 TXN_COMMIT : TXN_ABORT);
 
     if (tid & SILO_LOCK_BIT)
         return TXN_ABORT;
-    else if (copy_tid != (tid & (~SILO_LOCK_BIT)))
+    else if ((copy_tid & (~SILO_LOCK_BIT)) != (tid & (~SILO_LOCK_BIT)))
         return TXN_ABORT;
     else
         return TXN_COMMIT;
@@ -67,7 +67,7 @@ static int validate_row(struct op_ctx *ctx, char is_write)
             return TXN_ABORT;
     }
 
-    if (ctx->e->tid == ctx->e_copy->tid)
+    if (ctx->e->tid == ctx->tid_copy)
         r = TXN_COMMIT;
     else
         r = TXN_ABORT;
@@ -85,10 +85,10 @@ static int preabort_check(int s, struct txn_ctx *ctx, int *write_set,
 {
     for (int i = 0; i < wt_idx; i++) {
         struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
-        if (octx->e->tid != octx->e_copy->tid) {
+        if (octx->e->tid != octx->tid_copy) {
             dprint("srv(%d): preabort check failed on write op %d "
                     "key %"PRId64" tid %d copy tid %d \n", s, write_set[i],
-                    octx->e->key, octx->e->tid, octx->e_copy->tid);
+                    octx->e->key, octx->e->tid, octx->tid_copy);
 
             return TXN_ABORT;
         }
@@ -96,10 +96,10 @@ static int preabort_check(int s, struct txn_ctx *ctx, int *write_set,
 
     for (int i = 0; i < rd_idx; i++) {
         struct op_ctx *octx = &ctx->op_ctx[read_set[i]];
-        if (octx->e->tid != octx->e_copy->tid) {
+        if (octx->e->tid != octx->tid_copy) {
             dprint("srv(%d): preabort check failed on read op %d "
                     "key %"PRId64" tid %d copy tid %d \n", s, read_set[i],
-                    octx->e->key, octx->e->tid, octx->e_copy->tid);
+                    octx->e->key, octx->e->tid, octx->tid_copy);
 
             return TXN_ABORT;
         }
@@ -114,6 +114,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
     struct partition *p = &hash_table->partitions[s];
     int nops = ctx->nops;
     int r = TXN_COMMIT;
+    int nlocks = 0;
 
     int read_set[MAX_OPS_PER_QUERY], write_set[MAX_OPS_PER_QUERY];
     int rd_idx= 0, wt_idx = 0;
@@ -162,7 +163,6 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
 
     /* lock all rows in the write set now */
     char done_locking = 0;
-    int nlocks;
     while (!done_locking) {
         nlocks = 0;
         for (int i = 0; i < wt_idx; i++) {
@@ -171,7 +171,11 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
                 break;
 
             nlocks++;
-            if (octx->e->tid != octx->e_copy->tid) {
+            if ((octx->e->tid & (~SILO_LOCK_BIT)) != octx->tid_copy) {
+                dprint("srv(%d): abort due to tid mismatch %"PRIu64
+                        "--%"PRIu64" at %d\n", s, octx->e->tid, 
+                        octx->tid_copy, i);
+
                 r = TXN_ABORT;
                 goto final;
             }
@@ -189,6 +193,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
 
             if ((r = preabort_check(s, ctx, write_set, wt_idx, read_set,
                             rd_idx)) == TXN_ABORT) {
+                dprint("srv(%d): abort due to preabort while retrying locks\n", s);
                 goto final;
             }
         }
@@ -209,8 +214,8 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
             goto final;
         }
 
-        if (octx->e_copy->tid > max_tid)
-            max_tid = octx->e_copy->tid;
+        if (octx->tid_copy > max_tid)
+            max_tid = octx->tid_copy;
     }
 
     // check maxtid with rows in write set. rows in write set should 
@@ -224,8 +229,8 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
             goto final;
         }
 
-        if (octx->e_copy->tid > max_tid)
-            max_tid = octx->e_copy->tid;
+        if (octx->tid_copy > max_tid)
+            max_tid = octx->tid_copy;
     }
 
     if (max_tid > p->cur_tid)
@@ -250,7 +255,7 @@ final:
         // and update the tid, release latch
         for (int i = 0; i < wt_idx; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
-            memcpy(octx->e->value, octx->e_copy->value, octx->e->size);
+            memcpy(octx->e->value, octx->data_copy, octx->e->size);
 
 #if SILO_USE_ATOMICS
             octx->e->tid = p->cur_tid | SILO_LOCK_BIT;

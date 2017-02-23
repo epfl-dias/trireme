@@ -260,7 +260,8 @@ struct op_ctx {
   int target;
   char optype; 
   struct elem *e;
-  struct elem *e_copy;
+  void *data_copy;
+  uint64_t tid_copy;
 };
 
 struct txn_ctx {
@@ -310,6 +311,13 @@ struct partition {
   clh_qnode *my_pred;
 #endif
 
+  // partition-local heap
+  struct mem_heap heap;
+
+#if ENABLE_SILO_CC
+  uint64_t cur_tid;
+#endif
+
   // tasks
   struct task unblock_task;
   struct task root_task;
@@ -331,19 +339,12 @@ struct partition {
   int nupdates_remote;
   int naborts_remote;
 
-#if ENABLE_SILO_CC
-  uint64_t cur_tid;
-#endif
-
   unsigned int seed;
 
   uint64_t tps;
 
   uint64_t busyclock;
   uint64_t idleclock;
-
-  // partition-local heap
-  struct mem_heap heap;
 
 } __attribute__ ((aligned (CACHELINE)));
 

@@ -419,8 +419,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     if (op->optype == OPTYPE_LOOKUP || op->optype == OPTYPE_UPDATE) {
         int alock_state;
 
-        octx->e_copy = plmalloc_ealloc(p);
-        octx->e_copy->value = plmalloc_alloc(p, e->size);
+        octx->data_copy = plmalloc_alloc(p, e->size);
 
 #if SILO_USE_ATOMICS
         uint64_t old_tid = 0, new_tid = 1;
@@ -431,16 +430,17 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
                 old_tid = e->tid;
             }
 
-            memcpy(octx->e_copy, e, sizeof(*e));
-            memcpy(octx->e_copy->value, e->value, e->size);
+            octx->tid_copy = e->tid & (~SILO_LOCK_BIT);
+            memcpy(octx->data_copy, e->value, e->size);
+
             COMPILER_BARRIER();
         
             new_tid = e->tid;
         }
 #else
         silo_latch_acquire(e);
-        memcpy(octx->e_copy, e, sizeof(*e));
-        memcpy(octx->e_copy->value, e->value, e->size);
+        octx->tid_copy = e->tid;
+        memcpy(octx->data_copy, e->value, e->size);
         silo_latch_release(e);
 #endif //IF_SILO_USE_ATOMICS
 
@@ -448,23 +448,22 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
                 " to rd/wt set, etid %d, copytid %d\n",
                 s, is_local ? "local":"remote",
                 op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key,
-                ctx->nops, octx->e->tid, octx->e_copy->tid);
+                ctx->nops, octx->e->tid, octx->tid_copy);
 
         // pass back the newly created value to keep read/write sets thread local
-        value = octx->e_copy->value;
+        value = octx->data_copy;
     } else {
-        octx->e_copy = NULL;
+        octx->data_copy = NULL;
     }
 
 #else
 
     // in 2pl, we need to make copy only for updates
     if (op->optype == OPTYPE_UPDATE) {
-        octx->e_copy = plmalloc_ealloc(p);
-        octx->e_copy->value = plmalloc_alloc(p, e->size);
-        memcpy(octx->e_copy->value, e->value, e->size);
+        octx->data_copy = plmalloc_alloc(p, e->size);
+        memcpy(octx->data_copy, e->value, e->size);
     } else {
-        octx->e_copy = NULL;
+        octx->data_copy = NULL;
     }
 
 #endif
@@ -528,11 +527,10 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           selock_release(p, octx->e);
 
 #if ENABLE_SILO_CC
-          assert (octx->e_copy);
-          plmalloc_free(p, octx->e_copy->value, octx->e->size);
-          plmalloc_efree(p, octx->e_copy);
+          assert (octx->data_copy);
+          plmalloc_free(p, octx->data_copy, octx->e->size);
 #else
-          assert (octx->e_copy == NULL);
+          assert (octx->data_copy == NULL);
 #endif //IF_SILO
 
 #else
@@ -559,7 +557,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // should never get updates to item table
         assert((octx->e->key & TID_MASK) != ITEM_TID);
 
-        assert(octx->e_copy);
+        assert(octx->data_copy);
 
         size_t size = octx->e->size;
 
@@ -571,14 +569,13 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-            memcpy(octx->e->value, octx->e_copy->value, size);
+            memcpy(octx->e->value, octx->data_copy, size);
         }
 
 #endif //IF_ENABLE_SILO
 
 
-        plmalloc_free(p, octx->e_copy->value, size);
-        plmalloc_efree(p, octx->e_copy);
+        plmalloc_free(p, octx->data_copy, size);
 
         if (octx->target == s) {
 #if SHARED_EVERYTHING
@@ -611,7 +608,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         assert(mode == TXN_SINGLE);
 
         // we should have not allocated a copy for inserts
-        assert(octx->e_copy == NULL);
+        assert(octx->data_copy == NULL);
 
         if (octx->target == s) {
 #if SHARED_EVERYTHING
@@ -770,7 +767,7 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
       octx->optype = op->optype;
       octx->e = (struct elem *)HASHOP_GET_VAL(val);
       octx->target = -1;
-      octx->e_copy = NULL;
+      octx->data_copy = NULL;
       ctx->nops++;
       opids[nopids++] = opid;
 
@@ -779,11 +776,10 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
         values[opid] = octx->e->value;
 
         if (op->optype == OPTYPE_UPDATE) {
-          octx->e_copy = plmalloc_ealloc(p);
-          octx->e_copy->value = plmalloc_alloc(p, esize);
-          memcpy(octx->e_copy->value, values[opid], esize);
+          octx->data_copy = plmalloc_alloc(p, esize);
+          memcpy(octx->data_copy, values[opid], esize);
         } else {
-          octx->e_copy = NULL;
+          octx->data_copy = NULL;
         }
       } else {
         values[opid] = NULL;

@@ -1438,9 +1438,8 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
       assert(octx->e->key == sr->sr_rids[opid]);
       assert(octx->e->ref_count & DATA_READY_MASK);
       int esize = octx->e->size;
-      octx->e_copy = plmalloc_ealloc(p);
-      octx->e_copy->value = plmalloc_alloc(p, esize);
-      memcpy(octx->e_copy->value, octx->e->value, esize);
+      octx->data_copy = plmalloc_alloc(p, esize);
+      memcpy(octx->data_copy, octx->e->value, esize);
 
       // is this cust record a match?
       struct tpcc_customer *tmp = (struct tpcc_customer *) octx->e->value;
