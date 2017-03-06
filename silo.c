@@ -16,10 +16,14 @@ void silo_latch_acquire(struct elem *e)
 #endif
 }
 
-void silo_latch_release(struct elem *e)
+void silo_latch_release(int s, struct elem *e)
 {
 #if SILO_USE_ATOMICS
-    assert(e->tid & SILO_LOCK_BIT);
+    //assert(e->tid & SILO_LOCK_BIT);
+    if (!(e->tid & SILO_LOCK_BIT)) {
+        printf("srv(%d):lock bit not set for key %"PRIu64" tid is %"PRIu64"\n", s, e->key, e->tid);
+        assert(0);
+    }
     e->tid = e->tid & (~SILO_LOCK_BIT);
 #else
     LATCH_RELEASE(&e->latch, NULL);
@@ -33,13 +37,13 @@ static int silo_latch_tryacquire(struct elem *e)
     if (tid & SILO_LOCK_BIT)
         return 0;
 
-    return __sync_bool_compare_and_swap(&e->tid, tid, tid | SILO_LOCK_BIT);
+    return __sync_bool_compare_and_swap(&e->tid, tid, (tid | SILO_LOCK_BIT));
 #else
     return !LATCH_TRY_ACQUIRE(&e->latch);
 #endif
 }
 
-static int validate_row(struct op_ctx *ctx, char is_write)
+static int validate_row(int s, struct op_ctx *ctx, char is_write)
 {
     /* If write, we already have a lock. so all we need to do is simply check
      * if the tid has changed. 
@@ -73,7 +77,7 @@ static int validate_row(struct op_ctx *ctx, char is_write)
         r = TXN_ABORT;
 
     if (!is_write) {
-        silo_latch_release(ctx->e);
+        silo_latch_release(s, ctx->e);
     }
 #endif
 
@@ -186,15 +190,20 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
         } else {
 
             // we were not able to get all locks. release, sleep and repeat
-            for (int i = 0; i < nlocks; i++) {
-                struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
-                silo_latch_release(octx->e);
-            }
-
             if ((r = preabort_check(s, ctx, write_set, wt_idx, read_set,
                             rd_idx)) == TXN_ABORT) {
                 dprint("srv(%d): abort due to preabort while retrying locks\n", s);
                 goto final;
+            } else {
+                for (int i = 0; i < nlocks; i++) {
+                    struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
+
+#if SILO_USE_ATOMICS
+                    assert(octx->e->tid & SILO_LOCK_BIT);
+#endif
+
+                    silo_latch_release(s, octx->e);
+                }
             }
         }
     }
@@ -208,7 +217,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
     uint64_t max_tid = 0;
     for (int i = 0; i < rd_idx; i++) {
         struct op_ctx *octx = &ctx->op_ctx[read_set[i]];
-        if ((r = validate_row(octx, 0)) == TXN_ABORT) {
+        if ((r = validate_row(s, octx, 0)) == TXN_ABORT) {
             dprint("srv(%d): readset validation for row %d "
                     "key %"PRId64" failed\n", s, read_set[i], octx->e->key);
             goto final;
@@ -223,7 +232,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
     for (int i = 0; i < wt_idx; i++) {
         struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
 
-        if ((r = validate_row(octx, 1)) == TXN_ABORT) {
+        if ((r = validate_row(s, octx, 1)) == TXN_ABORT) {
             dprint("srv(%d): writeset validation for row %d "
                     "key %"PRId64" failed\n", s, read_set[i], octx->e->key);
             goto final;
@@ -246,7 +255,11 @@ final:
 
         for (int i = 0; i < nlocks; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
-            silo_latch_release(octx->e);
+#if SILO_USE_ATOMICS
+            assert (octx->e->tid & SILO_LOCK_BIT);
+#endif
+
+            silo_latch_release(s, octx->e);
         }
     } else {
         dprint("srv(%d): silo commiting txn\n", s);
@@ -263,7 +276,7 @@ final:
             octx->e->tid = p->cur_tid;
 #endif
 
-            silo_latch_release(octx->e);
+            silo_latch_release(s, octx->e);
         }
     }
 

@@ -441,7 +441,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
         silo_latch_acquire(e);
         octx->tid_copy = e->tid;
         memcpy(octx->data_copy, e->value, e->size);
-        silo_latch_release(e);
+        silo_latch_release(s, e);
 #endif //IF_SILO_USE_ATOMICS
 
         dprint("srv(%d): adding %s %s op key %" PRIu64 " ctx-nops %d"

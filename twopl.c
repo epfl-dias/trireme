@@ -4,7 +4,7 @@
 
 extern int write_threshold;
 
-#if ENABLE_WAIT_DIE_CC
+#if defined(ENABLE_WAIT_DIE_CC) || defined(ENABLE_BWAIT_CC)
 int wait_die_check_acquire(int s, struct partition *p,
     int c, int tid, int opid, struct elem *e, char optype, uint64_t req_ts)
 {
