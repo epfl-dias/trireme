@@ -39,11 +39,11 @@ void silo_latch_acquire(int s, struct elem *e)
 void silo_latch_release(int s, struct elem *e)
 {
 #if SILO_USE_ATOMICS
-    //assert(e->tid & SILO_LOCK_BIT);
     if (!(e->tid & SILO_LOCK_BIT)) {
         printf("srv(%d):lock bit not set for key %"PRIu64" tid is %"PRIu64"\n", s, e->key, e->tid);
         assert(0);
     }
+
     e->tid = e->tid & (~SILO_LOCK_BIT);
 #else
     LATCH_RELEASE(&e->latch, NULL);
@@ -308,7 +308,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
     }
 
     if (max_tid > p->cur_tid)
-        p->cur_tid = max_tid;
+        p->cur_tid = max_tid + 1;
     else
         p->cur_tid++;
 
@@ -344,9 +344,14 @@ final:
         // and update the tid, release latch
         for (int i = 0; i < wt_idx; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
+
             memcpy(octx->e->value, octx->data_copy, octx->e->size);
 
+            COMPILER_BARRIER();
+
 #if SILO_USE_ATOMICS
+            assert(octx->e->tid & SILO_LOCK_BIT);
+            assert(((octx->e->tid & (~SILO_LOCK_BIT)) != p->cur_tid));
             octx->e->tid = p->cur_tid | SILO_LOCK_BIT;
 #else
             octx->e->tid = p->cur_tid;

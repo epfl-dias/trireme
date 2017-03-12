@@ -463,13 +463,15 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
                 old_tid = e->tid;
             }
 
-            octx->tid_copy = e->tid & (~SILO_LOCK_BIT);
             memcpy(octx->data_copy, e->value, e->size);
 
             COMPILER_BARRIER();
         
             new_tid = e->tid;
         }
+
+        assert(!(old_tid & SILO_LOCK_BIT));
+        octx->tid_copy = old_tid;
 #else
         silo_latch_acquire(s, e);
         octx->tid_copy = e->tid;
