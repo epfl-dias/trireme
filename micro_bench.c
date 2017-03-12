@@ -334,12 +334,22 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     // in both lookup and update, we just check the value
     uint64_t *int_val = (uint64_t *)value;
 
+    for (int i = 1; i < YCSB_NFIELDS; i++) 
+      assert(int_val[i] == int_val[0]);
+
+    /*
     uint64_t val = int_val[0];
     assert(val == op->key);
 
     if (op->optype == OPTYPE_UPDATE) {
         int_val[0] = op->key;
         int_val[1]++;
+    }
+    */
+
+    if (op->optype == OPTYPE_UPDATE) {
+        for (int i = 0; i < YCSB_NFIELDS; i++) 
+            int_val[i]++;
     }
   }
 

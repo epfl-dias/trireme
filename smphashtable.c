@@ -237,6 +237,8 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
           e, t, &l);
 #elif ENABLE_NOWAIT_CC
       r = no_wait_acquire(e, t);
+#elif ENABLE_SILO_CC
+      r = LOCK_SUCCESS;
 #else
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
@@ -280,6 +282,8 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
           e, t, &l);
 #elif ENABLE_NOWAIT_CC
       r = no_wait_acquire(e, t);
+#elif ENABLE_SILO_CC
+      r = LOCK_SUCCESS;
 #else
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE
@@ -380,8 +384,32 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     assert(0);
 #endif
 
+#if ENABLE_SILO_CC
+    // in silo's case, there is no locking in any of the operations. so we need
+    // to proceed as though operation is local to avoid unnecessary overhead.
+    // At validation time, we will do the locking. so we use messaging there.
+
+#if !defined(ENABLE_INDEX_LATCH)
+    
+    // Assumes with tpcc that index latching is enabled
+    assert(g_benchmark == &micro_bench);
+
+#endif// EN_INDEX_LATCH
+    
+    l_p = &hash_table->partitions[target];
+    e = local_txn_op(ctask, target, ctx, l_p, op);
+
+    // can never fail as we don't lookup non-existent records or lock them
+    assert(e);
+    value = (void *) e;
+
+#else
+
+    // Some other CC protocol (not Silo). This is a remote access
     // call the corresponding authority and block
     smp_hash_doall(ctask, hash_table, s, target, 1, &op, &value);
+
+#endif //EN_SILO_CC
 
     // the remote server can fail to return us data if someone else has a lock
     if (value) {
@@ -408,7 +436,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     octx->target = s;
 #else
     octx->target = target;
-#endif
+#endif //SE
 
 #if ENABLE_SILO_CC
 
@@ -425,8 +453,13 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
         uint64_t old_tid = 0, new_tid = 1;
         while (old_tid != new_tid) {
             old_tid = e->tid;
+
             while (old_tid & SILO_LOCK_BIT) {
+#if SHARED_EVERYTHING
                 _mm_pause();
+#else
+                task_yield(p, TASK_STATE_READY);
+#endif
                 old_tid = e->tid;
             }
 
@@ -438,7 +471,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
             new_tid = e->tid;
         }
 #else
-        silo_latch_acquire(e);
+        silo_latch_acquire(s, e);
         octx->tid_copy = e->tid;
         memcpy(octx->data_copy, e->value, e->size);
         silo_latch_release(s, e);
@@ -466,7 +499,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
         octx->data_copy = NULL;
     }
 
-#endif
+#endif // EN_SILO_CC
 
     dprint("srv(%d): done %s %s op key %" PRIu64 " ctx-nops %d\n",
         s, is_local ? "local":"remote",
@@ -474,7 +507,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 
     ctx->nops++;
   }
-#endif
+#endif //SN
 
   return value;
 }
@@ -521,18 +554,19 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
     switch (t) {
       case OPTYPE_LOOKUP:
 
-        // release element
-        if (octx->target == s) {
-#if SHARED_EVERYTHING
-          selock_release(p, octx->e);
-
 #if ENABLE_SILO_CC
-          assert (octx->data_copy);
-          plmalloc_free(p, octx->data_copy, octx->e->size);
+            // in Silo, we always have local data copy in readset. Free it.
+            assert (octx->data_copy);
+            plmalloc_free(p, octx->data_copy, octx->e->size);
 #else
-          assert (octx->data_copy == NULL);
+            assert (octx->data_copy == NULL);
 #endif //IF_SILO
 
+        // release element
+        if (octx->target == s) {
+
+#if SHARED_EVERYTHING
+          selock_release(p, octx->e);
 #else
 #if ENABLE_WAIT_DIE_CC
           wait_die_release(s, p, s, ctask->tid,
@@ -542,13 +576,22 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops]: 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
+#elif ENABLE_SILO_CC
+          ; // do nothing. everything is done by validate function
 #else
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
 #endif //IF_SHARED_EVERYTHING
         } else {
-         mp_release_value(hash_table, s, octx->target, ctask->tid,
-              opids ? opids[nops] : 0, octx->e);
+
+#if ENABLE_SILO_CC
+          ; // do nothing. everything is done by validate function
+#else
+
+          // not silo. send out release messages
+            mp_release_value(hash_table, s, octx->target, ctask->tid,
+                    opids ? opids[nops] : 0, octx->e);
+#endif // EN_SILO_CC
         }
 
         break;
@@ -561,19 +604,17 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
         size_t size = octx->e->size;
 
-#if ENABLE_SILO_CC
         // In silo's case, we don't need to copy back anything as read/write
-        // sets were already thread local. So just free ecopy.
-#else
-
+        // sets were already thread local. so aborts are no ops
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
+#if ENABLE_SILO_CC
+            ;
+#else
             memcpy(octx->e->value, octx->data_copy, size);
-        }
-
 #endif //IF_ENABLE_SILO
-
+        }
 
         plmalloc_free(p, octx->data_copy, size);
 
@@ -589,13 +630,21 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
+#elif ENABLE_SILO_CC
+          ; // do nothing. everything is done by validate function
 #else
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
 #endif //SHARED_EVERYTHING
         } else {
+
+#if ENABLE_SILO_CC
+          ; // do nothing. everything is done by validate function
+#else
+          // not silo. send out release messages
           mp_mark_ready(hash_table, s, octx->target, ctask->tid,
               opids ? opids[nops] : 0, octx->e);
+#endif
         }
 
         break;
@@ -620,6 +669,8 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
+#elif ENABLE_SILO_CC
+          ; // do nothing. everything is done by validate function
 #else
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
@@ -929,7 +980,15 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, t);
 #elif ENABLE_SILO_CC
-          assert(0);
+          bwait_release(s, p, i, tid, opid, t);
+
+          // bwait will clear the lock entry for previous owner. if there is a
+          // waiter who is waiting, it becomes the new owner. so its lock entry
+          // moves from the waiters list to the owners list. in this case, the
+          // tid lock bit must remain set. but if there is no owner, we need to
+          // clear the tid bit
+          if (!(t->ref_count & DATA_READY_MASK))
+              t->tid = t->tid & ~SILO_LOCK_BIT;
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1044,7 +1103,10 @@ void process_requests(struct hash_table *hash_table, int s)
       req->r = no_wait_check_acquire(req->e,
           req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #elif ENABLE_SILO_CC
-          assert(0);
+      //silo sends requests only during validation and only update reqs
+      assert(req->optype == HASHOP_UPDATE);
+
+      req->r = bwait_check_acquire(req->e, OPTYPE_UPDATE);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1052,7 +1114,7 @@ void process_requests(struct hash_table *hash_table, int s)
       char abort = 0;
 
       if (req->r == LOCK_ABORT) {
-#if ENABLE_BWAIT_CC
+#if defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC)
         assert(0);
 #endif
         abort = 1;
@@ -1085,13 +1147,13 @@ void process_requests(struct hash_table *hash_table, int s)
             reqs[k].r = no_wait_check_acquire(reqs[k].e,
                 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #elif ENABLE_SILO_CC
-          assert(0);
+            reqs[k].r = bwait_check_acquire(reqs[k].e, OPTYPE_UPDATE);
 #else
 #error "No CC algorithm specified"
 #endif
 
             if (reqs[k].r == LOCK_ABORT) {
-#if ENABLE_BWAIT_CC
+#if defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC)
                 assert(0);
 #endif
               req->r = LOCK_ABORT;
@@ -1129,7 +1191,18 @@ void process_requests(struct hash_table *hash_table, int s)
           res = no_wait_acquire(reqs[k].e, reqs[k].optype == HASHOP_LOOKUP ?
               OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #elif ENABLE_SILO_CC
-          assert(0);
+          struct lock_entry *l = NULL;
+
+          res = bwait_acquire(s, p, i, reqs[k].tid,
+              reqs[k].opid, reqs[k].e, OPTYPE_UPDATE,
+              &l);
+
+          if (res == LOCK_SUCCESS) {
+              // tid bit must have been clear
+              assert(!(reqs[k].e->tid & SILO_LOCK_BIT));
+
+              reqs[k].e->tid |= SILO_LOCK_BIT;
+          }
 #else
 #error "No CC algorithm specified"
 #endif

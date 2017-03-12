@@ -6,13 +6,33 @@
 
 #if ENABLE_SILO_CC
 
-void silo_latch_acquire(struct elem *e)
+void silo_latch_acquire(int s, struct elem *e)
 {
 #if SILO_USE_ATOMICS
-    //should not be called
+
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+
+    //should not be called in shared everything or nothing mode
     assert(0);
+
 #else
+
+    // in messaging mode, we will be the only thread acquiring a latch on the
+    // record. So we can simply set the bit without any synch. If someone else
+    // has already set the bit, we can simply yield effectively waiting for it
+    // to be released
+    while(e->tid & SILO_LOCK_BIT) { 
+        task_yield(&hash_table->partitions[s], TASK_STATE_READY);
+    }
+
+    e->tid |= SILO_LOCK_BIT;
+
+#endif //IF_SHARED_EVERYTHING
+
+#else
+
     LATCH_ACQUIRE(&e->latch, NULL);
+
 #endif
 }
 
@@ -112,6 +132,7 @@ static int preabort_check(int s, struct txn_ctx *ctx, int *write_set,
     return TXN_COMMIT;
 }
 
+// code for silo_validate in shared everything case
 int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
 {
     struct txn_ctx *ctx = &ctask->txn_ctx;
@@ -165,6 +186,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
         goto final;
     }
 
+#if SHARED_EVERYTHING
     /* lock all rows in the write set now */
     char done_locking = 0;
     while (!done_locking) {
@@ -207,6 +229,49 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
             }
         }
     }
+#else
+
+    // don't bother with non-blocking version. just acquire lock one at a time
+    // and be done. we can't deadlock here as we are locking in key order
+    nlocks = 0;
+    for (int i = 0; i < wt_idx; i++) {
+        struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
+        if (octx->target == s) {
+            // if it is local, simply acquire the latch
+           silo_latch_acquire(s, octx->e);
+        } else {
+            // if it is remote, send a message asking for the latch
+            // XXX: Here, we send one at a time, we can batch it all and send it
+            // together in one shot. This will optimize things further.
+            struct hash_op op, *pop[1];
+            pop[0] = &op;
+            op.optype = OPTYPE_UPDATE;
+            op.size = 0;
+            op.key = octx->e->key;
+
+            void *tmp, *ptmp[1];
+            ptmp[0] = tmp;
+            smp_hash_doall(ctask, hash_table, s, octx->target, 1, pop, ptmp);
+
+            // the lock better be set
+            assert(octx->e->tid & SILO_LOCK_BIT);
+        }
+
+        nlocks++;
+
+        if ((octx->e->tid & (~SILO_LOCK_BIT)) != octx->tid_copy) {
+            dprint("srv(%d): abort due to tid mismatch %"PRIu64
+                    "--%"PRIu64" at %d\n", s, octx->e->tid, 
+                    octx->tid_copy, i);
+
+            r = TXN_ABORT;
+            goto final;
+        }
+    }
+
+    assert(nlocks == wt_idx);
+
+#endif
 
     // at this point we should have all the write locks
     dprint("srv(%d): done acquiring silo write locks\n", s);
@@ -259,7 +324,18 @@ final:
             assert (octx->e->tid & SILO_LOCK_BIT);
 #endif
 
+#if SHARED_EVERYTHING
+            // in shared everything, we can simply release
             silo_latch_release(s, octx->e);
+#else
+            // in message passing mode, we need to directly release if local or
+            // send a release message if remote
+            if (octx->target == s) {
+                silo_latch_release(s, octx->e);
+            } else {
+                mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
+            }
+#endif 
         }
     } else {
         dprint("srv(%d): silo commiting txn\n", s);
@@ -276,11 +352,20 @@ final:
             octx->e->tid = p->cur_tid;
 #endif
 
+#if SHARED_EVERYTHING
             silo_latch_release(s, octx->e);
+#else
+            // in message passing mode, we need to directly release if local or
+            // send a release message if remote
+            if (octx->target == s) {
+                silo_latch_release(s, octx->e);
+            } else {
+                mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
+            }
+#endif 
         }
     }
 
     return r;
 }
-
 #endif //IF_ENABLE_SILO

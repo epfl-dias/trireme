@@ -4,7 +4,7 @@
 
 extern int write_threshold;
 
-#if defined(ENABLE_WAIT_DIE_CC) || defined(ENABLE_BWAIT_CC)
+#if defined(ENABLE_WAIT_DIE_CC) || defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC)
 int wait_die_check_acquire(int s, struct partition *p,
     int c, int tid, int opid, struct elem *e, char optype, uint64_t req_ts)
 {
@@ -333,6 +333,10 @@ int no_wait_acquire(struct elem *e, char optype)
   return LOCK_SUCCESS;
 }
 
+
+#endif//IF_NOWAIT
+
+#if defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC)
 int bwait_acquire(int s, struct partition *p,
     int c, int task_id, int op_id, struct elem *e, char optype,
     struct lock_entry **pl)
@@ -407,9 +411,7 @@ int bwait_acquire(int s, struct partition *p,
 
   return r;
 }
-#endif//IF_NOWAIT
 
-#if ENABLE_BWAIT_CC
 void bwait_release(int s, struct partition *p, int c, int task_id,
     int op_id, struct elem *e)
 {

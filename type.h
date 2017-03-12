@@ -202,12 +202,12 @@ struct elem {
 #endif // CLH_LOCK
 #endif
 
-#if ENABLE_SILO_CC
+  // tid used for silo
   uint64_t tid;
-#else
+
+  // waiters and owners used for 2pl
   struct lock_list waiters; 
   struct lock_list owners;
-#endif
 } __attribute__ ((aligned (CACHELINE)));
 
 LIST_HEAD(elist, elem);

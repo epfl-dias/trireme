@@ -281,7 +281,7 @@ void child_fn(int s, int tid)
           s, 
           self->tid, 
           next_query->ops[0].optype == OPTYPE_LOOKUP ? "lookup":"update", 
-          p->q_idx, niters,
+          p->q_idx, g_niters,
           next_query->ops[0].key);
     }
 #endif
