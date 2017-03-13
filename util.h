@@ -15,6 +15,10 @@
 #define dprint(...) 
 #endif
 
+#define CPU_FREQ 2 	// in GHz/s
+#define NOGRAPHITE
+#define TIME_ENABLE	true
+
 /* bitarray macros */
 #define BITMASK(b) (1 << ((b) % CHAR_BIT))
 #define BITSLOT(b) ((b) / CHAR_BIT)
@@ -76,6 +80,32 @@ static inline void nop_rep(uint32_t num_reps)
         __asm __volatile ("NOP");
     }
 }
+
+static inline uint64_t get_server_clock() {
+#if defined(__i386__)
+    uint64_t ret;
+    __asm__ __volatile__("rdtsc" : "=A" (ret));
+#elif defined(__x86_64__)
+    unsigned hi, lo;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    uint64_t ret = ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
+	ret = (uint64_t) ((double)ret / CPU_FREQ);
+#else
+	timespec * tp = new timespec;
+    clock_gettime(CLOCK_REALTIME, tp);
+    uint64_t ret = tp->tv_sec * 1000000000 + tp->tv_nsec;
+#endif
+    return ret;
+}
+
+static inline uint64_t get_sys_clock() {
+  #if TIME_ENABLE
+	return get_server_clock();
+  #else
+	return 0;
+  #endif
+}
+
 
 uint64_t *zipf_get_keys(double alpha, uint64_t N, uint64_t nvalues);
 

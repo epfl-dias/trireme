@@ -156,6 +156,11 @@ void destroy_hash_table(struct hash_table *hash_table)
 
 void start_hash_table_servers(struct hash_table *hash_table)
 {
+#if (SHARED_EVERYTHING && ENABLE_DL_DETECT_CC) || DL_DETECT_ENABLED
+#include "glo.h"
+	DL_detect_init(&dl_detector);
+#endif
+
   int r;
   void *value;
   hash_table->quitting = 0;
@@ -699,7 +704,11 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         break;
     }
   }
-
+#if ENABLE_DL_DETECT_CC
+  DL_detect_clear_dep(&dl_detector, s);
+  DL_detect_remove_dep(&dl_detector, s);
+  dprint("Server %d finishing\n", s);
+#endif
   smp_flush_all(hash_table, s);
 
   ctx->nops = 0;
@@ -991,6 +1000,8 @@ void process_requests(struct hash_table *hash_table, int s)
           // clear the tid bit
           if (!(t->ref_count & DATA_READY_MASK))
               t->tid = t->tid & ~SILO_LOCK_BIT;
+#elif ENABLE_DL_DETECT_CC
+//          selock_release(p, t);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1029,6 +1040,8 @@ void process_requests(struct hash_table *hash_table, int s)
           r = no_wait_acquire(e, OPTYPE_INSERT);
 #elif ENABLE_SILO_CC
           assert(0);
+#elif ENABLE_DL_DETECT_CC
+//          selock_acquire(p, e, OPTYPE_INSERT, inbuf[j + 2]);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1109,6 +1122,8 @@ void process_requests(struct hash_table *hash_table, int s)
       assert(req->optype == HASHOP_UPDATE);
 
       req->r = bwait_check_acquire(req->e, OPTYPE_UPDATE);
+#elif ENABLE_DL_DETECT_CC
+//          selock_acquire(p, t, OPTYPE_INSERT, inbuf[j + 2]);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1150,6 +1165,8 @@ void process_requests(struct hash_table *hash_table, int s)
                 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #elif ENABLE_SILO_CC
             reqs[k].r = bwait_check_acquire(reqs[k].e, OPTYPE_UPDATE);
+#elif ENABLE_DL_DETECT_CC
+//          selock_acquire(p, t, OPTYPE_INSERT, inbuf[j + 2]);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1205,6 +1222,8 @@ void process_requests(struct hash_table *hash_table, int s)
 
               reqs[k].e->tid |= SILO_LOCK_BIT;
           }
+#elif ENABLE_DL_DETECT_CC
+//          selock_acquire(p, t, OPTYPE_INSERT, inbuf[j + 2]);
 #else
 #error "No CC algorithm specified"
 #endif
