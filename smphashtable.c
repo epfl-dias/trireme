@@ -890,9 +890,9 @@ void process_requests(struct hash_table *hash_table, int s)
 
   int nreqs;
 
+#if ENABLE_SOCKET_LOCAL_TXN
   memset(skip_list, 0, sizeof(skip_list));
 
-#if ENABLE_SOCKET_LOCAL_TXN
   /* Having cores check msg buffer incurs overhead in the cross socket case
    * as cache coherence enforcement causes snooping. So to minimize the
    * overhead, we have a mode where we do only socket local txns. This can
@@ -932,9 +932,11 @@ void process_requests(struct hash_table *hash_table, int s)
     if (i == s)
       continue;
 
+#if ENABLE_SOCKET_LOCAL_TXN
     if (BITTEST(skip_list, i)) {
       continue;
     }
+#endif
 
     struct onewaybuffer *b = &boxes[i].boxes[s].in;
     int count = b->wr_index - b->rd_index;
