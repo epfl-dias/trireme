@@ -1,8 +1,6 @@
 #ifndef __HASHPROTOCOL_H_
 #define __HASHPROTOCOL_H_
 
-#include <stdint.h>
-
 /**
  * hash operations
  */

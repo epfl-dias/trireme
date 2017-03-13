@@ -3,6 +3,7 @@
 #include "benchmark.h"
 #include "twopl.h"
 #include "plmalloc.h"
+#include "dl_detect.h"
 
 #if SHARED_EVERYTHING
 
@@ -12,6 +13,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
 {
   struct lock_entry *target, *l;
   int s = p - &hash_table->partitions[0];
+  int g_tid = p->current_task->g_tid;
 
   dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64"\n", s, req_ts,
       optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
@@ -75,6 +77,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
     assert(target);
     target->ts = req_ts;
     target->s = s;
+    target->task_id = g_tid;
     target->optype = optype;
     target->ready = 1;
 
@@ -87,7 +90,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
      */
     wait = 1;
     LIST_FOREACH(l, &e->owners, next) {
-      if (l->ts < req_ts || ((l->ts == req_ts) && (l->s < s))) {
+      if (l->ts < req_ts || ((l->ts == req_ts) && (l->task_id < g_tid))) {
         wait = 0;
         break;
       }
@@ -101,7 +104,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
       // waiters list
       struct lock_entry *last_lock = NULL;
       LIST_FOREACH(l, &e->waiters, next) {
-        if (l->ts < req_ts || (l->ts == req_ts && l->s < s))
+        if (l->ts < req_ts || (l->ts == req_ts && l->task_id < g_tid))
           break;
 
         last_lock = l;
@@ -111,6 +114,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
       assert(target);
       target->ts = req_ts;
       target->s = s;
+      target->task_id = g_tid;
       target->optype = optype;
       target->ready = 0;
       if (l) {
@@ -168,6 +172,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
   /* latch, reset ref count to free the logical lock, unlatch */
   int alock_state;
   int s = p - &hash_table->partitions[0];
+  int g_tid = p->current_task->g_tid;
 
 #if SE_LATCH
   LATCH_ACQUIRE(&e->latch, &alock_state);
@@ -178,7 +183,7 @@ void selock_wait_die_release(struct partition *p, struct elem *e)
   struct lock_entry *lock_entry;
 
   LIST_FOREACH(lock_entry, &e->owners, next) {
-    if (lock_entry->s == s)
+    if (lock_entry->task_id == g_tid)
       break;
   }
   
@@ -294,6 +299,7 @@ int selock_nowait_with_ownerlist_acquire(struct partition *p, struct elem *e,
       struct lock_entry *target  = plmalloc_alloc(p, sizeof(struct lock_entry));
       assert(target);
       target->s = p - hash_table->partitions; 
+      target->task_id = p->current_task->g_tid;
       target->optype = optype;
       target->ready = 1;
 
@@ -309,13 +315,14 @@ void selock_nowait_with_ownerlist_release(struct partition *p, struct elem *e)
 {
   struct lock_entry *lock_entry;
   int s = p - hash_table->partitions;
+  int g_tid = p->current_task->g_tid;
   int alock_state;
 
   LATCH_ACQUIRE(&e->latch, &alock_state);
 
   // remove from owner list
   LIST_FOREACH(lock_entry, &e->owners, next) {
-      if (lock_entry->s == s)
+      if (lock_entry->task_id == g_tid)
           break;
   }
   
@@ -473,6 +480,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 
 	struct lock_entry *target, *l;
 	int s = p - &hash_table->partitions[0];
+    int g_tid = p->current_task->g_tid;
 
 	int r = 0;
   char wait = 0;
@@ -511,7 +519,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 
 	bool lock_abort = false;
 	if (!conflict) {
-		uint64_t srv = s;
+		uint64_t srv = g_tid;
 		dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" granted w/o conflict\n",
 				s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
@@ -528,13 +536,14 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		assert(target);
 		target->ts = req_ts;
 		target->s = s;
+        target->task_id = g_tid;
 		target->optype = optype;
 		target->ready = 1;
 
 		LIST_INSERT_HEAD(&e->owners, target, next);
 
 		LIST_FOREACH(l, &e->waiters, next) {
-			DL_detect_add_dep(&dl_detector, l->s, &srv, 1, 1);
+			DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
 		}
 	} else {
 		dprint("srv(%d-%"PRIu64"): There is conflict!!\n", s, req_ts);
@@ -553,15 +562,15 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		txnids = (uint64_t *) malloc(txncnt * sizeof(uint64_t));
 
 		LIST_FOREACH(l, &e->owners, next) {
-			txnids[cur] = l->s;
+			txnids[cur] = l->task_id;
 			cur++;
 		}
 		LIST_FOREACH(l, &e->waiters, next) {
-			txnids[cur] = l->s;
+			txnids[cur] = l->task_id;
 			cur++;
 		}
 		wait = 1;
-		uint64_t txnid = s;
+		uint64_t txnid = g_tid;
 		while (!lock_abort) {
 			uint64_t last_detect = starttime;
 			uint64_t last_try = starttime;
@@ -579,7 +588,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 				if (!dep_added) {
 					// TODO we need the txn id; will use the server id but we need to check
 					// we assume that each txn requests 1 elements and thus holds 0 locks so far
-					ok = DL_detect_add_dep(&dl_detector, txnid, txnids, txncnt, 1);
+					ok = DL_detect_add_dep(p, &dl_detector, txnid, txnids, txncnt, 1);
 					if (ok == 0)
 						dep_added = true;
 					else if (ok == 16)
@@ -587,7 +596,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 				}
 				if (dep_added) {
 					dprint("srv(%d-%"PRIu64"): Added the dependency\n", s, req_ts);
-					ok = DL_detect_detect_cycle(&dl_detector, txnid);
+					ok = DL_detect_detect_cycle(p, &dl_detector, txnid);
 					if (ok == 16)  // failed to lock the deadlock detector
 						last_try = now;
 					else if (ok == 0) {
@@ -616,10 +625,10 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		  // waiters list
 		  struct lock_entry *last_lock = NULL;
 		  LIST_FOREACH(l, &e->owners, next) {
-			  dprint("srv(%d-%"PRIu64"): Waiting for owner %d\n", s, req_ts, l->s);
+			  dprint("srv(%d-%"PRIu64"): Waiting for owner %d\n", s, req_ts, l->task_id);
 		  }
 		  LIST_FOREACH(l, &e->waiters, next) {
-			  dprint("srv(%d-%"PRIu64"): Waiting for waiter %d\n", s, req_ts, l->s);
+			  dprint("srv(%d-%"PRIu64"): Waiting for waiter %d\n", s, req_ts, l->task_id);
 			last_lock = l;
 		  }
 
@@ -627,6 +636,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		  assert(target);
 		  target->ts = req_ts;
 		  target->s = s;
+		  target->task_id = g_tid;
 		  target->optype = optype;
 		  target->ready = 0;
 //		  if (l) {
@@ -685,17 +695,10 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 void selock_dl_detect_release(struct partition *p, struct elem *e) {
 	int alock_state;
 	int s = p - &hash_table->partitions[0];
-//	uint64_t txnid = req_ts * g_nservers + s;
-	uint64_t txnid = s;
+    int g_tid = p->current_task->g_tid;
 
 	//	printf("Releasing the lock\n");
 	dprint("srv(%d): Releasing lock on key %d\n", s, e->key);
-
-	/* WAIT DIE */
-
-  /* latch, reset ref count to free the logical lock, unlatch */
-//  int alock_state;
-//  int s = p - &hash_table->partitions[0];
 
 #if SE_LATCH
   dprint("srv(%d): acquiring latch for key %"PRIu64"\n", s, e->key);
@@ -708,7 +711,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 
   int found_in_owners = 0;
   LIST_FOREACH(lock_entry, &e->owners, next) {
-	if (lock_entry->s == s) {
+	if (lock_entry->task_id == g_tid) {
 		found_in_owners = 1;
 		break;
 	}
@@ -716,7 +719,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 
   if (!found_in_owners) {
 	  LIST_FOREACH(lock_entry, &e->owners, next) {
-		  if (lock_entry->s == s) {
+		  if (lock_entry->task_id == g_tid) {
 			  break;
 		  }
 	  }
@@ -749,7 +752,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 	char conflict = 0;
 
 	dprint("srv(%d): release request for key %"PRIu64" found %d waiting\n",
-	  s, e->key, lock_entry->s);
+	  s, e->key, lock_entry->task_id);
 
 	if (lock_entry->optype == OPTYPE_LOOKUP) {
 	  conflict = !is_value_ready(e);
@@ -760,7 +763,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 
 	if (conflict) {
 	  dprint("srv(%d): release request for key %"PRIu64" found %d in conflict "
-		  "ref count was %"PRIu64"\n", s, e->key, lock_entry->s, e->ref_count);
+		  "ref count was %"PRIu64"\n", s, e->key, lock_entry->task_id, e->ref_count);
 	  break;
 
 	} else {
@@ -783,13 +786,13 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 	LIST_INSERT_HEAD(&e->owners, lock_entry, next);
 	struct lock_entry *l;
 	LIST_FOREACH(l, &e->waiters, next) {
-		uint64_t srv = lock_entry->s;
-		DL_detect_add_dep(&dl_detector, l->s, &srv, 1, 1);
+		uint64_t srv = lock_entry->task_id;
+		DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
 	}
 	lock_entry->ready = 1;
 
 	dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n",
-	  s, e->key, lock_entry->s);
+	  s, e->key, lock_entry->task_id);
 
 	// go to next element
 	lock_entry = LIST_FIRST(&e->waiters);

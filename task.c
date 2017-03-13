@@ -321,6 +321,7 @@ void init_task(struct task *t, int tid, void (*fn)(), ucontext_t *next_ctx,
   int s)
 {
   t->tid = tid;
+  t->g_tid = s * g_batch_size + tid - 2;
   getcontext(&t->ctx);
   //t->ctx.uc_stack.ss_sp = malloc(TASK_STACK_SIZE);
   t->ctx.uc_stack.ss_sp = mmap(NULL, TASK_STACK_SIZE, PROT_READ | PROT_WRITE,

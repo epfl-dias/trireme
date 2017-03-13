@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "headers.h"
 #include "dl_detect.h"
 #include "assert.h"
+#include "plmalloc.h"
 #include "util.h"
 #include "glo.h"
 
@@ -37,7 +39,9 @@ void DL_detect_init(DL_detect *ptr) {
 }
 
 int
-DL_detect_add_dep_ts(DL_detect *ptr, int srv_fib_id, uint64_t txnid1, uint64_t * txnids, int cnt, int num_locks) {
+DL_detect_add_dep_ts(struct partition *p, DL_detect *ptr, int srv_fib_id,
+        uint64_t txnid1, uint64_t * txnids, int cnt, int num_locks) {
+
 	int thd1 = get_thdid_from_txnid(srv_fib_id);
 #if !DL_DETECT_ENABLED
 	pthread_mutex_lock( &ptr->dependency[thd1].lock );
@@ -46,7 +50,9 @@ DL_detect_add_dep_ts(DL_detect *ptr, int srv_fib_id, uint64_t txnid1, uint64_t *
 	ptr->dependency[thd1].num_locks = num_locks;
 
 	for (int i = 0; i < cnt; i++)  {
-		struct adj_list_entry *list_entry = (struct adj_list_entry *) malloc(sizeof(struct adj_list_entry));
+		struct adj_list_entry *list_entry =
+            (struct adj_list_entry *) plmalloc_alloc(p, sizeof(struct adj_list_entry));
+
 		list_entry->entry = txnids[i];
 		LIST_INSERT_HEAD(&ptr->dependency[thd1].adj, list_entry, next);
 		ptr->dependency[thd1].adj_size ++;
@@ -61,7 +67,9 @@ DL_detect_add_dep_ts(DL_detect *ptr, int srv_fib_id, uint64_t txnid1, uint64_t *
 }
 
 int
-DL_detect_add_dep(DL_detect *ptr, uint64_t txnid1, uint64_t * txnids, int cnt, int num_locks) {
+DL_detect_add_dep(struct partition *p, DL_detect *ptr, uint64_t txnid1,
+        uint64_t * txnids, int cnt, int num_locks) {
+
 	int thd1 = get_thdid_from_txnid(txnid1);
 #if !DL_DETECT_ENABLED
 	pthread_mutex_lock( &ptr->dependency[thd1].lock );
@@ -70,7 +78,9 @@ DL_detect_add_dep(DL_detect *ptr, uint64_t txnid1, uint64_t * txnids, int cnt, i
 	ptr->dependency[thd1].num_locks = num_locks;
 	
 	for (int i = 0; i < cnt; i++)  {
-		struct adj_list_entry *list_entry = (struct adj_list_entry *) malloc(sizeof(struct adj_list_entry));
+		struct adj_list_entry *list_entry =
+            (struct adj_list_entry *) plmalloc_alloc(p, sizeof(struct adj_list_entry));
+
 		list_entry->entry = txnids[i];
 		LIST_INSERT_HEAD(&ptr->dependency[thd1].adj, list_entry, next);
 		ptr->dependency[thd1].adj_size ++;
@@ -184,15 +194,15 @@ bool DL_detect_isCyclic(DL_detect *ptr, uint64_t txnid, DetectData * detect_data
 }
 
 int
-DL_detect_detect_cycle(DL_detect *ptr, uint64_t txnid) {
+DL_detect_detect_cycle(struct partition *p, DL_detect *ptr, uint64_t txnid) {
 	uint64_t starttime = get_sys_clock();
 	bool deadlock = false;
 
 	int thd = get_thdid_from_txnid(txnid);
 
-	DetectData * detect_data = (DetectData *) malloc(sizeof(DetectData));
-	detect_data->visited = (bool *) malloc(sizeof(bool) * ptr->V);
-	detect_data->recStack = (bool *) malloc(sizeof(bool) * ptr->V);
+	DetectData * detect_data = (DetectData *) plmalloc_alloc(p, sizeof(DetectData));
+	detect_data->visited = (bool *) plmalloc_alloc(p, sizeof(bool) * ptr->V);
+	detect_data->recStack = (bool *) plmalloc_alloc(p, sizeof(bool) * ptr->V);
 
 	for(int i = 0; i < ptr->V; i++) {
         detect_data->visited[i] = false;
@@ -211,16 +221,16 @@ DL_detect_detect_cycle(DL_detect *ptr, uint64_t txnid) {
 		}
 	} 
 	
-	free(detect_data->visited);
-	free(detect_data->recStack);
-	free(detect_data);
+	plmalloc_free(p, detect_data->visited, sizeof(bool) * ptr->V);
+	plmalloc_free(p, detect_data->recStack, sizeof(bool) * ptr->V);
+	plmalloc_free(p, detect_data, sizeof(DetectData));
 
 	uint64_t timespan = get_sys_clock() - starttime;
 	if (deadlock) return 1;
 	else return 0;
 }
 
-void DL_detect_clear_dep(DL_detect *ptr, uint64_t txnid) {
+void DL_detect_clear_dep(struct partition *p, DL_detect *ptr, uint64_t txnid) {
 	int thd = get_thdid_from_txnid(txnid);
 #if !DL_DETECT_ENABLED
 	pthread_mutex_lock( &ptr->dependency[thd].lock );
@@ -233,7 +243,7 @@ void DL_detect_clear_dep(DL_detect *ptr, uint64_t txnid) {
 	while (LIST_FIRST(&ptr->dependency[thd].adj) != NULL) {
 		struct adj_list_entry *first_entry = LIST_FIRST(&ptr->dependency[thd].adj);
 		LIST_REMOVE(first_entry, next);
-		free(first_entry);
+		plmalloc_free(p, first_entry, sizeof(struct adj_list_entry));
 	}
 	ptr->dependency[thd].adj_size = 0;
 	ptr->dependency[thd].num_locks = 0;

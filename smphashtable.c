@@ -9,6 +9,7 @@
 #include "plmalloc.h"
 #include "twopl.h"
 #include "silo.h"
+#include "dl_detect.h"
 
 static volatile int nready = 0;
 const char *optype_str[] = {"","lookup","insert","update","release"};
@@ -705,8 +706,8 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
     }
   }
 #if ENABLE_DL_DETECT_CC
-  DL_detect_clear_dep(&dl_detector, s);
-  DL_detect_remove_dep(&dl_detector, s);
+  DL_detect_clear_dep(p, &dl_detector, ctask->g_tid);
+  DL_detect_remove_dep(&dl_detector, ctask->g_tid);
   dprint("Server %d finishing\n", s);
 #endif
   smp_flush_all(hash_table, s);
