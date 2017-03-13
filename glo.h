@@ -20,4 +20,8 @@ EXTERN int g_dist_threshold;
 EXTERN int g_write_threshold;
 EXTERN int g_batch_size;
 
+#if ENABLE_DL_DETECT_CC
+#include "dl_detect.h"
+EXTERN DL_detect dl_detector;
+#endif
 
