@@ -568,6 +568,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 
 			uint64_t now = get_sys_clock();
 			if (now - starttime > DL_DETECT_TIMEOUT ) {
+				wait = 0;
 				lock_abort = true;
 				break;
 			}
