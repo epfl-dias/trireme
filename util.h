@@ -30,6 +30,13 @@
 
 pid_t gettid(void);
 void set_affinity(int cpu_id);
+#if defined(MIGRATION)
+void fix_affinity(int s);
+int get_affinity();
+int get_socket_number(int s);
+int is_same_socket(int s, int k);
+int random_server_from_socket(unsigned int *seed, int s);
+#endif
 double now();
 
 static inline void* swap_pointer(volatile void* ptr, void *x) {

@@ -171,7 +171,7 @@ void start_hash_table_servers(struct hash_table *hash_table)
   nready = hash_table->quitting = 0;
 
   assert(NCORES >= g_nservers);
-
+  
   for (int i = 0; i < g_nservers; i++) {
     hash_table->thread_data[i].id = i;
     hash_table->thread_data[i].core = coreids[i];
@@ -376,7 +376,10 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   struct partition *p = &hash_table->partitions[s];
   struct partition *l_p = NULL;
 
-#if SHARED_EVERYTHING
+#if MIGRATION && SHARED_EVERYTHING
+  int is_local = (s == target);
+  l_p = p;
+#elif SHARED_EVERYTHING
   int is_local = 1;
   l_p = p;
 #elif SHARED_NOTHING
@@ -396,6 +399,17 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   dprint("srv(%d): issue %s %s op key %" PRIu64 "\n",
     s, is_local ? "local":"remote",
     op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key);
+  
+#if defined(MIGRATION)
+  if (!is_local) {
+      ctask->target = target;
+      task_yield(p, TASK_STATE_MIGRATE);
+      s = ctask->target;
+      p = &hash_table->partitions[s];
+      l_p = p;
+      is_local = 1;
+  }
+#endif
 
   // if this is us, just call local procedure
   if (is_local) {
@@ -601,7 +615,17 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       assert(octx->optype == OPTYPE_LOOKUP);
       continue;
     }
-
+    
+#if MIGRATION
+    if (octx->target != s) {
+        ctask->target = octx->target;
+        task_yield(p, TASK_STATE_MIGRATE);
+        s = ctask->s;
+        p = &hash_table->partitions[s];
+        assert(s == get_affinity());
+    }
+#endif
+    
     switch (t) {
       case OPTYPE_LOOKUP:
 
@@ -637,6 +661,9 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #endif //IF_ENABLE_WAIT_DIE_CC
 #endif //IF_SHARED_EVERYTHING
         } else {
+#if MIGRATION
+            assert(0);
+#endif
 
 #if ENABLE_SILO_CC
           ; // do nothing. everything is done by validate function
@@ -694,6 +721,9 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #endif //ENABLE_WAIT_DIE_CC
 #endif //SHARED_EVERYTHING
         } else {
+#if MIGRATION
+            assert(0);
+#endif
 
 #if ENABLE_SILO_CC
           ; // do nothing. everything is done by validate function
@@ -1042,6 +1072,13 @@ void process_requests(struct hash_table *hash_table, int s)
       uint64_t optype = inbuf[j] & HASHOP_MASK;
 
       switch(optype) {
+          case HASHOP_MIGRATE:
+          {
+              struct task *task_pointer = (struct task*)(HASHOP_GET_VAL(inbuf[j]));
+              task_resume_migration(task_pointer, p);
+              j += MIGRATE_MSG_LENGTH;
+              break;
+          }
         case HASHOP_RELEASE:
         {
           struct elem *t = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
@@ -1185,7 +1222,7 @@ void process_requests(struct hash_table *hash_table, int s)
         }
       }
     }
-
+#if !defined(MIGRATION)
     // do trial task at a time
     for (j = 0; j < nreqs; j++) {
       struct req *req = &reqs[j];
@@ -1400,6 +1437,7 @@ void process_requests(struct hash_table *hash_table, int s)
 #if ENABLE_DL_DETECT_CC
     all_reqs += nreqs;
 #endif
+#endif
   }
 }
 
@@ -1414,6 +1452,9 @@ void *hash_table_server(void* args)
   __attribute__((unused)) int pct = 10;
 
   set_affinity(c);
+#if defined(MIGRATION)
+  fix_affinity(s);
+#endif
 
   double tstart = now();
 
@@ -1863,6 +1904,25 @@ int stats_get_ncommits(struct hash_table *hash_table)
   return ncommits;
 
 }
+
+#if GATHER_STATS
+int stats_get_task_stats(struct hash_table *hash_table) {
+    for (int i = 0; i < g_nservers; i++) {
+        printf("Server %d scheduler run time: %f\n", i, hash_table->partitions[i].root_task.run_time);
+        printf("Server %d unblock run time: %f\n", i, hash_table->partitions[i].unblock_task.run_time);
+
+    }
+    for (int i = 0; i < g_nservers; i++) {
+        struct task *t;
+        for (int j = FIRST_TASK_ID; j < FIRST_TASK_ID + g_batch_size; j++) {
+            struct task *t = g_tasks[i][j];
+            printf("Task %d number of times scheduled: %d\n", t->g_tid,  t->times_scheduled);   
+            printf("Task %d run time: %f\n", t->g_tid, t->run_time);
+            printf("Task %d commit/abort counts: %10d/%10d\n", t->g_tid, t->ncommits, t->naborts);
+        }
+    }
+}
+#endif
 
 int stats_get_nlookups(struct hash_table *hash_table)
 {

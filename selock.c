@@ -143,7 +143,13 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
     dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" spinning until ready\n", 
       s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
+#if defined(MIGRATION)
+    while (!target->ready) {
+        task_yield(p, TASK_STATE_READY);
+    }
+#else
     while (!target->ready) ;
+#endif
   
     dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" stopped spinning\n", 
       s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
@@ -665,7 +671,14 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 	dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" spinning until ready\n",
 	  s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
+        
+#if MIGRATION
+      while (!target->ready) {
+          task_yield(p, TASK_STATE_READY);
+      }
+#else
 	while (!target->ready) ;
+#endif
 
 	dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" stopped spinning\n",
 	  s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);

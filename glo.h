@@ -21,6 +21,8 @@ EXTERN int g_write_threshold;
 EXTERN int g_batch_size;
 EXTERN volatile int nready;
 
+EXTERN struct task* g_tasks[144][16];
+
 #if ENABLE_DL_DETECT_CC
 #include "dl_detect.h"
 EXTERN DL_detect dl_detector;

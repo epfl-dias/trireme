@@ -240,6 +240,14 @@ typedef struct
 typedef volatile clh_qnode *clh_qnode_ptr;
 typedef clh_qnode_ptr clh_lock;
 
+#elif NOLATCH
+
+#define LATCH_T void*
+#define LATCH_INIT(latch, nservers)
+#define LATCH_ACQUIRE(latch, state)
+#define LATCH_TRY_ACQUIRE(latch)
+#define LATCH_RELEASE(latch, state)
+
 #else
 #define LATCH_T pthread_mutex_t
 #define LATCH_INIT(latch, nservers) pthread_mutex_init(latch, NULL)
@@ -348,7 +356,7 @@ typedef enum sethread_state {
 
 /* task/fiber types */
 typedef enum {
-  TASK_STATE_READY, TASK_STATE_WAITING, TASK_STATE_FINISH
+  TASK_STATE_READY, TASK_STATE_WAITING, TASK_STATE_FINISH, TASK_STATE_MIGRATE
 } task_state;
 
 struct task {
@@ -356,6 +364,8 @@ struct task {
   short g_tid; // this tid will be global across all cores
   task_state state;
   ucontext_t ctx;
+  int target;
+  int origin;
   int s;
   struct txn_ctx txn_ctx;
   struct hash_query queries[NQUERIES_PER_TASK];
@@ -363,6 +373,12 @@ struct task {
   short npending;
   uint64_t received_responses[MAX_OPS_PER_QUERY];
   short nresponses;
+#if GATHER_STATS
+  int times_scheduled;
+  double run_time;
+  int naborts;
+  int ncommits;
+#endif
   TAILQ_ENTRY(task) next;
 } __attribute__ ((aligned (CACHELINE)));
 

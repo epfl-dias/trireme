@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
         break;
       case 'b':
         g_batch_size = atoi(optarg);
-#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+#if (!defined(MIGRATION) && defined(SHARED_EVERYTHING)) || defined(SHARED_NOTHING)
         if (g_batch_size != 1) {
           printf("batching not allowed in se/sn modes\n");
           assert(0);
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
   assert(g_nremote_ops <= g_ops_per_txn && g_nremote_ops < MAX_OPS_PER_QUERY);
 
   if (g_alpha) {
-#if SHARED_EVERYTHING
+#if SHARED_EVERYTHING && !MIGRATION
     assert(g_nhot_recs > 1 && g_nhot_servers == 1);
 #else
     assert(g_nhot_recs != 0);
@@ -149,6 +149,7 @@ int main(int argc, char *argv[])
     assert(g_nhot_servers != 0);
     assert(g_nhot_servers <= g_nservers);
   }
+  
 
   // set benchmark to micro for now
   //g_benchmark = &tpcc_bench;
@@ -174,6 +175,7 @@ void run_benchmark()
   printf("== results ==\n");
   printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
 #if GATHER_STATS
+  stats_get_task_stats(hash_table);
   stats_get_nlookups(hash_table);
   stats_get_ninserts(hash_table);
   stats_get_nupdates(hash_table);

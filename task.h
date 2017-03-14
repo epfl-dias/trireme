@@ -12,5 +12,6 @@
 void task_libinit(int s);
 void task_yield(struct partition *p, task_state state);
 void dl_detect_fn(int s);
+void task_resume_migration(struct task *ctask, struct partition *p);
 
 #endif
