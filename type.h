@@ -3,6 +3,11 @@
 
 #include <sys/queue.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include <ucontext.h>
+
+#include "const.h"
+#include "hashprotocol.h"
 
 /* lock used to implement 2pl wait die */
 struct lock_entry {
@@ -12,10 +17,26 @@ struct lock_entry {
   uint64_t ts;
   char optype;
   volatile char ready;
+#if ENABLE_DL_DETECT_CC
+    int *notify;
+#endif
   LIST_ENTRY(lock_entry) next;
 };
 
 LIST_HEAD(lock_list, lock_entry);
+
+#if ENABLE_DL_DETECT_CC
+struct lock_tail_entry {
+	short task_id;
+	short op_id;
+	int s;
+	uint64_t ts;
+	char optype;
+	volatile char ready;
+	int *notify;
+	TAILQ_ENTRY(lock_tail_entry) next;
+};
+#endif
 
 /* dl_detect structures */
 LIST_HEAD(adj_list, adj_list_entry);
@@ -256,7 +277,12 @@ struct elem {
   uint64_t tid;
 
   // waiters and owners used for 2pl
-  struct lock_list waiters; 
+#if !defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC)
+  TAILQ_HEAD(lock_tail, lock_tail_entry) waiters;
+#else
+  struct lock_list waiters;
+//  TAILQ_HEAD(lock_tail, lock_tail_entry) waiters;
+#endif
   struct lock_list owners;
 } __attribute__ ((aligned (CACHELINE)));
 

@@ -11,7 +11,6 @@
 #include "silo.h"
 #include "dl_detect.h"
 
-static volatile int nready = 0;
 const char *optype_str[] = {"","lookup","insert","update","release"};
 #define OPTYPE_STR(optype) optype_str[optype >> 60]
 
@@ -72,6 +71,8 @@ struct hash_table *create_hash_table()
 {
 #if ENABLE_ASYMMETRIC_MESSAGING
   int nrecs_per_partition = g_nrecs / g_nhot_servers;
+#elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+  int nrecs_per_partition = g_nrecs / (g_nservers - 1);
 #else
   int nrecs_per_partition = g_nrecs / g_nservers;
 #endif
@@ -98,8 +99,11 @@ struct hash_table *create_hash_table()
     init_hash_partition(&hash_table->partitions[i], nrecs_per_partition, 1);
 #endif
   }
-
+#if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+  init_hash_partition(hash_table->g_partition, g_nrecs / (g_nservers - 1), 1);
+#else
   init_hash_partition(hash_table->g_partition, g_nrecs / g_nservers, 1);
+#endif
 
   hash_table->threads = (pthread_t *)malloc(g_nservers * sizeof(pthread_t));
   hash_table->thread_data = (struct thread_args *)malloc(g_nservers * sizeof(struct thread_args));
@@ -157,14 +161,14 @@ void destroy_hash_table(struct hash_table *hash_table)
 
 void start_hash_table_servers(struct hash_table *hash_table)
 {
-#if (SHARED_EVERYTHING && ENABLE_DL_DETECT_CC) || DL_DETECT_ENABLED
+#if ENABLE_DL_DETECT_CC
 #include "glo.h"
 	DL_detect_init(&dl_detector);
 #endif
 
   int r;
   void *value;
-  hash_table->quitting = 0;
+  nready = hash_table->quitting = 0;
 
   assert(NCORES >= g_nservers);
 
@@ -212,7 +216,13 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 {
   struct elem *e;
   uint32_t t = op->optype;
+#if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+  struct lock_tail_entry *l = NULL;
+  int notification = 0;
+#else
   struct lock_entry *l = NULL;
+#endif
+
   int r;
 
   switch (t) {
@@ -245,6 +255,9 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       r = no_wait_acquire(e, t);
 #elif ENABLE_SILO_CC
       r = LOCK_SUCCESS;
+#elif ENABLE_DL_DETECT_CC
+      r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */,
+      		  e, t, &l, ctx->ts, &notification);
 #else
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
@@ -290,6 +303,9 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       r = no_wait_acquire(e, t);
 #elif ENABLE_SILO_CC
       r = LOCK_SUCCESS;
+#elif ENABLE_DL_DETECT_CC
+      r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */,
+                e, t, &l, ctx->ts, &notification);
 #else
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE
@@ -302,8 +318,22 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
          * service other requests
          */
         assert(l);
+#if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+		while ((!l->ready) && (!notification))
+#else
         while (!l->ready)
+#endif
           task_yield(p, TASK_STATE_READY);
+
+        if (l->ready == LOCK_ABORT_NXT)
+        	r = LOCK_ABORT;
+        else
+#if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+        	assert((l->ready == 1) || (notification == 1));
+#else
+        assert(l->ready == 1);
+#endif
+
 
       } else {
         // busted
@@ -311,6 +341,8 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 
 #if defined(ENABLE_BWAIT_CC)
         assert(0);
+#elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+        dl_detect_release(s, p, s, ctask->tid, 0, e, 0);
 #endif
 
         p->naborts_local++;
@@ -541,7 +573,18 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
   assert(status == TXN_COMMIT);
 
   status = silo_validate(ctask, hash_table, s);
+#elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+    int release_notify = 1;
+//    if (status != TXN_ABORT) {
+//  	  uint64_t msg[2];
+//  	  msg[0] = MAKE_HASH_MSG(ctask->tid - 2, ctask->s, (unsigned long) s, DL_DETECT_CLR_DEP);
+//  	  msg[1] = ctx->ts;
+//  	  dprint("srv (%d): clearing dependencies for srv %d\n", s, ctask->s);
+//  	  struct box_array *boxes = hash_table->boxes;
+//  	  buffer_write_all(&boxes[g_nservers - 1].boxes[s].out, 2, msg, 1);
+//    }
 #endif
+
 
   while (--nops >= 0) {
     struct op_ctx *octx = &ctx->op_ctx[nops];
@@ -586,6 +629,9 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           no_wait_release(p, octx->e);
 #elif ENABLE_SILO_CC
           ; // do nothing. everything is done by validate function
+#elif ENABLE_DL_DETECT_CC
+          dl_detect_release(s, p, s, ctask->tid,
+                        opids ? opids[nops] : 0, octx->e, release_notify);
 #else
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
@@ -640,6 +686,9 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           no_wait_release(p, octx->e);
 #elif ENABLE_SILO_CC
           ; // do nothing. everything is done by validate function
+#elif defined(ENABLE_DL_DETECT_CC)
+          dl_detect_release(s, p, s, ctask->tid,
+                        opids ? opids[nops] : 0, octx->e, release_notify);
 #else
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
@@ -679,6 +728,8 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           no_wait_release(p, octx->e);
 #elif ENABLE_SILO_CC
           ; // do nothing. everything is done by validate function
+#elif ENABLE_DL_DETECT_CC
+          dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
 #else
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
@@ -705,7 +756,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         break;
     }
   }
-#if ENABLE_DL_DETECT_CC
+#if (defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
   DL_detect_clear_dep(p, &dl_detector, ctask->g_tid);
   DL_detect_remove_dep(&dl_detector, ctask->g_tid);
   dprint("Server %d finishing\n", s);
@@ -896,9 +947,17 @@ void process_requests(struct hash_table *hash_table, int s)
     int opid;
     uint64_t ts;
     int r;
+#if ENABLE_DL_DETECT_CC
+    int s;
+#endif
   } reqs[ONEWAY_BUFFER_SIZE];
 
   int nreqs;
+
+#if ENABLE_DL_DETECT_CC
+  int all_reqs = 0;
+  int notification = 0;
+#endif
 
 #if ENABLE_SOCKET_LOCAL_TXN
   memset(skip_list, 0, sizeof(skip_list));
@@ -947,6 +1006,11 @@ void process_requests(struct hash_table *hash_table, int s)
       continue;
     }
 #endif
+
+#if ENABLE_DL_DETECT_CC
+    int abt_srv = -1;
+#endif
+
 
     struct onewaybuffer *b = &boxes[i].boxes[s].in;
     int count = b->wr_index - b->rd_index;
@@ -1004,7 +1068,7 @@ void process_requests(struct hash_table *hash_table, int s)
           if (!(t->ref_count & DATA_READY_MASK))
               t->tid = t->tid & ~SILO_LOCK_BIT;
 #elif ENABLE_DL_DETECT_CC
-//          selock_release(p, t);
+          dl_detect_release(s, p, i, tid, opid, t, 1);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1044,7 +1108,9 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_SILO_CC
           assert(0);
 #elif ENABLE_DL_DETECT_CC
-//          selock_acquire(p, e, OPTYPE_INSERT, inbuf[j + 2]);
+          struct lock_tail_entry *l;
+
+		  r = dl_detect_acquire(s, p, i, tid, opid, e, OPTYPE_INSERT, &l, inbuf[j + 2], &notification);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1069,6 +1135,10 @@ void process_requests(struct hash_table *hash_table, int s)
           req->tid = HASHOP_GET_TID(inbuf[j]);
           req->opid = HASHOP_GET_OPID(inbuf[j]);
           req->r = LOCK_INVALID;
+#if ENABLE_DL_DETECT_CC
+          reqs[nreqs].s = i;
+          req->ts = inbuf[j + 1];
+#endif
 #if ENABLE_WAIT_DIE_CC
           req->ts = inbuf[j + 1];
 #endif
@@ -1088,9 +1158,27 @@ void process_requests(struct hash_table *hash_table, int s)
           j += LOOKUP_MSG_LENGTH;
           break;
         }
+#if ENABLE_DL_DETECT_CC
+        case DL_DETECT_ABT_TXN:
+        {
+		    struct req *req = &reqs[nreqs];
+		    reqs[nreqs].s = HASHOP_GET_OPID(inbuf[j]);
+		    req->optype = DL_DETECT_ABT_TXN;
+		    req->tid = HASHOP_GET_TID(inbuf[j]) + 2;
+		    req->opid = 0;
+		    reqs[nreqs].e = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
+		    req->r = LOCK_ABORT;
+		    abt_srv = HASHOP_GET_OPID(inbuf[j]);
+		    nreqs++;
+		    j++;
+		    dprint("srv(%d) will abort the txn of srv %d fiber %d key %ld after receiving a msg from srv %d\n", s, abt_srv, req->tid, req->e->key, i);
+		    break;
+        }
+#endif
         default:
         {
           printf("cl %d invalid message type %lx\n", i, optype);
+          printf("Received msg with optype %ld\n", optype);
           fflush(stdout);
           assert(0);
           break;
@@ -1103,7 +1191,11 @@ void process_requests(struct hash_table *hash_table, int s)
       struct req *req = &reqs[j];
 
       assert(req->optype != HASHOP_RELEASE);
+#if ENABLE_DL_DETECT_CC
+      assert(req->optype == HASHOP_LOOKUP || req->optype == HASHOP_UPDATE || req->optype == DL_DETECT_ABT_TXN);
+#else
       assert(req->optype == HASHOP_LOOKUP || req->optype == HASHOP_UPDATE);
+#endif
 
       // if someone marked this as abort, don't do req
       if (req->r != LOCK_INVALID) {
@@ -1126,7 +1218,8 @@ void process_requests(struct hash_table *hash_table, int s)
 
       req->r = bwait_check_acquire(req->e, OPTYPE_UPDATE);
 #elif ENABLE_DL_DETECT_CC
-//          selock_acquire(p, t, OPTYPE_INSERT, inbuf[j + 2]);
+      req->r = dl_detect_check_acquire(req->e,
+          	  req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1134,7 +1227,7 @@ void process_requests(struct hash_table *hash_table, int s)
       char abort = 0;
 
       if (req->r == LOCK_ABORT) {
-#if defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC)
+#if defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC) || defined(ENABLE_DL_DETECT_CC)
         assert(0);
 #endif
         abort = 1;
@@ -1169,13 +1262,14 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_SILO_CC
             reqs[k].r = bwait_check_acquire(reqs[k].e, OPTYPE_UPDATE);
 #elif ENABLE_DL_DETECT_CC
-//          selock_acquire(p, t, OPTYPE_INSERT, inbuf[j + 2]);
+            reqs[k].r = dl_detect_check_acquire(reqs[k].e,
+				 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #else
 #error "No CC algorithm specified"
 #endif
 
             if (reqs[k].r == LOCK_ABORT) {
-#if defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC)
+#if defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC) || defined(ENABLE_DL_DETECT_CC)
                 assert(0);
 #endif
               req->r = LOCK_ABORT;
@@ -1226,7 +1320,12 @@ void process_requests(struct hash_table *hash_table, int s)
               reqs[k].e->tid |= SILO_LOCK_BIT;
           }
 #elif ENABLE_DL_DETECT_CC
-//          selock_acquire(p, t, OPTYPE_INSERT, inbuf[j + 2]);
+          struct lock_tail_entry *l = NULL;
+
+		  res = dl_detect_acquire(s, p, i, reqs[k].tid,
+			  reqs[k].opid, reqs[k].e,
+			  reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE,
+			  &l, reqs[k].ts, &notification);
 #else
 #error "No CC algorithm specified"
 #endif
@@ -1260,7 +1359,34 @@ void process_requests(struct hash_table *hash_table, int s)
        */
       if (r == LOCK_ABORT) {
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, 0, 0);
+#if ENABLE_DL_DETECT_CC
+        /* First, remove the thread which issued the transaction
+         * from the owners and the waiters list for that key.
+         * Then, send the message to the thread, which issued the txn.
+         */
+
+        if (s != req->s) {
+        	dl_detect_release(s, p, req->s, req->tid, req->opid, req->e, 0);
+        	buffer_write_all(&boxes[req->s].boxes[s].out, 1, &out_msg, 1);
+			dprint("SRV %d sent LOCK ABORT to SRV %d FIB %d KEY %"PRIu64"; msg = %ld\n", s, req->s, req->tid, req->e->key, out_msg);
+        } else {
+        	struct lock_tail_entry *le;
+        	TAILQ_FOREACH(le, &req->e->waiters, next) {
+        		dprint("srv(%d): Checking entry (%d,%d,%ld) with (%d,%d,%ld)\n", s,
+						le->s, le->task_id, le->ts,
+						req->s, req->tid, req->ts);
+				if ((le->s == req->s) && (le->task_id == req->tid)) {
+					le->ready = LOCK_ABORT_NXT;
+					break;
+				}
+        	}
+        	assert(le != NULL);
+        	dprint("SRV %d ABORTING local txn for FIB %d KEY %"PRIu64"; msg = %ld\n", s, req->tid, req->e->key, out_msg);
+        }
+
+#else
         buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
+#endif
       } else if (r == LOCK_SUCCESS) {
         assert(req->e->ref_count > 1);
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, (unsigned long)req->e, 0);
@@ -1271,6 +1397,9 @@ void process_requests(struct hash_table *hash_table, int s)
     }
 
     buffer_flush(&boxes[i].boxes[s].out);
+#if ENABLE_DL_DETECT_CC
+    all_reqs += nreqs;
+#endif
   }
 }
 
@@ -1299,13 +1428,19 @@ void *hash_table_server(void* args)
   if (s < g_nhot_servers)
       g_benchmark->load_data(hash_table, s);
 #else
+#if ENABLE_DL_DETECT_CC
 
+// server N is the deadlock detector
+ if (s < g_nservers - 1)
+	g_benchmark->load_data(hash_table, s);
+#else
   /* always load for sn/trireme */
   g_benchmark->load_data(hash_table, s);
+#endif //ENABLE_DL_DETECT_CC
 
-#endif
+#endif //ENABLE_ASYMMETRIC_MESSAGING
 
-#endif
+#endif //SHARED_EVERYTHING
 
   double tend = now();
 
@@ -1344,6 +1479,12 @@ void *hash_table_server(void* args)
 
   if (s >= g_nhot_servers)
       task_libinit(s);
+#elif !defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC)
+  if (s < g_nservers - 1)
+	  task_libinit(s);
+  else {
+	  dl_detect_fn(s);
+  }
 #else
   task_libinit(s);
 #endif
@@ -1372,6 +1513,9 @@ void *hash_table_server(void* args)
 
   while (nready != 0)
 #if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
+#if ENABLE_DL_DETECT_CC
+	  if (s < g_nservers - 1)
+#endif
     process_requests(hash_table, s);
 #else
     ;
@@ -1415,7 +1559,7 @@ int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table,
 
   msg_data[0] = MAKE_HASH_MSG(ctask->tid, op_id, key, HASHOP_LOOKUP);
 
-#if ENABLE_WAIT_DIE_CC
+#if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         // send timestamp as a payload in case of wait die cc
   msg_data[1] = ctask->txn_ctx.ts;
   buffer_write_all(&hash_table->boxes[client_id].boxes[server].in, 2, msg_data, 0);
@@ -1455,7 +1599,7 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
 
   msg_data[0] = MAKE_HASH_MSG(ctask->tid, op_id, key, HASHOP_UPDATE);
 
-#if ENABLE_WAIT_DIE_CC
+#if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         // send timestamp as a payload in case of wait die cc
   msg_data[1] = ctask->txn_ctx.ts;
   buffer_write_all(&hash_table->boxes[client_id].boxes[server].in, 2, msg_data, 0);
@@ -1493,7 +1637,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
         msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key,
             HASHOP_LOOKUP);
 
-#if ENABLE_WAIT_DIE_CC
+#if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         // send timestamp as a payload in case of wait die cc
         msg_data[1] = ctask->txn_ctx.ts;
         buffer_write_all(&boxes[client_id].boxes[s].in, 2, msg_data, 0);
@@ -1514,7 +1658,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
         msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key,
             HASHOP_UPDATE);
 
-#if ENABLE_WAIT_DIE_CC
+#if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         msg_data[1] = ctask->txn_ctx.ts;
         buffer_write_all(&boxes[client_id].boxes[s].in, 2, msg_data, 0);
 #else
@@ -1537,7 +1681,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 
         msg_data[1] = queries[i]->size;
 
-#if ENABLE_WAIT_DIE_CC
+#if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         msg_data[2] = ctask->txn_ctx.ts;
         buffer_write_all(&boxes[client_id].boxes[s].in, 3, msg_data, 0);
 #else

@@ -8,6 +8,8 @@
 #ifndef DL_DETECT_H_
 #define DL_DETECT_H_
 
+#include "type.h"
+
 #define DL_DETECT_TIMEOUT			1000000000 // 1ms
 #define DL_LOOP_DETECT				100 	// 100 us
 #define DL_LOOP_TRIAL				10	// 1 us

@@ -105,7 +105,11 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
   } else {
     delta = URand(&p->seed, 0, nrecs_per_server - 1);
+#if ENABLE_DL_DETECT_CC
+    tserver = URand(&p->seed, 0, g_nservers - 2);
+#else
     tserver = URand(&p->seed, 0, g_nservers - 1);
+#endif
     int t_coreid = hash_table->thread_data[tserver].core; 
 
 #if ENABLE_SOCKET_LOCAL_TXN
@@ -134,7 +138,11 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
 #else
     while (!is_local && tserver == s) {
-      tserver = URand(&p->seed, 0, g_nservers - 1);
+#if ENABLE_DL_DETECT_CC
+		tserver = URand(&p->seed, 0, g_nservers - 2);
+#else
+		tserver = URand(&p->seed, 0, g_nservers - 1);
+#endif
       t_coreid = hash_table->thread_data[tserver].core; 
     }
 #endif

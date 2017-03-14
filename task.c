@@ -3,6 +3,12 @@
 #include "onewaybuffer.h"
 #include "benchmark.h"
 #include <sys/mman.h>
+#if ENABLE_DL_DETECT_CC
+#include "dl_detect.h"
+#include "dl_detect_graph.h"
+#include "glo.h"
+#include "const.h"
+#endif
 
 int task_create(struct partition *p);
 int task_join(struct task *root_task);
@@ -178,6 +184,260 @@ void unblock_fn(int s, int tid)
     }
   }
 }
+
+void dl_detect_fn(int s)
+{
+  struct partition *p = &hash_table->partitions[s];
+  struct task *self = &p->unblock_task;
+  struct box_array *boxes = hash_table->boxes;
+  struct task *t;
+
+  int detect_cycle = 0;
+  struct int_pair_list mylist;
+  LIST_INIT(&mylist);
+
+  struct int_pair_list clear_list;
+  LIST_INIT(&clear_list);
+
+  struct int_pair_list release_list;
+  LIST_INIT(&release_list);
+
+  dl_detect_graph_init();
+
+  struct node src_node, trg_node;
+  uint64_t ts_source;
+  while (1) {
+
+	if (hash_table->quitting && nready == 1)
+		break;
+
+    // read the adjacency lists from the other servers
+	int prv_srv = -1;
+    for (int i = 0; i < (g_nservers - 1); i ++) {
+    	struct onewaybuffer *b = &boxes[s].boxes[i].out;
+    	int count = b->wr_index - b->rd_index;
+    	if (count) {
+    		uint64_t data[ONEWAY_BUFFER_SIZE];
+    		count = buffer_read_all(b, ONEWAY_BUFFER_SIZE, data, 0);
+    		assert(count);
+    		dprint("DL_DETECT SRV(%d): got %d messages from %d\n", s, count, i);
+
+    		int source_srv = -1;
+			int source_fiber = -1;
+			uint64_t source_ts = 0;
+			int target_srv = -1;
+			int target_fiber = -1;
+			uint64_t target_ts = 0;
+
+			struct node source_rmv_node;
+			struct node target_rmv_node;
+
+			uint64_t src_id = 0;
+			uint64_t dst_id = 0;
+
+
+			int swap = 1;
+			int j = 0;
+    		while (j < count) {
+    			uint64_t op = data[j] & HASHOP_MASK;
+
+    			switch(op) {
+    			case DL_DETECT_ADD_DEP_SRC:
+    				if (detect_cycle) {
+						struct int_pair_list_entry *l;
+						LIST_FOREACH(l, &mylist, next_int_pair) {
+							int found_deadlock = 0;
+
+							struct node deadlock_node;
+							int deadlock = dl_detect_graph_detect_cycle(src_node, &deadlock_node);
+
+							if (deadlock) {
+								/* The target will be the thread that sent the request for deadlock
+								 * i.e. the first element of the pairs list entry
+								 */
+								uint64_t msg;
+								msg = MAKE_HASH_MSG(deadlock_node.fib, deadlock_node.srv, (unsigned long) deadlock_node.elem_addr_to_add, DL_DETECT_ABT_TXN);
+								buffer_write_all(&boxes[g_nservers - 1].boxes[deadlock_node.sender_srv].in, 1, &msg, 1);
+								dprint("DL_DETECT SRV(%d): Sent ABORT message to srv %d for srv %d fib %d key %ld\n",
+										s, deadlock_node.sender_srv, deadlock_node.srv, deadlock_node.fib, ((struct elem *)(deadlock_node.elem_addr_to_add))->key);
+								dl_detect_graph_clear_dependency(deadlock_node);
+							}
+						}
+						while (LIST_FIRST(&mylist) != NULL) {
+							struct int_pair_list_entry *first_entry = LIST_FIRST(&mylist);
+							LIST_REMOVE(first_entry, next_int_pair);
+							free(first_entry);
+						}
+
+						detect_cycle = 0;
+					}
+    				source_ts = data[j + 1];
+    				source_fiber = HASHOP_GET_TID(data[j]);
+					source_srv = HASHOP_GET_OPID(data[j]);
+
+					src_node.srv = source_srv;
+					src_node.fib = source_fiber;
+					src_node.ts = source_ts;
+					src_node.elem_addr_to_add = HASHOP_GET_VAL(data[j]);
+					src_node.sender_srv = i;
+
+					src_id = source_srv * g_batch_size + source_fiber;
+					struct int_pair_list_entry *sentry = (struct int_pair_list_entry *) malloc(sizeof(struct int_pair_list_entry));
+					sentry->sender_srv = i;
+					sentry->cand_srv = source_srv;
+					sentry->cand_fib = source_fiber;
+					sentry->record_addr = (struct elem *)(HASHOP_GET_VAL(data[j]));
+					sentry->cand_ts = source_ts;
+//						entry->opid = HASHOP_GET_OPID(data[j]);
+					LIST_INSERT_HEAD(&mylist, sentry, next_int_pair);
+					j += 2;
+    				break;
+    			case DL_DETECT_ADD_DEP_TRG:
+    				target_fiber = HASHOP_GET_TID(data[j]);
+    				target_srv = HASHOP_GET_OPID(data[j]);
+    				target_ts = data[j + 1];
+    				assert(target_ts);
+
+    				trg_node.srv = target_srv;
+    				trg_node.fib = target_fiber;
+    				trg_node.ts = target_ts;
+    				trg_node.elem_addr_to_add = HASHOP_GET_VAL(data[j]);
+    				trg_node.sender_srv = i;
+
+    				dprint("DL_DETECT SRV(%d): received DL_DETECT_ADD_DEP message from %d\n", s, i);
+    				dprint("DL_DETECT SRV(%d): received dependency (%d,%d,%"PRIu64") --> (%d,%d,%"PRIu64") for key %"PRIu64"\n",
+    						s, source_srv, source_fiber, source_ts, target_srv, target_fiber, target_ts, ((struct elem *)(HASHOP_GET_VAL(data[j])))->key);
+    				fflush(stdout);
+					dst_id = target_srv * g_batch_size + target_fiber;
+
+					dl_detect_graph_add_dependency(src_node, &trg_node, 1);
+
+					detect_cycle = 1;
+					j += 2;
+    				break;
+    			case DL_DETECT_RMV_DEP_SRC:
+    				source_rmv_node.fib = HASHOP_GET_TID(data[j]);
+    				source_rmv_node.srv = HASHOP_GET_OPID(data[j]);
+    				source_rmv_node.ts = data[j + 1];
+    				dprint("DL_DETECT SRV(%d): received DL_DETECT_RMV_DEP_SRC message from %d for (%d,%d,%ld)\n", s, i,
+    							source_rmv_node.srv, source_rmv_node.fib, source_rmv_node.ts);
+    				j+=2;
+    				break;
+    			case DL_DETECT_RMV_DEP_TRG:
+    				target_rmv_node.fib = HASHOP_GET_TID(data[j]);
+    				target_rmv_node.srv = HASHOP_GET_OPID(data[j]);
+    				target_rmv_node.ts = data[j + 1];
+    				dprint("DL_DETECT SRV(%d): received DL_DETECT_RMV_DEP_TRG message from %d for (%d,%d,%ld)\n", s, i,
+    							target_rmv_node.srv, target_rmv_node.fib, target_rmv_node.ts);
+    				dl_detect_graph_rmv_dependency(&source_rmv_node, &target_rmv_node);
+    				j+=2;
+    				break;
+    			case DL_DETECT_CLR_DEP:
+    				dprint("DL_DETECT SRV(%d): received DL_DETECT_CLR_DEP message from %d\n", s, i);
+					struct int_pair_list_entry *rentry = (struct int_pair_list_entry *) malloc(sizeof(struct int_pair_list_entry));
+					rentry->sender_srv = i;
+					rentry->cand_srv = HASHOP_GET_OPID(data[j]);
+					rentry->cand_fib = HASHOP_GET_TID(data[j]);
+					rentry->record_addr = (struct elem *)(HASHOP_GET_VAL(data[j]));
+					rentry->cand_ts = data[j + 1];
+					dprint("DL_DETECT SRV(%d): DL_DETECT_CLR_DEP(%d,%d,%ld)\n", s, rentry->cand_srv, rentry->cand_fib, rentry->cand_ts);
+					LIST_INSERT_HEAD(&clear_list, rentry, next_int_pair);
+    				j += 2;
+    				break;
+    			case DL_DETECT_MARK_READY:
+    				dprint("DL_DETECT SRV(%d): received DL_DETECT_MARK_READY message from %d\n", s, i);
+    				struct int_pair_list_entry *mentry = (struct int_pair_list_entry *) malloc(sizeof(struct int_pair_list_entry));
+    				mentry->cand_srv = HASHOP_GET_OPID(data[j]);
+    				mentry->cand_fib = HASHOP_GET_TID(data[j]);
+    				mentry->record_addr = (struct elem *)(HASHOP_GET_VAL(data[j]));
+    				mentry->sender_srv = i;
+    				LIST_INSERT_HEAD(&release_list, mentry, next_int_pair);
+    				j++;
+    				break;
+    			case DL_DETECT_ABT_TXN:
+    				dprint("DL_DETECT SRV(%d): Should not receive ABORT message\n", s);
+    				j++;
+    				break;
+    			default:
+    				dprint("Do now know how to handle this point: op = %ld\n", op);
+    			}
+    		}
+    	}
+    }
+
+    struct int_pair_list_entry *r;
+	LIST_FOREACH(r, &clear_list, next_int_pair) {
+		struct node n;
+		n.srv = r->cand_srv;
+		n.fib = r->cand_fib;
+		n.ts = r->cand_ts;
+		dl_detect_graph_clear_dependency(n);
+	}
+
+	LIST_FOREACH(r, &release_list, next_int_pair) {
+		struct lock_entry *l;
+		LIST_FOREACH(l, &r->record_addr->owners, next) {
+			if ((l->s == r->cand_srv) && (l->task_id == r->cand_fib)) {
+				dprint("DL_DETECT SRV(%d): Setting (%d,%d) ready\n", s, l->s, l->task_id);
+				l->ready = 1;
+				break;
+			}
+		}
+		if (r->cand_srv != r->sender_srv) {
+			mp_send_reply(s, r->cand_srv, r->cand_fib, 0, r->record_addr);
+		}
+	}
+
+    if (detect_cycle) {
+    	struct int_pair_list_entry *l;
+    	LIST_FOREACH(l, &mylist, next_int_pair) {
+    		int found_deadlock = 0;
+
+			struct node src_node;
+			src_node.srv = l->cand_srv;
+			src_node.fib = l->cand_fib;
+			src_node.ts = l->cand_ts;
+			src_node.elem_addr_to_add = (unsigned long) l->record_addr;
+
+			struct node deadlock_node;
+			int deadlock = dl_detect_graph_detect_cycle(src_node, &deadlock_node);
+
+			if (deadlock) {
+				/* The target will be the thread that sent the request for deadlock
+				 * i.e. the first element of the pairs list entry
+				 */
+				uint64_t msg;//[2];
+				msg = MAKE_HASH_MSG(deadlock_node.fib, deadlock_node.srv, (unsigned long) deadlock_node.elem_addr_to_add, DL_DETECT_ABT_TXN);
+				buffer_write_all(&boxes[g_nservers - 1].boxes[deadlock_node.sender_srv].in, 1, &msg, 1);
+				dprint("DL_DETECT SRV(%d): Sent ABORT message to srv %d for srv %d fib %d key %ld\n",
+						s, deadlock_node.sender_srv, deadlock_node.srv, deadlock_node.fib, ((struct elem *)(deadlock_node.elem_addr_to_add))->key);
+				dl_detect_graph_clear_dependency(deadlock_node);
+			}
+    	}
+
+    	detect_cycle = 0;
+    }
+
+    while (LIST_FIRST(&release_list) != NULL) {
+		struct int_pair_list_entry *first_entry = LIST_FIRST(&release_list);
+		LIST_REMOVE(first_entry, next_int_pair);
+		free(first_entry);
+	}
+
+    while (LIST_FIRST(&mylist) != NULL) {
+		struct int_pair_list_entry *first_entry = LIST_FIRST(&mylist);
+		LIST_REMOVE(first_entry, next_int_pair);
+		free(first_entry);
+	}
+
+    while (LIST_FIRST(&clear_list) != NULL) {
+		struct int_pair_list_entry *first_entry = LIST_FIRST(&clear_list);
+		LIST_REMOVE(first_entry, next_int_pair);
+		free(first_entry);
+	}
+  }
+}
+
 
 struct hash_query *get_next_query(struct hash_table *hash_table, int s, 
     struct task *ctask)

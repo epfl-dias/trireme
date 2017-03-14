@@ -19,8 +19,10 @@ EXTERN int g_nremote_ops;
 EXTERN int g_dist_threshold;
 EXTERN int g_write_threshold;
 EXTERN int g_batch_size;
+EXTERN volatile int nready;
 
 #if ENABLE_DL_DETECT_CC
+#include "dl_detect.h"
 EXTERN DL_detect dl_detector;
 #endif
 

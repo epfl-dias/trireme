@@ -220,6 +220,9 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 #if ENABLE_WAIT_DIE_CC
   LIST_INIT(&e->owners);
   LIST_INIT(&e->waiters);
+#elif ENABLE_DL_DETECT_CC
+  LIST_INIT(&e->owners);
+  TAILQ_INIT(&e->waiters);
 #endif
 
   LIST_INSERT_HEAD(eh, e, chain);
