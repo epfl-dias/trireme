@@ -169,7 +169,7 @@ static void se_make_operation(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   uint64_t nrecs = p->nrecs; 
-  uint64_t nrecs_per_server = nrecs / g_nservers;
+  uint64_t nrecs_per_server = g_nrecs / g_nservers;
 
   op->size = 0;
 
@@ -184,18 +184,19 @@ static void se_make_operation(struct hash_table *hash_table, int s,
     // use alpha parameter as the probability
     if (g_alpha == 0) {
        // Just pick random key
-        op->key = URand(&p->seed, 0, nrecs - 1);
+        op->key = URand(&p->seed, 0, g_nrecs - 1);
     } else {
       /* generate key based on bernoulli dist. alpha is probability
        * #items in one range = 0 to (nrecs * hot_fraction)
        * Based on probability pick right range
        */
       if (!is_local) {
-        //hot range
-        op->key = URand(&p->seed, 0, g_nhot_recs - 1);
+        int t_server = URand(&p->seed, 0, g_nhot_servers - 1);
+        op->key = t_server * nrecs_per_server + URand(&p->seed, 0, g_nhot_recs -1);
       } else {
         //cold range
-        op->key = URand(&p->seed, g_nhot_recs + 1, nrecs - 1);
+          int t_server = URand(&p->seed, 0, g_nservers - 1);
+        op->key = t_server * nrecs_per_server + URand(&p->seed, g_nhot_recs + 1, nrecs_per_server - 1);
       }
     }
   }
@@ -320,7 +321,12 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
   r = TXN_COMMIT;
   for (i = 0; i < query->nops; i++) {
     struct hash_op *op = &query->ops[i];
+    
+#if defined(MIGRATION)
+    int tserver = (int)(op->key * ((double)g_nservers/g_nrecs));
+#else
     int tserver = op->key / nrecs_per_partition;
+#endif
 
     // try ith operation i+1 times before aborting only with NOWAIT CC
 #if ENABLE_WAIT_DIE_CC || defined(SHARED_NOTHING)
@@ -330,6 +336,11 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
     for (int j = 0; j < nretries; j++) {
       value = txn_op(ctask, hash_table, s, op, tserver);
+      
+#if defined(MIGRATION)
+      s = ctask->s;
+      assert(s == get_affinity());
+#endif
       if (value)
         break;
     }

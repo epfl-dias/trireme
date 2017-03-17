@@ -3,6 +3,43 @@
 #include <sys/time.h>
 #include "headers.h"
 
+
+#if defined(MIGRATION)
+int aff_mat[1000];
+
+void fix_affinity(int s) {
+    aff_mat[sched_getcpu()] = s;
+}
+
+int get_affinity() {
+    return aff_mat[sched_getcpu()];
+}
+
+int get_socket_number(int s) {
+#if DIASCLD33
+    return hash_table->thread_data[s].core % 4;
+#else
+    return hash_table->thread_data[s].core / 2;
+#endif
+}
+
+int is_same_socket(int s, int k) {
+#if DIASCLD33
+    return (hash_table->thread_data[s].core % 4 == hash_table->thread_data[k].core % 4);
+#else
+    return (hash_table->thread_data[s].core / 2 == hash_table->thread_data[k].core / 2);
+#endif
+}
+
+int random_server_from_socket(unsigned int *seed, int s) {
+#if DIASCLD33
+    return s * 18 + RAND(seed, 18);
+#else
+    return s*2 + RAND(seed, 2);
+#endif
+}
+#endif //MIGRATION
+
 pid_t gettid(void) 
 {
   return syscall(__NR_gettid);

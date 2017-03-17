@@ -18,6 +18,9 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 #				ENABLE_BWAIT_CC ENABLE_SILO_CC ENABLE_DL_DETECT_CC
 #	key ordering: ENABLE_KEY_SORTING
 #
+#	migration: MIGRATION (use with NOLATCH because no latching is neccessary,
+#				but keep SE_LATCH because if not, locking does not work)
+#
 # 	trireme-specific options: ENABLE_OP_BATCHING
 #
 # 	hyperthreading: HT_ENABLED
@@ -31,7 +34,7 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 #
 # compile shared nothing with pthread_spinlock
 # compile trireme with nothing
-DFLAGS =
+DFLAGS = 
 CFLAGS = -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -g -ggdb -O3 -fno-omit-frame-pointer -D$(ARCH) -D$(PLATFORM) $(DFLAGS) #-DSE_INDEX_LATCH
 LFLAGS = -lpthread -lm -lrt -lnuma #-ltcmalloc
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<

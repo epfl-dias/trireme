@@ -25,6 +25,7 @@ void mp_send_reply(int s, int c, short task_id, short opid, struct elem *e);
 /**
  * Stats functions
  */
+int stats_get_task_stats(struct hash_table *hash_table);
 void stats_reset(struct hash_table *hash_table);
 int stats_get_ncommits(struct hash_table *hash_table);
 int stats_get_nlookups(struct hash_table *hash_table);

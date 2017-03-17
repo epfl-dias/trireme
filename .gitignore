@@ -1,0 +1,6 @@
+.cproject
+.project
+.settings/
+nbproject/
+*.o
+ycsb

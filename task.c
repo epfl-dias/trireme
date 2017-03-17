@@ -150,7 +150,7 @@ void unblock_fn(int s, int tid)
     process_requests(hash_table, s);
 
     //smp_flush_all(hash_table, s);
-
+#if !defined(MIGRATION)
     for (int i = 0; i < g_nservers; i++) {
       struct onewaybuffer *b = &boxes[s].boxes[i].out;
       int count = b->wr_index - b->rd_index;
@@ -182,6 +182,7 @@ void unblock_fn(int s, int tid)
         }
       }
     }
+#endif
   }
 }
 
@@ -516,7 +517,16 @@ void child_fn(int s, int tid)
     r = g_benchmark->run_txn(hash_table, self->s, next_query, self);
 #endif
 
+#if MIGRATION
+    s = self->s;
+    p = &hash_table->partitions[s];
+    assert(self->s == get_affinity());
+#endif
+    
     if (r == TXN_ABORT) {
+#if GATHER_STATS
+      self->naborts++;
+#endif
       next_query->state = HASH_QUERY_ABORTED;
       dprint("srv(%d):task %d txn aborted\n", s, self->tid);
       task_yield(p, TASK_STATE_READY);
@@ -527,6 +537,9 @@ void child_fn(int s, int tid)
 
       dprint("srv(%d): task %d rerunning aborted txn\n", s, self->tid);
     } else {
+#if GATHER_STATS
+      self->ncommits++;  
+#endif
       next_query->state = HASH_QUERY_COMMITTED;
       p->ncommits++;
     }
@@ -546,6 +559,15 @@ void child_fn(int s, int tid)
           next_query->ops[0].optype == OPTYPE_LOOKUP ? "lookup":"update", 
           p->q_idx, g_niters,
           next_query->ops[0].key);
+    }
+#endif
+    
+#if MIGRATION
+    if (self->s != self->origin) {
+        self->target = self->origin;
+        task_yield(p, TASK_STATE_MIGRATE);
+        s = self->s;
+        p = &hash_table->partitions[s];
     }
 #endif
 
@@ -593,6 +615,14 @@ void init_task(struct task *t, int tid, void (*fn)(), ucontext_t *next_ctx,
   t->ctx.uc_stack.ss_size = TASK_STACK_SIZE;
   t->ctx.uc_link = next_ctx;
   t->s = s;
+  t->origin = s;
+#if defined(GATHER_STATS)
+  t->run_time = 0;
+  t->times_scheduled = 0;
+  g_tasks[s][tid] = t;
+  t->ncommits = 0;
+  t->naborts = 0;
+#endif
   for (int i = 0; i < NQUERIES_PER_TASK; i++) {
     t->queries[i].state = HASH_QUERY_EMPTY;
     t->qidx = 0;
@@ -664,6 +694,10 @@ void task_yield(struct partition *p, task_state state)
 
   if (state == TASK_STATE_WAITING) {
     TAILQ_INSERT_TAIL(&p->wait_list, self, next);
+  } else if (state == TASK_STATE_MIGRATE) {
+#if !defined(MIGRATION)
+      assert(0);
+#endif
   } else {
     TAILQ_INSERT_TAIL(&p->ready_list, self, next);
   }
@@ -673,14 +707,36 @@ void task_yield(struct partition *p, task_state state)
   lightweight_swapcontext(&self->ctx, &p->root_task.ctx);
 }
 
+void send_migration(struct task *ctask, int target) {
+    uint64_t msg;
+    msg = MAKE_HASH_MSG(0, 0, (long unsigned int)ctask, HASHOP_MIGRATE);
+    buffer_write_all(&hash_table->boxes[ctask->s].boxes[target].in, 1, &msg, 1);
+}
+
+void task_resume_migration(struct task *ctask, struct partition *p) {
+    assert(ctask->state == TASK_STATE_MIGRATE);
+    ctask->state = TASK_STATE_READY;
+    TAILQ_INSERT_TAIL(&p->ready_list, ctask, next);
+}
+
 int task_join(struct task *root_task)
 {
   struct task *t;
   int s = root_task->s;
   struct partition *p = &hash_table->partitions[s];
 
+  double t_st = now();
+  double t_en = t_st;
 schedule:
+#if defined(MIGRATION)
+  if (hash_table->quitting) {
+      goto scheduleend;
+  }
+    assert(root_task==&p->root_task);
+#endif
   t = TAILQ_FIRST(&p->ready_list);
+  t->s = s;
+
   if (!t)
     dprint("srv(%d): EMPTY READYLIST??%d\n", s);
 
@@ -691,14 +747,29 @@ schedule:
 
   dprint("srv(%d): root scheduling task %d\n", s, t->tid);
 
+#if GATHER_STATS
+  t->times_scheduled++;
+  t_en = now();
+  root_task->run_time += t_en - t_st;
+  t_st = t_en;
+#endif
   lightweight_swapcontext(&root_task->ctx, &t->ctx);
+#if GATHER_STATS
+  t_en = now();
+  t->run_time += t_en - t_st;
+  t_st = t_en;
+#endif
 
   if (p->current_task->state == TASK_STATE_READY || 
     p->current_task->state == TASK_STATE_WAITING) {
     goto schedule;
+  } else if (p->current_task->state == TASK_STATE_MIGRATE) {
+      send_migration(p->current_task, p->current_task->target);
+      goto schedule;
   } else
     assert(p->current_task->state == TASK_STATE_FINISH);
 
+scheduleend:
   TAILQ_INSERT_HEAD(&p->free_list, p->current_task, next);
   
   return p->current_task->tid;
