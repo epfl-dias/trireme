@@ -1,6 +1,7 @@
 #include "headers.h"
 #include "smphashtable.h"
 #include "plmalloc.h"
+
 #if ENABLE_DL_DETECT_CC
 	#include "onewaybuffer.h"
 #endif
@@ -445,7 +446,11 @@ int bwait_check_acquire(struct elem *e, char optype)
 }
 #endif//IF_BWAIT
 
-#if ENABLE_DL_DETECT_CC
+
+/* XXX: Angelos, Raja, Remove shared everything here once we fix TAILQ 
+ * problem
+ */
+#if ENABLE_DL_DETECT_CC && !defined(SHARED_EVERYTHING)
 int dl_detect_check_acquire(struct elem *e, char optype)
 {
   int r;
@@ -1057,3 +1062,4 @@ void dl_detect_release(int s, struct partition *p, int c, int task_id,
 }
 
 #endif //ENABLE_DL_DETECT_CC
+

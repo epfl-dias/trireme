@@ -377,6 +377,7 @@ void dl_detect_fn(int s)
 
 	LIST_FOREACH(r, &release_list, next_int_pair) {
 		struct lock_entry *l;
+        /* XXX: Angelos Check this out!
 		LIST_FOREACH(l, &r->record_addr->owners, next) {
 			if ((l->s == r->cand_srv) && (l->task_id == r->cand_fib)) {
 				dprint("DL_DETECT SRV(%d): Setting (%d,%d) ready\n", s, l->s, l->task_id);
@@ -384,6 +385,7 @@ void dl_detect_fn(int s)
 				break;
 			}
 		}
+        */
 		if (r->cand_srv != r->sender_srv) {
 			mp_send_reply(s, r->cand_srv, r->cand_fib, 0, r->record_addr);
 		}

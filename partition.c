@@ -221,7 +221,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   LIST_INIT(&e->owners);
   LIST_INIT(&e->waiters);
 #elif ENABLE_DL_DETECT_CC
-  LIST_INIT(&e->owners);
+  TAILQ_INIT(&e->owners);
   TAILQ_INIT(&e->waiters);
 #endif
 

@@ -1370,7 +1370,7 @@ void process_requests(struct hash_table *hash_table, int s)
         	buffer_write_all(&boxes[req->s].boxes[s].out, 1, &out_msg, 1);
 			dprint("SRV %d sent LOCK ABORT to SRV %d FIB %d KEY %"PRIu64"; msg = %ld\n", s, req->s, req->tid, req->e->key, out_msg);
         } else {
-        	struct lock_tail_entry *le;
+        	struct lock_entry *le;
         	TAILQ_FOREACH(le, &req->e->waiters, next) {
         		dprint("srv(%d): Checking entry (%d,%d,%ld) with (%d,%d,%ld)\n", s,
 						le->s, le->task_id, le->ts,

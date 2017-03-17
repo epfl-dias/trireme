@@ -64,6 +64,7 @@ struct elem *get_waiting_entry(struct node *n) {
 		waiters = 0;
 		LIST_FOREACH(entry, &n->wel, nxt_waiting_elem) {
 			struct lock_tail_entry *l;
+            /* XXX: Angelos, check this out
 			TAILQ_FOREACH(l, &entry->e->waiters, next) {
 				if ((l->s == n->srv) && (l->task_id == n->fib + 2) && (l->ts == n->ts)) {
 					waiters ++;
@@ -71,6 +72,7 @@ struct elem *get_waiting_entry(struct node *n) {
 					n->sender_srv = entry->sender;
 				}
 			}
+            */
 		}
 //		if (waiters > 1) {
 //			LIST_FOREACH(entry, &n->wel, nxt_waiting_elem) {

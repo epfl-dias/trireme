@@ -19,10 +19,17 @@ void bwait_release(int s, struct partition *p, int c, int task_id,
     int op_id, struct elem *e);
 int bwait_check_acquire(struct elem *e, char optype);
 
+/*
 int dl_detect_acquire(int s, struct partition *p,
     int c, int task_id, int op_id, struct elem *e, char optype,
     struct lock_tail_entry **pl, uint64_t ts, int *notification);
 
 void dl_detect_release(int s, struct partition *p, int c, int task_id,
     int op_id, struct elem *e, int notify);
+
 int dl_detect_check_acquire(struct elem *e, char optype);
+*/
+
+#define dl_detect_acquire(a,b,c,d,e,f,g,h,i,j) 0
+#define dl_detect_release(a,b,c,d,e,f,g)
+#define dl_detect_check_acquire(a,b) 0

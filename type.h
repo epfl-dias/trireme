@@ -18,23 +18,18 @@ struct lock_entry {
   char optype;
   volatile char ready;
 #if ENABLE_DL_DETECT_CC
-    int *notify;
-#endif
+  int *notify;
+  TAILQ_ENTRY(lock_entry) next;
+#else
   LIST_ENTRY(lock_entry) next;
+#endif
 };
 
+#if ENABLE_DL_DETECT_CC
+TAILQ_HEAD(lock_tail, lock_entry);
+#else
 LIST_HEAD(lock_list, lock_entry);
-
-struct lock_tail_entry {
-	short task_id;
-	short op_id;
-	int s;
-	uint64_t ts;
-	char optype;
-	volatile char ready;
-	int *notify;
-	TAILQ_ENTRY(lock_tail_entry) next;
-};
+#endif
 
 /* dl_detect structures */
 LIST_HEAD(adj_list, adj_list_entry);
@@ -275,13 +270,13 @@ struct elem {
   uint64_t tid;
 
   // waiters and owners used for 2pl
-#if !defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC)
-  TAILQ_HEAD(lock_tail, lock_tail_entry) waiters;
+#if ENABLE_DL_DETECT_CC
+  struct lock_tail waiters;
+  struct lock_tail owners;
 #else
   struct lock_list waiters;
-//  TAILQ_HEAD(lock_tail, lock_tail_entry) waiters;
-#endif
   struct lock_list owners;
+#endif
 } __attribute__ ((aligned (CACHELINE)));
 
 LIST_HEAD(elist, elem);

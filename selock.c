@@ -499,7 +499,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 #if VERIFY_CONSISTENCY
 	if (conflict) {
 		int nowners = 0;
-		LIST_FOREACH(l, &e->owners, next) {
+		TAILQ_FOREACH(l, &e->owners, next) {
 			nowners ++;
 		}
 	}
@@ -512,7 +512,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 	}
 
 	if (!conflict) {
-		if (!LIST_EMPTY(&e->waiters)) {
+		if (!TAILQ_EMPTY(&e->waiters)) {
 			conflict = 1;
 		}
 	}
@@ -540,9 +540,9 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		target->optype = optype;
 		target->ready = 1;
 
-		LIST_INSERT_HEAD(&e->owners, target, next);
+		TAILQ_INSERT_HEAD(&e->owners, target, next);
 
-		LIST_FOREACH(l, &e->waiters, next) {
+		TAILQ_FOREACH(l, &e->waiters, next) {
 			DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
 		}
 	} else {
@@ -551,21 +551,21 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		bool dep_added = false;
 		int owners_cnt = 0;
 		int waiters_cnt = 0;
-		LIST_FOREACH(l, &e->owners, next) {
+		TAILQ_FOREACH(l, &e->owners, next) {
 			owners_cnt ++;
 		}
-		LIST_FOREACH(l, &e->waiters, next) {
+		TAILQ_FOREACH(l, &e->waiters, next) {
 			waiters_cnt ++;
 		}
 		txncnt = owners_cnt + waiters_cnt;
 		int cur = 0;
 		txnids = (uint64_t *) malloc(txncnt * sizeof(uint64_t));
 
-		LIST_FOREACH(l, &e->owners, next) {
+		TAILQ_FOREACH(l, &e->owners, next) {
 			txnids[cur] = l->task_id;
 			cur++;
 		}
-		LIST_FOREACH(l, &e->waiters, next) {
+		TAILQ_FOREACH(l, &e->waiters, next) {
 			txnids[cur] = l->task_id;
 			cur++;
 		}
@@ -624,10 +624,10 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		  // if we are allowed to wait, make a new lock entry and add it to
 		  // waiters list
 		  struct lock_entry *last_lock = NULL;
-		  LIST_FOREACH(l, &e->owners, next) {
+		  TAILQ_FOREACH(l, &e->owners, next) {
 			  dprint("srv(%d-%"PRIu64"): Waiting for owner %d\n", s, req_ts, l->task_id);
 		  }
-		  LIST_FOREACH(l, &e->waiters, next) {
+		  TAILQ_FOREACH(l, &e->waiters, next) {
 			  dprint("srv(%d-%"PRIu64"): Waiting for waiter %d\n", s, req_ts, l->task_id);
 			last_lock = l;
 		  }
@@ -639,15 +639,11 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		  target->task_id = g_tid;
 		  target->optype = optype;
 		  target->ready = 0;
-//		  if (l) {
-//			LIST_INSERT_BEFORE(l, target, next);
-//		  } else {
-			if (last_lock) {
-			  LIST_INSERT_AFTER(last_lock, target, next);
-			} else {
-			  LIST_INSERT_HEAD(&e->waiters, target, next);
-			}
-//		  }
+          if (last_lock) {
+              TAILQ_INSERT_AFTER(&e->waiters, last_lock, target, next);
+          } else {
+              TAILQ_INSERT_HEAD(&e->waiters, target, next);
+          }
 
 		  dprint("srv(%d-%"PRIu64"): DONE Preparing waiter list\n", s, req_ts);
 		} else {
@@ -710,7 +706,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
   struct lock_entry *lock_entry;
 
   int found_in_owners = 0;
-  LIST_FOREACH(lock_entry, &e->owners, next) {
+  TAILQ_FOREACH(lock_entry, &e->owners, next) {
 	if (lock_entry->task_id == g_tid) {
 		found_in_owners = 1;
 		break;
@@ -718,7 +714,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
   }
 
   if (!found_in_owners) {
-	  LIST_FOREACH(lock_entry, &e->owners, next) {
+	  TAILQ_FOREACH(lock_entry, &e->owners, next) {
 		  if (lock_entry->task_id == g_tid) {
 			  break;
 		  }
@@ -731,7 +727,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 
   assert(lock_entry);
 
-  LIST_REMOVE(lock_entry, next);
+  TAILQ_REMOVE(&e->owners, lock_entry, next);
 
   // decrement ref count as a owner is releasing a lock
   e->ref_count = (e->ref_count & ~DATA_READY_MASK) - 1;
@@ -739,7 +735,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
   plmalloc_free(p, lock_entry, sizeof(*lock_entry));
 
   // if there are no more owners, then refcount should be 1
-  if (LIST_EMPTY(&e->owners))
+  if (TAILQ_EMPTY(&e->owners))
 	assert(e->ref_count == 1);
 
    /* If lock_free is set, that means the new lock mode is decided by
@@ -747,7 +743,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
    * some readers. So only pending readers can be allowed. Keep
    * popping items from wait list as long as we have readers.
    */
-  lock_entry = LIST_FIRST(&e->waiters);
+  lock_entry = TAILQ_LAST(&e->waiters, lock_tail);
   while (lock_entry) {
 	char conflict = 0;
 
@@ -782,10 +778,10 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 	}
 
 	// remove from waiters, add to owners, mark as ready
-	LIST_REMOVE(lock_entry, next);
-	LIST_INSERT_HEAD(&e->owners, lock_entry, next);
+	TAILQ_REMOVE(&e->waiters, lock_entry, next);
+	TAILQ_INSERT_HEAD(&e->owners, lock_entry, next);
 	struct lock_entry *l;
-	LIST_FOREACH(l, &e->waiters, next) {
+	TAILQ_FOREACH(l, &e->waiters, next) {
 		uint64_t srv = lock_entry->task_id;
 		DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
 	}
@@ -795,7 +791,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 	  s, e->key, lock_entry->task_id);
 
 	// go to next element
-	lock_entry = LIST_FIRST(&e->waiters);
+	lock_entry = TAILQ_LAST(&e->waiters, lock_tail);
   }
 
   LATCH_RELEASE(&e->latch, &alock_state);
