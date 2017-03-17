@@ -4,6 +4,8 @@
  *  Created on: Mar 2, 2017
  *      Author: anadioti
  */
+#if ENABLE_DL_DETECT_CC
+
 #include <stdio.h>
 #include <sys/queue.h>
 #include <assert.h>
@@ -813,4 +815,4 @@ void dl_detect_graph_clear_all_dependencies(int idx, uint64_t ts) {
 //	LIST_INIT(&nodes_index[idx]);
 }
 
-
+#endif //DL_DETECT_ENABLED

@@ -29,9 +29,7 @@ void DL_detect_init(DL_detect *ptr) {
 	ptr->dependency = (DepThd *) malloc(g_nservers * g_batch_size * sizeof(DepThd));
 	ptr->V = g_nservers * g_batch_size;
 	for (int i = 0; i < g_nservers * g_batch_size; i ++) {
-#if !DL_DETECT_ENABLED
 		pthread_mutex_init(&ptr->dependency[i].lock, NULL);
-#endif
 		LIST_INIT(&ptr->dependency[i].adj);
 		ptr->dependency[i].adj_size = 0;
 		ptr->dependency[i].txnid = i;
@@ -43,9 +41,7 @@ DL_detect_add_dep_ts(struct partition *p, DL_detect *ptr, int srv_fib_id,
         uint64_t txnid1, uint64_t * txnids, int cnt, int num_locks) {
 
 	int thd1 = get_thdid_from_txnid(srv_fib_id);
-#if !DL_DETECT_ENABLED
 	pthread_mutex_lock( &ptr->dependency[thd1].lock );
-#endif
 	ptr->dependency[thd1].txnid = txnid1;
 	ptr->dependency[thd1].num_locks = num_locks;
 
@@ -60,9 +56,7 @@ DL_detect_add_dep_ts(struct partition *p, DL_detect *ptr, int srv_fib_id,
 
 	}
 	dprint("List size of thd %d now is %d\n", thd1, ptr->dependency[thd1].adj_size);
-#if !DL_DETECT_ENABLED
 	pthread_mutex_unlock( &ptr->dependency[thd1].lock );
-#endif
 	return 0;
 }
 
@@ -71,9 +65,7 @@ DL_detect_add_dep(struct partition *p, DL_detect *ptr, uint64_t txnid1,
         uint64_t * txnids, int cnt, int num_locks) {
 
 	int thd1 = get_thdid_from_txnid(txnid1);
-#if !DL_DETECT_ENABLED
 	pthread_mutex_lock( &ptr->dependency[thd1].lock );
-#endif
 	ptr->dependency[thd1].txnid = txnid1;
 	ptr->dependency[thd1].num_locks = num_locks;
 	
@@ -89,9 +81,7 @@ DL_detect_add_dep(struct partition *p, DL_detect *ptr, uint64_t txnid1,
 	}
 
 	dprint("List size of thd %d now is %d\n", thd1, ptr->dependency[thd1].adj_size);
-#if !DL_DETECT_ENABLED
 	pthread_mutex_unlock( &ptr->dependency[thd1].lock );
-#endif
 	return 0;
 }
 
@@ -99,9 +89,7 @@ int
 DL_detect_remove_dep(DL_detect *ptr, uint64_t to_remove) {
 	int ret = 0;
 	for (int thd = 0; thd < ptr->V; thd ++) {
-#if !DL_DETECT_ENABLED
 		pthread_mutex_lock( &ptr->dependency[thd].lock );
-#endif
 		struct adj_list_entry *cur = LIST_FIRST(&ptr->dependency[thd].adj);
 		while (cur != NULL) {
 			if (cur->entry == to_remove) {
@@ -112,9 +100,7 @@ DL_detect_remove_dep(DL_detect *ptr, uint64_t to_remove) {
 			}
 			cur = LIST_NEXT(cur, next);
 		}
-#if !DL_DETECT_ENABLED
 		pthread_mutex_unlock( &ptr->dependency[thd].lock );
-#endif
 	}
 
 	return ret;
@@ -126,9 +112,7 @@ DL_detect_nextNode(DL_detect *ptr, uint64_t txnid, DetectData * detect_data) {
 	assert( !detect_data->visited[thd] );
 	detect_data->visited[thd] = true;
 	detect_data->recStack[thd] = true;
-#if !DL_DETECT_ENABLED
 	pthread_mutex_lock( &ptr->dependency[thd].lock );
-#endif
 	int lock_num = ptr->dependency[thd].num_locks;
 	int txnid_num = ptr->dependency[thd].adj_size;
 	dprint("Thread %d has %d dependencies\n", thd, txnid_num);
@@ -137,9 +121,7 @@ DL_detect_nextNode(DL_detect *ptr, uint64_t txnid, DetectData * detect_data) {
 	
 	if (ptr->dependency[thd].txnid != (SInt64)txnid) {
 		detect_data->recStack[thd] = false;
-#if !DL_DETECT_ENABLED
 		pthread_mutex_unlock( &ptr->dependency[thd].lock );
-#endif
 		return false;
 	}
 	
@@ -150,9 +132,7 @@ DL_detect_nextNode(DL_detect *ptr, uint64_t txnid, DetectData * detect_data) {
 		dprint("Added element %d\n", entry_it->entry);
 	}
 	
-#if !DL_DETECT_ENABLED
 	pthread_mutex_unlock( &ptr->dependency[thd].lock );
-#endif
 
 	for (n = 0; n < txnid_num; n++) {
 		int nextthd = get_thdid_from_txnid( txnids[n] );
@@ -232,9 +212,7 @@ DL_detect_detect_cycle(struct partition *p, DL_detect *ptr, uint64_t txnid) {
 
 void DL_detect_clear_dep(struct partition *p, DL_detect *ptr, uint64_t txnid) {
 	int thd = get_thdid_from_txnid(txnid);
-#if !DL_DETECT_ENABLED
 	pthread_mutex_lock( &ptr->dependency[thd].lock );
-#endif
 	dprint("Clearing dependency for thread %d with txnid = %d\n", thd, txnid);
 	if (ptr == NULL) {
 		dprint("NULL pointer\n");
@@ -247,8 +225,6 @@ void DL_detect_clear_dep(struct partition *p, DL_detect *ptr, uint64_t txnid) {
 	}
 	ptr->dependency[thd].adj_size = 0;
 	ptr->dependency[thd].num_locks = 0;
-#if !DL_DETECT_ENABLED
 	pthread_mutex_unlock( &ptr->dependency[thd].lock );
-#endif
 }
 //#endif

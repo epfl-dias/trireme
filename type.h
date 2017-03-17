@@ -25,7 +25,6 @@ struct lock_entry {
 
 LIST_HEAD(lock_list, lock_entry);
 
-#if ENABLE_DL_DETECT_CC
 struct lock_tail_entry {
 	short task_id;
 	short op_id;
@@ -36,7 +35,6 @@ struct lock_tail_entry {
 	int *notify;
 	TAILQ_ENTRY(lock_tail_entry) next;
 };
-#endif
 
 /* dl_detect structures */
 LIST_HEAD(adj_list, adj_list_entry);

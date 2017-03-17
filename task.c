@@ -185,6 +185,7 @@ void unblock_fn(int s, int tid)
   }
 }
 
+#if ENABLE_DL_DETECT_CC
 void dl_detect_fn(int s)
 {
   struct partition *p = &hash_table->partitions[s];
@@ -437,7 +438,7 @@ void dl_detect_fn(int s)
 	}
   }
 }
-
+#endif
 
 struct hash_query *get_next_query(struct hash_table *hash_table, int s, 
     struct task *ctask)
