@@ -373,14 +373,14 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 //      break;
 //    }
     value = txn_op(ctask, hash_table, s, op, tserver);
+    #if defined(MIGRATION)
+    s = ctask->s;
+    assert(s == get_affinity());
+#endif
     if (!value) {
 	  r = TXN_ABORT;
 	  break;
 	}
-#if defined(MIGRATION)
-    s = ctask->s;
-    assert(s == get_affinity());
-#endif
 
     // in both lookup and update, we just check the value
     uint64_t *int_val = (uint64_t *)value;
