@@ -14,7 +14,7 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
     int client_id, int server, hash_key key, short op_id);
 void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
     int client_id, int s, int nqueries, struct hash_op **queries,
-    void **values);
+    void **values, int opid);
 
 void mp_release_value(struct hash_table *hash_table, int client_id, int target, int tid, int opid, void *ptr);
 void mp_mark_ready(struct hash_table *hash_table, int client_id, int target, int tid, int opid, void *ptr);

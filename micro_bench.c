@@ -329,26 +329,35 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
 
     // try ith operation i+1 times before aborting only with NOWAIT CC
-#if ENABLE_WAIT_DIE_CC || defined(SHARED_NOTHING)
-    int nretries = 1;
-#else
-    int nretries = i + 1;
-#endif
-    for (int j = 0; j < nretries; j++) {
-      value = txn_op(ctask, hash_table, s, op, tserver);
-      
-#if defined(MIGRATION)
-      s = ctask->s;
-      assert(s == get_affinity());
-#endif
-      if (value)
-        break;
-    }
-  
+//#if ENABLE_WAIT_DIE_CC || defined(SHARED_NOTHING)
+//    int nretries = 1;
+//#else
+//    int nretries = i + 1;
+//#endif
+//    for (int j = 0; j < nretries; j++) {
+//      value = txn_op(ctask, hash_table, s, op, tserver);
+//
+//#if defined(MIGRATION)
+//      s = ctask->s;
+//      assert(s == get_affinity());
+//#endif
+//      if (value)
+//        break;
+//    }
+//
+//    if (!value) {
+//      r = TXN_ABORT;
+//      break;
+//    }
+    value = txn_op(ctask, hash_table, s, op, tserver);
     if (!value) {
-      r = TXN_ABORT;
-      break;
-    }
+	  r = TXN_ABORT;
+	  break;
+	}
+#if defined(MIGRATION)
+    s = ctask->s;
+    assert(s == get_affinity());
+#endif
 
     // in both lookup and update, we just check the value
     uint64_t *int_val = (uint64_t *)value;

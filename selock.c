@@ -793,6 +793,7 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 	// remove from waiters, add to owners, mark as ready
 	TAILQ_REMOVE(&e->waiters, lock_entry, next);
 	TAILQ_INSERT_HEAD(&e->owners, lock_entry, next);
+	DL_detect_clear_dep(p, &dl_detector, (uint64_t) lock_entry->task_id);
 	struct lock_entry *l;
 	TAILQ_FOREACH(l, &e->waiters, next) {
 		uint64_t srv = lock_entry->task_id;

@@ -130,7 +130,7 @@ void hash_remove(struct partition *p, struct elem *e)
   //}
   plmalloc_efree(p, e);
 
-  dprint("Deleted %"PRId64"\n", e->key);
+//  dprint("Deleted %"PRId64"\n", e->key);
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_RELEASE(&b->latch, &alock_state);

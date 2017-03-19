@@ -61,7 +61,7 @@ void *hash_table_server(void* args);
 int is_value_ready(struct elem *e);
 void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
     int client_id, int server, int nqueries, struct hash_op **queries,
-    void **values);
+    void **values, int opid);
 int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table,
     int client_id, int server, hash_key key, short opid);
 int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
@@ -216,11 +216,9 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 {
   struct elem *e;
   uint32_t t = op->optype;
-#if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
-  struct lock_tail_entry *l = NULL;
-  int notification = 0;
-#else
   struct lock_entry *l = NULL;
+#if ENABLE_DL_DETECT_CC
+  int notification = 0;
 #endif
 
   int r;
@@ -256,7 +254,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_SILO_CC
       r = LOCK_SUCCESS;
 #elif ENABLE_DL_DETECT_CC
-      r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */,
+      r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
       		  e, t, &l, ctx->ts, &notification);
 #else
 #error "No CC algorithm specified"
@@ -304,7 +302,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_SILO_CC
       r = LOCK_SUCCESS;
 #elif ENABLE_DL_DETECT_CC
-      r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, 0 /* opid */,
+      r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
                 e, t, &l, ctx->ts, &notification);
 #else
 #error "No CC algorithm specified"
@@ -325,8 +323,12 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #endif
           task_yield(p, TASK_STATE_READY);
 
-        if (l->ready == LOCK_ABORT_NXT)
-        	r = LOCK_ABORT;
+		if (l->ready == LOCK_ABORT_NXT) {
+			dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
+			r = LOCK_ABORT;
+			return NULL;
+		}
+
         else
 #if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
         	assert((l->ready == 1) || (notification == 1));
@@ -342,7 +344,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #if defined(ENABLE_BWAIT_CC)
         assert(0);
 #elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
-        dl_detect_release(s, p, s, ctask->tid, 0, e, 0);
+        dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
 #endif
 
         p->naborts_local++;
@@ -459,7 +461,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 
     // Some other CC protocol (not Silo). This is a remote access
     // call the corresponding authority and block
-    smp_hash_doall(ctask, hash_table, s, target, 1, &op, &value);
+    smp_hash_doall(ctask, hash_table, s, target, 1, &op, &value, ctx->nops);
 
 #endif //EN_SILO_CC
 
@@ -1145,7 +1147,7 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_SILO_CC
           assert(0);
 #elif ENABLE_DL_DETECT_CC
-          struct lock_tail_entry *l;
+          struct lock_entry *l;
 
 		  r = dl_detect_acquire(s, p, i, tid, opid, e, OPTYPE_INSERT, &l, inbuf[j + 2], &notification);
 #else
@@ -1198,18 +1200,19 @@ void process_requests(struct hash_table *hash_table, int s)
 #if ENABLE_DL_DETECT_CC
         case DL_DETECT_ABT_TXN:
         {
-		    struct req *req = &reqs[nreqs];
-		    reqs[nreqs].s = HASHOP_GET_OPID(inbuf[j]);
-		    req->optype = DL_DETECT_ABT_TXN;
-		    req->tid = HASHOP_GET_TID(inbuf[j]) + 2;
-		    req->opid = 0;
-		    reqs[nreqs].e = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
-		    req->r = LOCK_ABORT;
-		    abt_srv = HASHOP_GET_OPID(inbuf[j]);
-		    nreqs++;
-		    j++;
-		    dprint("srv(%d) will abort the txn of srv %d fiber %d key %ld after receiving a msg from srv %d\n", s, abt_srv, req->tid, req->e->key, i);
-		    break;
+        	struct req *req = &reqs[nreqs];
+			reqs[nreqs].s = HASHOP_GET_OPID(inbuf[j]);
+			req->optype = DL_DETECT_ABT_TXN;
+			req->tid = HASHOP_GET_TID(inbuf[j]) + 2;
+			req->opid = HASHOP_TSMSG_GET_OPID(inbuf[j + 1]);
+			req->ts = HASHOP_TSMSG_GET_TS(inbuf[j + 1]);
+			reqs[nreqs].e = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
+			req->r = LOCK_ABORT;
+			abt_srv = HASHOP_GET_OPID(inbuf[j]);
+			nreqs++;
+			j += 2;
+			dprint("srv(%d) will abort the txn of srv %d fiber %d key %ld after receiving a msg from srv %d\n", s, abt_srv, req->tid, req->e->key, i);
+			break;
         }
 #endif
         default:
@@ -1357,7 +1360,7 @@ void process_requests(struct hash_table *hash_table, int s)
               reqs[k].e->tid |= SILO_LOCK_BIT;
           }
 #elif ENABLE_DL_DETECT_CC
-          struct lock_tail_entry *l = NULL;
+          struct lock_entry *l = NULL;
 
 		  res = dl_detect_acquire(s, p, i, reqs[k].tid,
 			  reqs[k].opid, reqs[k].e,
@@ -1401,7 +1404,6 @@ void process_requests(struct hash_table *hash_table, int s)
          * from the owners and the waiters list for that key.
          * Then, send the message to the thread, which issued the txn.
          */
-
         if (s != req->s) {
         	dl_detect_release(s, p, req->s, req->tid, req->opid, req->e, 0);
         	buffer_write_all(&boxes[req->s].boxes[s].out, 1, &out_msg, 1);
@@ -1414,13 +1416,13 @@ void process_requests(struct hash_table *hash_table, int s)
 						req->s, req->tid, req->ts);
 				if ((le->s == req->s) && (le->task_id == req->tid)) {
 					le->ready = LOCK_ABORT_NXT;
+					*(le->notify) = 1;
 					break;
 				}
         	}
         	assert(le != NULL);
         	dprint("SRV %d ABORTING local txn for FIB %d KEY %"PRIu64"; msg = %ld\n", s, req->tid, req->e->key, out_msg);
         }
-
 #else
         buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
 #endif
@@ -1653,7 +1655,7 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
 
 void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
     int client_id, int s, int nqueries, struct hash_op **queries,
-    void **values)
+    void **values, int opid)
 {
   int r, i;
   uint64_t val;
@@ -1675,7 +1677,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
         int s_coreid = hash_table->thread_data[s].core;
         int c_coreid = hash_table->thread_data[client_id].core;
 
-        msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key,
+        msg_data[0] = MAKE_HASH_MSG(ctask->tid, opid, queries[i]->key,
             HASHOP_LOOKUP);
 
 #if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
@@ -1696,7 +1698,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
         dprint("srv(%d): issue remote update op key %" PRIu64 " to %d\n",
           client_id, queries[i]->key, s);
 
-        msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key,
+        msg_data[0] = MAKE_HASH_MSG(ctask->tid, opid, queries[i]->key,
             HASHOP_UPDATE);
 
 #if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
@@ -1717,7 +1719,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
         dprint("srv(%d): issue remote insert op key %" PRIu64 " to %d\n",
           client_id, queries[i]->key, s);
 
-        msg_data[0] = MAKE_HASH_MSG(ctask->tid, i, queries[i]->key,
+        msg_data[0] = MAKE_HASH_MSG(ctask->tid, opid, queries[i]->key,
             HASHOP_INSERT);
 
         msg_data[1] = queries[i]->size;
@@ -1765,7 +1767,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
     val = ctask->received_responses[i];
 
     assert(HASHOP_GET_TID(val) == ctask->tid);
-    assert(HASHOP_GET_OPID(val) == i);
+    assert(HASHOP_GET_OPID(val) == opid);
 
     values[i] = (void *)(unsigned long)HASHOP_GET_VAL(val);
     i++;

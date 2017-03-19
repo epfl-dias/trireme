@@ -43,7 +43,7 @@ LIBSRC =  htlock.c ycsb.c smphashtable.c onewaybuffer.c \
 				 alock.c tlock.c taslock.c rwticket_lock.c sspinlock.c rwlock.c drwlock.c clh.c\
 				 partition.c util.c zipf.c micro_bench.c twopl.c silo.c \
 				 ia32msr.c ia32perf.c selock.c \
-					plmalloc.c task.c tpcc.c dl_detect.c dl_detect_graph.c
+					plmalloc.c task.c tpcc.c dl_detect.c mp_dl_detect_graph.c
 
 LIBOBJS = $(LIBSRC:.c=.o)
 

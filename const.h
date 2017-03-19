@@ -40,7 +40,12 @@
 #define YCSB_REC_SZ (YCSB_NFIELDS * YCSB_FIELD_SZ)
 
 /* commn. buffer constants */
-#define ONEWAY_BUFFER_SIZE  (32 * (CACHELINE >> 3)) 
+#if ENABLE_DL_DETECT_CC
+#define ONEWAY_BUFFER_SIZE  (1024 * (CACHELINE >> 3))
+#else
+#define ONEWAY_BUFFER_SIZE  (32 * (CACHELINE >> 3))
+#endif // ENABLE_DL_DETECT_CC
+
 #define BUFFER_FLUSH_COUNT  8
 
 /* max ops per query is limited by hashop_opid_mask */
@@ -83,6 +88,18 @@
 #define HASHOP_GET_OPID(msg)   (((msg) & HASHOP_OPID_MASK) >> 48)
 #define HASHOP_GET_VAL(msg)   ((msg) & ~HASHOP_TID_MASK & ~HASHOP_MASK & ~HASHOP_OPID_MASK)
 
+#if ENABLE_DL_DETECT_CC
+#define HASHOP_TSMSG_OPID_MASK	0xFF00000000000000
+#define HASHOP_TSMSG_TS_MASK	0x00FFFFFFFFFFFFFF
+
+#define MAKE_TS_MSG(opid,ts)\
+	((unsigned long)(opid) << 56UL) | (ts >> 8)
+
+#define HASHOP_TSMSG_GET_OPID(msg)   (((msg) & HASHOP_TSMSG_OPID_MASK) >> 56)
+#define HASHOP_TSMSG_GET_TS(msg)   ((msg) & HASHOP_TSMSG_TS_MASK)
+
+#endif
+
 #define HASHOP_LOOKUP         0x1000000000000000 
 #define HASHOP_INSERT         0x2000000000000000 
 #define HASHOP_UPDATE         0x3000000000000000 
@@ -98,7 +115,6 @@
 #define DL_DETECT_RMV_DEP_TRG	  0xA000000000000000
 #define DL_DETECT_CLR_DEP	      0xB000000000000000
 #define DL_DETECT_ABT_TXN         0xC000000000000000
-#define DL_DETECT_MARK_READY	  0xD000000000000000
 #endif
 
 #define RELEASE_MSG_LENGTH 1
