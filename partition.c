@@ -24,11 +24,10 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
   p->ncommits = 0;
   p->nlookups_local = 0;
   p->nupdates_local = 0;
-  p->naborts_local = 0;
+  p->naborts = 0;
 
   p->nlookups_remote = 0;
   p->nupdates_remote = 0;
-  p->naborts_remote = 0;
 
   p->busyclock = 0;
   p->idleclock = 0;

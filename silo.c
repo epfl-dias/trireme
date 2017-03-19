@@ -316,8 +316,6 @@ final:
     if (r == TXN_ABORT) {
         dprint("srv(%d): silo aborting txn\n", s);
 
-        p->naborts_local++;
-
         for (int i = 0; i < nlocks; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
 #if SILO_USE_ATOMICS

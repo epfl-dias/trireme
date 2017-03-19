@@ -412,7 +412,6 @@ void child_fn(int s, int tid)
       self->ncommits++;  
 #endif
       next_query->state = HASH_QUERY_COMMITTED;
-      p->ncommits++;
     }
 
     // After each txn, call process request

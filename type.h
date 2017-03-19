@@ -420,10 +420,9 @@ struct partition {
   int ncommits;
   int nlookups_local;
   int nupdates_local;
-  int naborts_local;
+  int naborts;
   int nlookups_remote;
   int nupdates_remote;
-  int naborts_remote;
 
   unsigned int seed;
 

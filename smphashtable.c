@@ -237,7 +237,6 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 
 #if SHARED_EVERYTHING
       if (!selock_acquire(p, e, t, ctx->ts)) {
-        p->naborts_local++;
         return NULL;
       }
 #elif SHARED_NOTHING
@@ -256,7 +255,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_DL_DETECT_CC
       r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
       		  e, t, &l, ctx->ts, &notification);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
 
@@ -281,7 +280,6 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 
 #if SHARED_EVERYTHING
       if (!selock_acquire(p, e, t, ctx->ts)) {
-        p->naborts_local++;
         return NULL;
       }
 #elif SHARED_NOTHING
@@ -304,7 +302,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_DL_DETECT_CC
       r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
                 e, t, &l, ctx->ts, &notification);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE
 
@@ -347,7 +345,6 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
         dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
 #endif
 
-        p->naborts_local++;
         return NULL;
       }
 
@@ -470,10 +467,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
       e = (struct elem *)value;
       value = e->value;
       assert(value);
-    } else {
-#if GATHER_STATS
-      p->naborts_remote++;
-#endif
     }
   }
 
@@ -658,7 +651,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
                         opids ? opids[nops] : 0, octx->e, release_notify);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
 #endif //IF_SHARED_EVERYTHING
@@ -718,7 +711,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
                         opids ? opids[nops] : 0, octx->e, release_notify);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
 #endif //SHARED_EVERYTHING
@@ -762,7 +755,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
 
@@ -796,6 +789,11 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
   smp_flush_all(hash_table, s);
 
   ctx->nops = 0;
+
+  if (status == TXN_COMMIT)
+      p->ncommits++;
+  else
+      p->naborts++;
 
   return status;
 }
@@ -930,9 +928,6 @@ int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
       } else {
         values[opid] = NULL;
         r = TXN_ABORT;
-#if GATHER_STATS
-        p->naborts_remote++;
-#endif
       }
     }
   }
@@ -1108,7 +1103,7 @@ void process_requests(struct hash_table *hash_table, int s)
               t->tid = t->tid & ~SILO_LOCK_BIT;
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, i, tid, opid, t, 1);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1150,7 +1145,7 @@ void process_requests(struct hash_table *hash_table, int s)
           struct lock_entry *l;
 
 		  r = dl_detect_acquire(s, p, i, tid, opid, e, OPTYPE_INSERT, &l, inbuf[j + 2], &notification);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1260,7 +1255,7 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_DL_DETECT_CC
       req->r = dl_detect_check_acquire(req->e,
           	  req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1304,7 +1299,7 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_DL_DETECT_CC
             reqs[k].r = dl_detect_check_acquire(reqs[k].e,
 				 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1366,7 +1361,7 @@ void process_requests(struct hash_table *hash_table, int s)
 			  reqs[k].opid, reqs[k].e,
 			  reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE,
 			  &l, reqs[k].ts, &notification);
-#else
+#elif !defined(SHARED_EVERYTHING)
 #error "No CC algorithm specified"
 #endif
           assert(res == reqs[k].r);
@@ -1536,6 +1531,7 @@ void *hash_table_server(void* args)
 
   printf("srv %d query time %.3f\n", s, tend - tstart);
   printf("srv %d total txns %d \n", s, p->q_idx);
+  printf("srv %d commited txns %d aborted %d\n", s, p->ncommits, p->naborts);
 
   fflush(stdout);
 
@@ -1884,10 +1880,9 @@ void stats_reset(struct hash_table *hash_table)
     hash_table->partitions[i].ninserts = 0;
     hash_table->partitions[i].nlookups_local = 0;
     hash_table->partitions[i].nupdates_local = 0;
-    hash_table->partitions[i].naborts_local = 0;
+    hash_table->partitions[i].naborts = 0;
     hash_table->partitions[i].nlookups_remote = 0;
     hash_table->partitions[i].nupdates_remote = 0;
-    hash_table->partitions[i].naborts_remote = 0;
   }
 }
 
@@ -1964,12 +1959,10 @@ int stats_get_naborts(struct hash_table *hash_table)
 {
   int naborts = 0;
   for (int i = 0; i < g_nservers; i++) {
-    printf("srv %d aborts local: %d remote %d \n", i,
-      hash_table->partitions[i].naborts_local,
-      hash_table->partitions[i].naborts_remote);
+    printf("srv %d aborts %d \n", i,
+      hash_table->partitions[i].naborts);
 
-    naborts += hash_table->partitions[i].naborts_local +
-      hash_table->partitions[i].naborts_remote;
+    naborts += hash_table->partitions[i].naborts; 
   }
 
   return naborts;

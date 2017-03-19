@@ -190,6 +190,7 @@ static void se_make_operation(struct hash_table *hash_table, int s,
        * #items in one range = 0 to (nrecs * hot_fraction)
        * Based on probability pick right range
        */
+        /*
       if (!is_local) {
         int t_server = URand(&p->seed, 0, g_nhot_servers - 1);
         op->key = t_server * nrecs_per_server + URand(&p->seed, 0, g_nhot_recs -1);
@@ -198,6 +199,28 @@ static void se_make_operation(struct hash_table *hash_table, int s,
           int t_server = URand(&p->seed, 0, g_nservers - 1);
         op->key = t_server * nrecs_per_server + URand(&p->seed, g_nhot_recs + 1, nrecs_per_server - 1);
       }
+      */
+
+        /* The two records we access remotely are hot records. The rest
+         * are cold accesses
+       */
+        hash_key delta;
+        int tserver;
+        if (!is_local) {
+            // pick random hot record
+            delta = URand(&p->seed, 0, g_nhot_recs - 1);
+
+            // pick random hot server
+            tserver = URand(&p->seed, 0, g_nhot_servers - 1);
+        } else {
+            // pick random cold record
+            delta = URand(&p->seed, g_nhot_recs + 1, nrecs_per_server - 1);
+
+            // cold is always local
+            tserver = s;
+        }
+
+        op->key = delta + (tserver * nrecs_per_server);
     }
   }
 }
