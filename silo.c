@@ -48,13 +48,22 @@ void silo_latch_release(int s, struct elem *e)
 {
     struct partition *p = &hash_table->partitions[s];
 
-#if SILO_USE_ATOMICS
     if (!(e->tid & SILO_LOCK_BIT)) {
         printf("srv(%d):lock bit not set for key %"PRIu64" tid is %"PRIu64"\n", s, e->key, e->tid);
         assert(0);
     }
 
     assert(e->tid & SILO_LOCK_BIT);
+
+#if defined(SHARED_EVERYTHING)
+#if SILO_USE_ATOMICS
+
+    e->tid = e->tid & (~SILO_LOCK_BIT);
+#else
+    LATCH_RELEASE(&e->latch, NULL);
+#endif //ATOMICS
+
+#else // message passing case
 
     bwait_release(s, p, s, p->current_task->g_tid, 0, e);
 
@@ -65,8 +74,7 @@ void silo_latch_release(int s, struct elem *e)
     // clear the tid bit
     if (!(e->ref_count & DATA_READY_MASK))
         e->tid = e->tid & (~SILO_LOCK_BIT);
-#else
-    LATCH_RELEASE(&e->latch, NULL);
+
 #endif
 }
 
