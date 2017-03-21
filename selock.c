@@ -3,9 +3,10 @@
 #include "benchmark.h"
 #include "twopl.h"
 #include "plmalloc.h"
-#include "dl_detect.h"
+//#include "dl_detect.h"
+#include "se_dl_detect_graph.h"
 
-#if SHARED_EVERYTHING
+//#if SHARED_EVERYTHING
 
 #if ENABLE_WAIT_DIE_CC
 int selock_wait_die_acquire(struct partition *p, struct elem *e, 
@@ -489,7 +490,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
     int g_tid = p->current_task->g_tid;
 
 	int r = 0;
-  char wait = 0;
+	char wait = 0;
 
 	dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64"\n", s, req_ts,
 			optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
@@ -548,9 +549,26 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 
 		TAILQ_INSERT_HEAD(&e->owners, target, next);
 
-		TAILQ_FOREACH(l, &e->waiters, next) {
-			DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
+		if (!TAILQ_EMPTY(&e->waiters)) {
+			struct se_dl_detect_graph_node src;
+			struct se_waiter_node dst;
+			dst.srvfib = g_tid;
+			dst.opid = 0;
+			dst.ts = req_ts;
+			src.neighbors = &dst;
+			src.waiters_size = 1;
+			src.e = e;
+			src.opid = 0;
+			TAILQ_FOREACH(l, &e->waiters, next) {
+				src.srvfib = l->task_id;
+				src.sender_srv = s;
+				src.ts = l->ts;
+
+//				DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
+				se_dl_detect_add_dependency(&src);
+			}
 		}
+
 	} else {
 		dprint("srv(%d-%"PRIu64"): There is conflict!!\n", s, req_ts);
 		uint64_t starttime = get_sys_clock();
@@ -564,19 +582,46 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 			waiters_cnt ++;
 		}
 		txncnt = owners_cnt + waiters_cnt;
-		int cur = 0;
-		txnids = (uint64_t *) malloc(txncnt * sizeof(uint64_t));
-
-		TAILQ_FOREACH(l, &e->owners, next) {
-			txnids[cur] = l->task_id;
-			cur++;
-		}
-		TAILQ_FOREACH(l, &e->waiters, next) {
-			txnids[cur] = l->task_id;
-			cur++;
-		}
 		wait = 1;
 		uint64_t txnid = g_tid;
+		if (txncnt) {
+			struct se_dl_detect_graph_node src;
+			src.neighbors = plmalloc_alloc(p, txncnt * sizeof(struct se_waiter_node));
+			src.e = e;
+			src.srvfib = g_tid;
+			src.opid = 0;
+			src.sender_srv = s;
+			src.ts = req_ts;
+			src.waiters_size = txncnt;
+
+			int cur = 0;
+			TAILQ_FOREACH(l, &e->owners, next) {
+				src.neighbors[cur].opid = 0;
+				src.neighbors[cur].srvfib = l->task_id;
+				src.neighbors[cur].ts = l->ts;
+				cur++;
+			}
+			TAILQ_FOREACH(l, &e->waiters, next) {
+				src.neighbors[cur].opid = 0;
+				src.neighbors[cur].srvfib = l->task_id;
+				src.neighbors[cur].ts = l->ts;
+				cur++;
+			}
+
+			int added = se_dl_detect_add_dependency(&src);
+			if (added) {
+				int deadlock_flag = 0;
+				int cycle = se_dl_detect_detect_cycle(g_tid, &src);
+				if (cycle) {
+					wait = 0;
+					se_dl_detect_clear_dependencies(&src, 1);
+				}
+			}
+
+			plmalloc_free(p, src.neighbors, txncnt * sizeof(struct se_waiter_node));
+		}
+
+#if 0
 		while (!lock_abort) {
 			uint64_t last_detect = starttime;
 			uint64_t last_try = starttime;
@@ -622,7 +667,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 			} else
 				PAUSE
 		}
-
+#endif
 		if (wait) {
 		  dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" put under wait\n",
 			s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
@@ -645,11 +690,11 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		  target->task_id = g_tid;
 		  target->optype = optype;
 		  target->ready = 0;
-          if (last_lock) {
-              TAILQ_INSERT_AFTER(&e->waiters, last_lock, target, next);
-          } else {
+//          if (last_lock) {
+//              TAILQ_INSERT_AFTER(&e->waiters, last_lock, target, next);
+//          } else {
               TAILQ_INSERT_HEAD(&e->waiters, target, next);
-          }
+//          }
 
 		  dprint("srv(%d-%"PRIu64"): DONE Preparing waiter list\n", s, req_ts);
 		} else {
@@ -793,12 +838,33 @@ void selock_dl_detect_release(struct partition *p, struct elem *e) {
 	// remove from waiters, add to owners, mark as ready
 	TAILQ_REMOVE(&e->waiters, lock_entry, next);
 	TAILQ_INSERT_HEAD(&e->owners, lock_entry, next);
-	DL_detect_clear_dep(p, &dl_detector, (uint64_t) lock_entry->task_id);
-	struct lock_entry *l;
-	TAILQ_FOREACH(l, &e->waiters, next) {
-		uint64_t srv = lock_entry->task_id;
-		DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
-	}
+//	DL_detect_clear_dep(p, &dl_detector, (uint64_t) lock_entry->task_id);
+	struct se_dl_detect_graph_node src;
+	src.e = e;
+	src.opid = 0;
+	src.sender_srv = s;
+	src.srvfib = lock_entry->task_id;
+	src.ts = lock_entry->ts;
+
+	se_dl_detect_clear_dependencies(&src, 0);
+
+//	struct se_waiter_node dst;
+//	src.neighbors = &dst;
+//	dst.opid = 0;
+//	dst.srvfib = lock_entry->task_id;
+//	dst.ts = lock_entry->ts;
+//
+//	src.waiters_size = 1;
+//	struct lock_entry *l;
+//	TAILQ_FOREACH(l, &e->waiters, next) {
+//		src.sender_srv = s;
+//		src.srvfib = l->task_id;
+//		src.ts = l->ts;
+//
+//		se_dl_detect_add_dependency(&src);
+////		uint64_t srv = lock_entry->task_id;
+////		DL_detect_add_dep(p, &dl_detector, l->task_id, &srv, 1, 1);
+//	}
 	lock_entry->ready = 1;
 
 	dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n",
@@ -859,4 +925,4 @@ void selock_release(struct partition *p, struct elem *e)
 #endif
 }
 
-#endif
+//#endif

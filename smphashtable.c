@@ -9,7 +9,7 @@
 #include "plmalloc.h"
 #include "twopl.h"
 #include "silo.h"
-#include "dl_detect.h"
+#include "se_dl_detect_graph.h"
 
 const char *optype_str[] = {"","lookup","insert","update","release"};
 #define OPTYPE_STR(optype) optype_str[optype >> 60]
@@ -163,7 +163,8 @@ void start_hash_table_servers(struct hash_table *hash_table)
 {
 #if ENABLE_DL_DETECT_CC
 #include "glo.h"
-	DL_detect_init(&dl_detector);
+//	DL_detect_init(&dl_detector);
+	se_dl_detect_init_dependency_graph();
 #endif
 
   int r;
@@ -782,8 +783,12 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
     }
   }
 #if (defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
-  DL_detect_clear_dep(p, &dl_detector, ctask->g_tid);
-  DL_detect_remove_dep(&dl_detector, ctask->g_tid);
+//  DL_detect_clear_dep(p, &dl_detector, ctask->g_tid);
+//  DL_detect_remove_dep(&dl_detector, ctask->g_tid);
+  struct se_dl_detect_graph_node src;
+  src.srvfib = ctask->g_tid;
+  src.ts = ctx->ts;
+  se_dl_detect_clear_dependencies(&src, status);
   dprint("Server %d finishing\n", s);
 #endif
   smp_flush_all(hash_table, s);
