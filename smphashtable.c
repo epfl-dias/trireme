@@ -256,7 +256,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_DL_DETECT_CC
       r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
       		  e, t, &l, ctx->ts, &notification);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
 
@@ -303,7 +303,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_DL_DETECT_CC
       r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
                 e, t, &l, ctx->ts, &notification);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE
 
@@ -652,7 +652,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
                         opids ? opids[nops] : 0, octx->e, release_notify);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
 #endif //IF_SHARED_EVERYTHING
@@ -712,7 +712,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
                         opids ? opids[nops] : 0, octx->e, release_notify);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
 #endif //SHARED_EVERYTHING
@@ -756,7 +756,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif //ENABLE_WAIT_DIE_CC
 
@@ -1108,7 +1108,7 @@ void process_requests(struct hash_table *hash_table, int s)
               t->tid = t->tid & ~SILO_LOCK_BIT;
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, i, tid, opid, t, 1);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1150,7 +1150,7 @@ void process_requests(struct hash_table *hash_table, int s)
           struct lock_entry *l;
 
 		  r = dl_detect_acquire(s, p, i, tid, opid, e, OPTYPE_INSERT, &l, inbuf[j + 2], &notification);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1260,7 +1260,7 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_DL_DETECT_CC
       req->r = dl_detect_check_acquire(req->e,
           	  req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1304,7 +1304,7 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_DL_DETECT_CC
             reqs[k].r = dl_detect_check_acquire(reqs[k].e,
 				 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
 
@@ -1366,7 +1366,7 @@ void process_requests(struct hash_table *hash_table, int s)
 			  reqs[k].opid, reqs[k].e,
 			  reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE,
 			  &l, reqs[k].ts, &notification);
-#elif !defined(SHARED_EVERYTHING)
+#elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
           assert(res == reqs[k].r);

@@ -3,11 +3,15 @@
 #include "benchmark.h"
 #include "silo.h"
 #include "plmalloc.h"
+#include "twopl.h"
 
 #if ENABLE_SILO_CC
 
 void silo_latch_acquire(int s, struct elem *e)
 {
+    struct partition *p = &hash_table->partitions[s];
+    struct lock_entry *l = NULL;
+
 #if SILO_USE_ATOMICS
 
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
@@ -17,11 +21,15 @@ void silo_latch_acquire(int s, struct elem *e)
 
 #else
 
+    int r = bwait_acquire(s, p, s /* client id */, p->current_task->g_tid,
+            0 /* opid */, e, OPTYPE_UPDATE, &l);
+
     // in messaging mode, we will be the only thread acquiring a latch on the
     // record. So we can simply set the bit without any synch. If someone else
     // has already set the bit, we can simply yield effectively waiting for it
     // to be released
-    while(e->tid & SILO_LOCK_BIT) { 
+    while(!l->ready) {
+        assert(e->tid & SILO_LOCK_BIT);
         task_yield(&hash_table->partitions[s], TASK_STATE_READY);
     }
 
@@ -38,15 +46,35 @@ void silo_latch_acquire(int s, struct elem *e)
 
 void silo_latch_release(int s, struct elem *e)
 {
-#if SILO_USE_ATOMICS
+    struct partition *p = &hash_table->partitions[s];
+
     if (!(e->tid & SILO_LOCK_BIT)) {
         printf("srv(%d):lock bit not set for key %"PRIu64" tid is %"PRIu64"\n", s, e->key, e->tid);
         assert(0);
     }
 
+    assert(e->tid & SILO_LOCK_BIT);
+
+#if defined(SHARED_EVERYTHING)
+#if SILO_USE_ATOMICS
+
     e->tid = e->tid & (~SILO_LOCK_BIT);
 #else
     LATCH_RELEASE(&e->latch, NULL);
+#endif //ATOMICS
+
+#else // message passing case
+
+    bwait_release(s, p, s, p->current_task->g_tid, 0, e);
+
+    // bwait will clear the lock entry for previous owner. if there is a
+    // waiter who is waiting, it becomes the new owner. so its lock entry
+    // moves from the waiters list to the owners list. in this case, the
+    // tid lock bit must remain set. but if there is no owner, we need to
+    // clear the tid bit
+    if (!(e->ref_count & DATA_READY_MASK))
+        e->tid = e->tid & (~SILO_LOCK_BIT);
+
 #endif
 }
 
@@ -251,7 +279,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
 
             void *tmp, *ptmp[1];
             ptmp[0] = tmp;
-            smp_hash_doall(ctask, hash_table, s, octx->target, 1, pop, ptmp);
+            smp_hash_doall(ctask, hash_table, s, octx->target, 1, pop, ptmp, 0);
 
             // the lock better be set
             assert(octx->e->tid & SILO_LOCK_BIT);
