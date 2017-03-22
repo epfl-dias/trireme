@@ -19,6 +19,7 @@ void bwait_release(int s, struct partition *p, int c, int task_id,
     int op_id, struct elem *e);
 int bwait_check_acquire(struct elem *e, char optype);
 
+void dl_detect_init_data_structures();
 int dl_detect_acquire(int s, struct partition *p,
     int c, int task_id, int op_id, struct elem *e, char optype,
     struct lock_entry **pl, uint64_t ts, int *notification);

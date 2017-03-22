@@ -71,7 +71,7 @@ struct hash_table *create_hash_table()
 {
 #if ENABLE_ASYMMETRIC_MESSAGING
   int nrecs_per_partition = g_nrecs / g_nhot_servers;
-#elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+#elif 0//(!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
   int nrecs_per_partition = g_nrecs / (g_nservers - 1);
 #else
   int nrecs_per_partition = g_nrecs / g_nservers;
@@ -99,7 +99,7 @@ struct hash_table *create_hash_table()
     init_hash_partition(&hash_table->partitions[i], nrecs_per_partition, 1);
 #endif
   }
-#if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+#if 0//(!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
   init_hash_partition(hash_table->g_partition, g_nrecs / (g_nservers - 1), 1);
 #else
   init_hash_partition(hash_table->g_partition, g_nrecs / g_nservers, 1);
@@ -165,6 +165,10 @@ void start_hash_table_servers(struct hash_table *hash_table)
 #include "glo.h"
 //	DL_detect_init(&dl_detector);
 	se_dl_detect_init_dependency_graph();
+#if !defined(SHARED_EVERYTHING)
+#include "twopl.h"
+	dl_detect_init_data_structures();
+#endif
 #endif
 
   int r;
@@ -271,7 +275,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
       if (!e) {
-        printf("srv(%d): lookup key %"PRIu64"failed\n", s, op->key);
+        printf("srv(%d): lookup key %"PRIu64" failed\n", s, op->key);
         assert(0);
       }
 
@@ -343,7 +347,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #if defined(ENABLE_BWAIT_CC)
         assert(0);
 #elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
-        dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
+//        dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
 #endif
 
         return NULL;
@@ -1366,10 +1370,16 @@ void process_requests(struct hash_table *hash_table, int s)
 			  reqs[k].opid, reqs[k].e,
 			  reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE,
 			  &l, reqs[k].ts, &notification);
+
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
+#if ENABLE_DL_DETECT_CC
+		  assert(res == LOCK_ABORT || res == reqs[k].r);
+		  reqs[k].r = res;
+#else
           assert(res == reqs[k].r);
+#endif
         }
 
       } else {
@@ -1399,7 +1409,7 @@ void process_requests(struct hash_table *hash_table, int s)
        */
       if (r == LOCK_ABORT) {
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, 0, 0);
-#if ENABLE_DL_DETECT_CC
+#if 0//ENABLE_DL_DETECT_CC
         /* First, remove the thread which issued the transaction
          * from the owners and the waiters list for that key.
          * Then, send the message to the thread, which issued the txn.
@@ -1471,7 +1481,7 @@ void *hash_table_server(void* args)
   if (s < g_nhot_servers)
       g_benchmark->load_data(hash_table, s);
 #else
-#if ENABLE_DL_DETECT_CC
+#if 0//ENABLE_DL_DETECT_CC
 
 // server N is the deadlock detector
  if (s < g_nservers - 1)
@@ -1522,7 +1532,7 @@ void *hash_table_server(void* args)
 
   if (s >= g_nhot_servers)
       task_libinit(s);
-#elif !defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC)
+#elif 0//!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC)
   if (s < g_nservers - 1)
 	  task_libinit(s);
   else {
@@ -1557,7 +1567,7 @@ void *hash_table_server(void* args)
 
   while (nready != 0)
 #if !defined (SHARED_EVERYTHING) && !defined (SHARED_NOTHING)
-#if ENABLE_DL_DETECT_CC
+#if 0//ENABLE_DL_DETECT_CC
 	  if (s < g_nservers - 1)
 #endif
     process_requests(hash_table, s);

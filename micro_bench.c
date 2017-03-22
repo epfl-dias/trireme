@@ -105,7 +105,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
   } else {
     delta = URand(&p->seed, 0, nrecs_per_server - 1);
-#if ENABLE_DL_DETECT_CC
+#if 0//ENABLE_DL_DETECT_CC
     tserver = URand(&p->seed, 0, g_nservers - 2);
 #else
     tserver = URand(&p->seed, 0, g_nservers - 1);
@@ -138,7 +138,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 
 #else
     while (!is_local && tserver == s) {
-#if ENABLE_DL_DETECT_CC
+#if 0//ENABLE_DL_DETECT_CC
 		tserver = URand(&p->seed, 0, g_nservers - 2);
 #else
 		tserver = URand(&p->seed, 0, g_nservers - 1);
@@ -348,8 +348,17 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #if defined(MIGRATION)
     int tserver = (int)(op->key * ((double)g_nservers/g_nrecs));
 #else
-    int tserver = op->key / nrecs_per_partition;
+    int tserver = ((int)(op->key)) / nrecs_per_partition;
 #endif
+    assert((tserver >= 0) && (tserver < g_batch_size * g_nservers));
+
+//    printf("The target server for key %ld is %d (should be %d); nrec_per_partition = %d\n",
+//    		op->key, tserver, (((int)(op->key))/nrecs_per_partition), nrecs_per_partition);
+//    dprint("The target server for key %"PRIu64" is %d (%"PRIu64"); nrec_per_partition = %d\n",
+//        		op->key, tserver, (op->key / nrecs_per_partition), nrecs_per_partition);
+//
+//    if ((op->key / nrecs_per_partition) != (((op->key))/nrecs_per_partition))
+//    	assert(0);
 
     // try ith operation i+1 times before aborting only with NOWAIT CC
 //#if ENABLE_WAIT_DIE_CC || defined(SHARED_NOTHING)
