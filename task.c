@@ -391,7 +391,6 @@ void child_fn(int s, int tid)
 #if MIGRATION
     s = self->s;
     p = &hash_table->partitions[s];
-    assert(self->s == get_affinity());
 #endif
     
     if (r == TXN_ABORT) {
