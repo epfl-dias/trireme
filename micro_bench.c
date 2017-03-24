@@ -184,7 +184,23 @@ static void se_make_operation(struct hash_table *hash_table, int s,
     // use alpha parameter as the probability
     if (g_alpha == 0) {
        // Just pick random key
+        
+#if MIGRATION
+        hash_key delta;
+        int tserver = s;
+        while (!is_local && tserver == s) {
+            tserver = URand(&p->seed, 0, g_nservers - 1);
+        }
+        delta = URand(&p->seed, 0, nrecs_per_server - 1);
+        
+        if (!is_local) {
+            op->key = delta + (tserver * nrecs_per_server);
+        } else {
+            op->key = delta + (s * nrecs_per_server);
+        }
+#else
         op->key = URand(&p->seed, 0, g_nrecs - 1);
+#endif
     } else {
       /* generate key based on bernoulli dist. alpha is probability
        * #items in one range = 0 to (nrecs * hot_fraction)
@@ -346,7 +362,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     struct hash_op *op = &query->ops[i];
     
 #if defined(MIGRATION)
-    int tserver = (int)(op->key * ((double)g_nservers/g_nrecs));
+    int tserver = (int)(op->key / (g_nrecs/g_nservers));
 #else
     int tserver = op->key / nrecs_per_partition;
 #endif
@@ -373,9 +389,8 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 //      break;
 //    }
     value = txn_op(ctask, hash_table, s, op, tserver);
-    #if defined(MIGRATION)
+#if defined(MIGRATION)
     s = ctask->s;
-    assert(s == get_affinity());
 #endif
     if (!value) {
 	  r = TXN_ABORT;
