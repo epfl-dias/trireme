@@ -1462,8 +1462,9 @@ void *hash_table_server(void* args)
 
 #if SHARED_EVERYTHING
   /* load only one partition in case of shared everything */
-  if (s == 0)
+  //if (s == 0)
     g_benchmark->load_data(hash_table, s);
+  
 #else
 
 #if ENABLE_ASYMMETRIC_MESSAGING

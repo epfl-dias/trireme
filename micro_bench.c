@@ -10,8 +10,15 @@ void micro_load_data(struct hash_table *hash_table, int id)
   uint64_t *value;
   struct partition *p = &hash_table->partitions[id];
 
+#if SHARED_EVERYTHING
+    // quick hack to get SE to load data from all threads
+  uint64_t nrecs_per_server = p->nrecs / g_nservers;
+  uint64_t qid = id * nrecs_per_server;
+  uint64_t eqid = qid + nrecs_per_server;
+#else
   uint64_t qid = id * p->nrecs;
   uint64_t eqid = qid + p->nrecs;
+#endif
 
   printf("Partition %d loading start record %"PRIu64" to end"
           "record %"PRIu64"\n", id, qid, eqid);
@@ -248,6 +255,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   int r = URand(&p->seed, 1, 99);
   char is_local = (r < g_dist_threshold || g_nservers == 1);
   char is_duplicate;
+  uint64_t nrecs_per_server = g_nrecs / g_nservers;
   
   query->nops = g_ops_per_txn;
 
@@ -262,7 +270,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 
     do {
       // only first NREMOTE_OPS are remote in cross-partition txns
-      if (is_local || i >= g_nremote_ops) {
+      if (is_local || (i >= g_nremote_ops && i < nrecs_per_server)) {
       //if (is_local || i >= g_nhot_recs) {
 #if SHARED_EVERYTHING
         se_make_operation(hash_table, s, op, 1);

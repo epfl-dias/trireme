@@ -53,9 +53,9 @@
 
 #define NQUERIES_PER_TASK 256
 
-#define MAX_TUPLE_TYPES 32
+#define MAX_TUPLE_TYPES 128
 
-#define RUN_TIME 5000000
+#define RUN_TIME 10000000
 
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
 // by default, disable socket local for shared everything/nothing

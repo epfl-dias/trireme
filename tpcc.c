@@ -1448,9 +1448,6 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
 
     } else {
       r = TXN_ABORT;
-#if GATHER_STATS
-      p->naborts_remote++;
-#endif
     }
   }
 

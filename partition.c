@@ -169,7 +169,13 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
         release_value_f *release)
 {  
   int h = hash_get_bucket(p, key);
+
+#if SHARED_EVERYTHING
+  // Quick hack to make all threads in SE load data
+  struct bucket *b = &(hash_table->partitions[0].table[h]);
+#else
   struct bucket *b = &p->table[h];
+#endif
   struct elem *e;
   int alock_state;
 
@@ -223,6 +229,9 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   TAILQ_INIT(&e->owners);
   TAILQ_INIT(&e->waiters);
 #endif
+
+  if (!LIST_EMPTY(eh))
+      assert(0);
 
   LIST_INSERT_HEAD(eh, e, chain);
 

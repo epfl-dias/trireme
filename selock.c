@@ -902,8 +902,6 @@ int selock_acquire(struct partition *p, struct elem *e,
   return 1;
 #elif ENABLE_DL_DETECT_CC
   return selock_dl_detect_acquire(p, e, optype, req_ts);
-#else
-#error "No CC algorithm specified"
 #endif
 }
 
@@ -920,8 +918,6 @@ void selock_release(struct partition *p, struct elem *e)
   return;
 #elif ENABLE_DL_DETECT_CC
   return selock_dl_detect_release(p, e);
-#else
-#error "No CC algorithm specified"
 #endif
 }
 

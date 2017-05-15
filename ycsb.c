@@ -150,6 +150,8 @@ int main(int argc, char *argv[])
     assert(g_nhot_servers <= g_nservers);
   }
   
+  // round down nrecs to a partition multiple
+  g_nrecs = (g_nrecs / g_nservers) * g_nservers;
 
   // set benchmark to micro for now
   //g_benchmark = &tpcc_bench;

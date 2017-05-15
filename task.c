@@ -402,8 +402,8 @@ void child_fn(int s, int tid)
       task_yield(p, TASK_STATE_READY);
 
       /* back off by sleeping. This is similar to the penalty in dbx100 */
-      uint64_t penalty = URand(&p->seed, 0, ABORT_PENALTY);
-      usleep(penalty / 1000);
+      //uint64_t penalty = URand(&p->seed, 0, ABORT_PENALTY);
+      //usleep(penalty / 1000);
 
       dprint("srv(%d): task %d rerunning aborted txn\n", s, self->tid);
     } else {
