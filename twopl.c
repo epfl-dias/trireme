@@ -3,7 +3,9 @@
 #include "plmalloc.h"
 
 #if ENABLE_DL_DETECT_CC
-	#include "onewaybuffer.h"
+#include "onewaybuffer.h"
+#include "se_dl_detect_graph.h"
+#include "glo.h"
 #endif
 
 extern int write_threshold;
@@ -448,27 +450,14 @@ int bwait_check_acquire(struct elem *e, char optype)
 
 
 #if ENABLE_DL_DETECT_CC
-int dl_detect_check_acquire(struct elem *e, char optype)
-{
-  int r;
+struct se_dl_detect_graph_node *dep_graph_nodes;
 
-  if (optype == OPTYPE_LOOKUP) {
-    if (!is_value_ready(e) || !(TAILQ_EMPTY(&e->waiters))) {
-      r = LOCK_WAIT;
-    } else {
-      r = LOCK_SUCCESS;
-    }
-  } else {
-    assert(optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
-    if (!is_value_ready(e) || e->ref_count > 1) {
-      r = LOCK_WAIT;
-    } else {
-      r = LOCK_SUCCESS;
-    }
-  }
-
-  return r;
-
+void dl_detect_init_data_structures() {
+	int all_servers = g_nservers * g_batch_size;
+	dep_graph_nodes = (struct se_dl_detect_graph_node *) malloc(all_servers * sizeof(struct se_dl_detect_graph_node));
+	for (int i = 0; i < all_servers; i ++) {
+		dep_graph_nodes[i].neighbors = (struct se_waiter_node *) malloc(all_servers * sizeof(struct se_waiter_node));
+	}
 }
 
 int not_two_readers_wo(struct lock_entry *lt, struct lock_entry *le) {
@@ -485,20 +474,15 @@ int not_two_readers_ww(struct lock_entry *lt, struct lock_entry *le) {
 	return 1;
 }
 
-void add_dependencies(int s, struct partition *p,
+int add_dependencies(int s, struct partition *p,
 		struct lock_entry *inserted_waiter, struct elem *e) {
-	struct dep_entry {
-		int srv;
-		int fib;
-		uint64_t ts;
-		short opid;
-		LIST_ENTRY(dep_entry) deps;
-	};
-	LIST_HEAD(dep_list, dep_entry);
-	struct dep_list dependencies;
-	LIST_INIT(&dependencies);
-
-	int added_dependencies = 0;
+	uint64_t node_id = inserted_waiter->s * g_batch_size + inserted_waiter->task_id - 2;
+	dep_graph_nodes[node_id].e = e;
+	dep_graph_nodes[node_id].opid = inserted_waiter->op_id;
+	dep_graph_nodes[node_id].sender_srv = s;
+	dep_graph_nodes[node_id].srvfib = node_id;
+	dep_graph_nodes[node_id].ts = inserted_waiter->ts;
+	dep_graph_nodes[node_id].waiters_size = 0;
 
 	struct lock_entry *nxt = TAILQ_NEXT(inserted_waiter, next);
 	// if a reader was inserted
@@ -510,13 +494,10 @@ void add_dependencies(int s, struct partition *p,
 		if (nxt != NULL) {
 			assert(not_two_readers_ww(inserted_waiter, nxt));
 			// this is a writer, so add a dependency
-			struct dep_entry *new_dep = (struct dep_entry *) malloc(sizeof(struct dep_entry));
-			new_dep->srv = nxt->s;
-			new_dep->fib = nxt->task_id - 2;
-			new_dep->ts = nxt->ts;
-			new_dep->opid = nxt->op_id;
-			LIST_INSERT_HEAD(&dependencies, new_dep, deps);
-			added_dependencies++;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = nxt->op_id;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_batch_size + nxt->task_id - 2;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = nxt->ts;
+			dep_graph_nodes[node_id].waiters_size++;
 		} else {
 			// add a dependency to the owner
 
@@ -528,13 +509,10 @@ void add_dependencies(int s, struct partition *p,
 					break;
 				}
 				assert(not_two_readers_wo(inserted_waiter, owner));
-				struct dep_entry *new_dep = (struct dep_entry *) malloc(sizeof(struct dep_entry));
-				new_dep->srv = owner->s;
-				new_dep->fib = owner->task_id - 2;
-				new_dep->ts = owner->ts;
-				new_dep->opid = owner->op_id;
-				LIST_INSERT_HEAD(&dependencies, new_dep, deps);
-				added_dependencies++;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = owner->op_id;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = owner->s * g_batch_size + owner->task_id - 2;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = owner->ts;
+				dep_graph_nodes[node_id].waiters_size++;
 			}
 
 		}
@@ -542,14 +520,11 @@ void add_dependencies(int s, struct partition *p,
 		// if a writer was inserted and there is a next node
 		if (nxt != NULL) {
 			// add a dependency to the next waiter
-			struct dep_entry *new_dep = (struct dep_entry *) malloc(sizeof(struct dep_entry));
-			new_dep->srv = nxt->s;
-			new_dep->fib = nxt->task_id - 2;
-			new_dep->ts = nxt->ts;
-			new_dep->opid = nxt->op_id;
-			LIST_INSERT_HEAD(&dependencies, new_dep, deps);
-			added_dependencies++;
 			assert(not_two_readers_ww(inserted_waiter, nxt));
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = nxt->op_id;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_batch_size + nxt->task_id - 2;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = nxt->ts;
+			dep_graph_nodes[node_id].waiters_size++;
 			// only if added a lookup node, move forward
 			if (nxt->optype == OPTYPE_LOOKUP) {
 				// move forward
@@ -560,26 +535,20 @@ void add_dependencies(int s, struct partition *p,
 			struct lock_entry *owner;
 			TAILQ_FOREACH(owner, &e->owners, next) {
 				assert(not_two_readers_wo(inserted_waiter, owner));
-				struct dep_entry *new_dep = (struct dep_entry *) malloc(sizeof(struct dep_entry));
-				new_dep->srv = owner->s;
-				new_dep->fib = owner->task_id - 2;
-				new_dep->ts = owner->ts;
-				new_dep->opid = owner->op_id;
-				LIST_INSERT_HEAD(&dependencies, new_dep, deps);
-				added_dependencies++;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = owner->op_id;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = owner->s * g_batch_size + owner->task_id - 2;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = owner->ts;
+				dep_graph_nodes[node_id].waiters_size++;
 			}
 		}
 
 		while ((nxt != NULL) && (nxt->optype == OPTYPE_LOOKUP)) {
 			assert(not_two_readers_ww(inserted_waiter, nxt));
 			// add a dependency
-			struct dep_entry *new_dep = (struct dep_entry *) malloc(sizeof(struct dep_entry));
-			new_dep->srv = nxt->s;
-			new_dep->fib = nxt->task_id - 2;
-			new_dep->ts = nxt->ts;
-			new_dep->opid = nxt->op_id;
-			LIST_INSERT_HEAD(&dependencies, new_dep, deps);
-			added_dependencies++;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = nxt->op_id;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_batch_size + nxt->task_id - 2;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = nxt->ts;
+			dep_graph_nodes[node_id].waiters_size++;
 			// move forward
 			nxt = TAILQ_NEXT(nxt, next);
 		}
@@ -587,29 +556,14 @@ void add_dependencies(int s, struct partition *p,
 		assert(0);
 	}
 
-	uint64_t msg[2 * added_dependencies + 2];
-	int msg_cnt = 0;
-	msg[msg_cnt++] = MAKE_HASH_MSG(inserted_waiter->task_id - 2, inserted_waiter->s, (unsigned long) e, DL_DETECT_ADD_DEP_SRC);
-	msg[msg_cnt++] = MAKE_TS_MSG(inserted_waiter->op_id, inserted_waiter->ts);
-
-	struct dep_entry *de, *de1;
-	LIST_FOREACH(de, &dependencies, deps) {
-		msg[msg_cnt++] = MAKE_HASH_MSG(de->fib, de->srv, (unsigned long) e, DL_DETECT_ADD_DEP_TRG);
-		msg[msg_cnt++] = MAKE_TS_MSG(de->opid, de->ts);
-		dprint("srv(%d-%"PRIu64"): Adding dep SRC(%d,%d,%ld) TRG (%d,%d,%ld) opid %d\n", s, e->key,
-				inserted_waiter->s, inserted_waiter->task_id, inserted_waiter->ts,
-				de->srv, de->fib, de->ts, inserted_waiter->op_id);
+	int deadlock = 0;
+	if (se_dl_detect_add_dependency(&dep_graph_nodes[node_id])) {
+		deadlock = se_dl_detect_detect_cycle(s, &dep_graph_nodes[node_id]);
+		if (deadlock) {
+			se_dl_detect_clear_dependencies(&dep_graph_nodes[node_id], 1);
+		}
 	}
-	struct box_array *boxes = hash_table->boxes;
-	buffer_write_all(&boxes[g_nservers - 1].boxes[s].out, msg_cnt, msg, 1);
-
-	de = LIST_FIRST(&dependencies);
-	while (de != NULL) {
-		de1 = LIST_NEXT(de, deps);
-		LIST_REMOVE(de, deps);
-		free(de);
-		de = de1;
-	}
+	return deadlock;
 }
 
 void update_dependencies(int s, struct partition *p, struct lock_entry *to_remove, struct elem *e) {
@@ -973,6 +927,29 @@ void update_dependencies(int s, struct partition *p, struct lock_entry *to_remov
 	}
 }
 
+int dl_detect_check_acquire(struct elem *e, char optype)
+{
+  int r;
+
+  if (optype == OPTYPE_LOOKUP) {
+    if (!is_value_ready(e) || !(TAILQ_EMPTY(&e->waiters))) {
+      r = LOCK_WAIT;
+    } else {
+      r = LOCK_SUCCESS;
+    }
+  } else {
+    assert(optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
+    if (!is_value_ready(e) || e->ref_count > 1) {
+      r = LOCK_WAIT;
+    } else {
+      r = LOCK_SUCCESS;
+    }
+  }
+
+  return r;
+
+}
+
 int dl_detect_acquire(int s, struct partition *p,
     int c, int task_id, int op_id, struct elem *e, char optype,
     struct lock_entry **pl, uint64_t ts, int *notification) {
@@ -1006,8 +983,14 @@ int dl_detect_acquire(int s, struct partition *p,
 		*pl = target;
 
 		TAILQ_INSERT_HEAD(&e->waiters, target, next);
-		add_dependencies(s, p, target, e);
-		r = LOCK_WAIT;
+		int deadlock = add_dependencies(s, p, target, e);
+		if (deadlock) {
+			TAILQ_REMOVE(&e->waiters, target, next);
+			r = LOCK_ABORT;
+		} else {
+			r = LOCK_WAIT;
+		}
+
 	} else {
 
 		if (optype == OPTYPE_LOOKUP)
@@ -1094,8 +1077,8 @@ void dl_detect_release(int s, struct partition *p, int c, int task_id,
 #endif
 		// can't be on neither owners nor waiters!
 		assert(lq);
-		if (!notify)
-			update_dependencies(s, p, lq, e);
+//		if (!notify)
+//			update_dependencies(s, p, lq, e);
 		TAILQ_REMOVE(&e->waiters, lq, next);
 		plmalloc_free(p, lq, sizeof(struct lock_entry));
 	}
