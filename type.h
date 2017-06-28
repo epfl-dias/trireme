@@ -255,6 +255,13 @@ typedef clh_qnode_ptr clh_lock;
 #define LATCH_RELEASE(latch, state)  pthread_mutex_unlock(latch)
 #endif
 
+// TODO: This should the ts for all cases. Right now, its used only for mvcc
+typedef struct {
+    uint64_t tsval;
+    int core;
+} timestamp;
+#define TSZERO {0,-1}
+
 /* base elem used to represent a tuple */
 struct elem {
   /* The total size in one cacheline including the latch and locks!!
@@ -275,7 +282,9 @@ struct elem {
 #endif
 
   // tid used for silo
+#if ENABLE_SILO_CC
   uint64_t tid;
+#endif
 
   // waiters and owners used for 2pl
 #if ENABLE_DL_DETECT_CC
@@ -284,6 +293,16 @@ struct elem {
 #else
   struct lock_list waiters;
   struct lock_list owners;
+#endif
+
+#if ENABLE_MVCC
+  // timestamps used for mvcc
+  timestamp ts;
+  timestamp max_rd_ts;
+
+  // mvcc also needs to maintain queue of versions
+  TAILQ_HEAD(version_list, elem) versions;
+  TAILQ_ENTRY(elem) prev_version;
 #endif
 } __attribute__ ((aligned (CACHELINE)));
 
@@ -337,7 +356,7 @@ struct op_ctx {
   int target;
   char optype; 
   struct elem *e;
-  void *data_copy;
+  struct elem *data_copy;
   uint64_t tid_copy;
 };
 

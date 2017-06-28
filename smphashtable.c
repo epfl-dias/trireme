@@ -8,6 +8,7 @@
 #include "tpcc.h"
 #include "plmalloc.h"
 #include "twopl.h"
+#include "mvcc.h"
 #include "silo.h"
 #include "se_dl_detect_graph.h"
 
@@ -241,9 +242,16 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       p->ninserts++;
 
 #if SHARED_EVERYTHING
+#if ENABLE_MVCC
+      // XXX: ADD SUPPORT FOR INSERTIONS
+      assert(0);
+
+#else
       if (!selock_acquire(p, e, t, ctx->ts)) {
         return NULL;
       }
+#endif //ENABLE_MVCC
+
 #elif SHARED_NOTHING
       // no logical locks. do nothing
 #else
@@ -284,9 +292,16 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
         break;
 
 #if SHARED_EVERYTHING
+
+#if ENABLE_MVCC
+      if (!(e = mvcc_acquire(p, e, t, ctx->ts)))
+          return NULL;
+#else
       if (!selock_acquire(p, e, t, ctx->ts)) {
-        return NULL;
+          return NULL;
       }
+#endif //ENABLE_MVCC
+
 #elif SHARED_NOTHING
       /* Do absolutely nothing for shared nothing as it proceeds by first
        * getting partition locks. So there is no need to get record locks
@@ -499,7 +514,8 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     if (op->optype == OPTYPE_LOOKUP || op->optype == OPTYPE_UPDATE) {
         int alock_state;
 
-        octx->data_copy = plmalloc_alloc(p, e->size);
+        octx->data_copy = plmalloc_ealloc(p);
+        octx->data_copy->value = plmalloc_alloc(p, e->size);
 
 #if SILO_USE_ATOMICS
         uint64_t old_tid = 0, new_tid = 1;
@@ -515,7 +531,8 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
                 old_tid = e->tid;
             }
 
-            memcpy(octx->data_copy, e->value, e->size);
+            memcpy(octx->data_copy, e, sizeof(struct elem));
+            memcpy(octx->data_copy->value, e->value, e->size);
 
             COMPILER_BARRIER();
         
@@ -527,7 +544,8 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #else
         silo_latch_acquire(s, e);
         octx->tid_copy = e->tid;
-        memcpy(octx->data_copy, e->value, e->size);
+        memcpy(octx->data_copy, e, sizeof(struct elem));
+        memcpy(octx->data_copy->value, e->value, e->size);
         silo_latch_release(s, e);
 #endif //IF_SILO_USE_ATOMICS
 
@@ -538,17 +556,19 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
                 ctx->nops, octx->e->tid, octx->tid_copy);
 
         // pass back the newly created value to keep read/write sets thread local
-        value = octx->data_copy;
+        value = octx->data_copy->value;
     } else {
         octx->data_copy = NULL;
     }
 
 #else
 
-    // in 2pl, we need to make copy only for updates
+    // in 2pl, we need to make copy only for updates. we use the same for mvcc
     if (op->optype == OPTYPE_UPDATE) {
-        octx->data_copy = plmalloc_alloc(p, e->size);
-        memcpy(octx->data_copy, e->value, e->size);
+        octx->data_copy = plmalloc_ealloc(p);
+        octx->data_copy->value = plmalloc_alloc(p, e->size);
+        memcpy(octx->data_copy, e, sizeof(struct elem));
+        memcpy(octx->data_copy->value, e->value, e->size);
     } else {
         octx->data_copy = NULL;
     }
@@ -633,6 +653,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             // in Silo, we always have local data copy in readset. Free it.
             assert (octx->data_copy);
             plmalloc_free(p, octx->data_copy, octx->e->size);
+            plmalloc_efree(p, e);
 #else
             assert (octx->data_copy == NULL);
 #endif //IF_SILO
@@ -693,15 +714,34 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #if ENABLE_SILO_CC
             ;
 #else
-            memcpy(octx->e->value, octx->data_copy, size);
+            memcpy(octx->e->value, octx->data_copy->value, size);
 #endif //IF_ENABLE_SILO
         }
 
-        plmalloc_free(p, octx->data_copy, size);
+#if ENABLE_MVCC
+        // in case of mvcc, we free the data copy only on aborts.
+        // otherwise, we version it
+        if (status == TXN_ABORT) {
+            plmalloc_free(p, octx->data_copy->value, size);
+            plmalloc_efree(p, octx->data_copy);
+        }
+#else
+        plmalloc_free(p, octx->data_copy->value, size);
+        plmalloc_efree(p, octx->data_copy);
+#endif
 
         if (octx->target == s) {
 #if SHARED_EVERYTHING
-          selock_release(p, octx->e);
+
+#if ENABLE_MVCC
+            if (status == TXN_COMMIT)
+                mvcc_release(p, octx->e, octx->data_copy);
+            else
+                mvcc_release(p, octx->e, NULL);
+#else
+            selock_release(p, octx->e);
+#endif //ENABLE_MVCC
+
 #else
 #if ENABLE_WAIT_DIE_CC
           wait_die_release(s, p, s, ctask->tid,

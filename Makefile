@@ -41,7 +41,7 @@ MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
 LIBSRC =  htlock.c ycsb.c smphashtable.c onewaybuffer.c \
 				 alock.c tlock.c taslock.c rwticket_lock.c sspinlock.c rwlock.c drwlock.c clh.c\
-				 partition.c util.c zipf.c micro_bench.c twopl.c silo.c \
+				 partition.c util.c zipf.c micro_bench.c twopl.c silo.c mvcc.c \
 				 ia32msr.c ia32perf.c selock.c \
 					plmalloc.c task.c tpcc.c se_dl_detect_graph.c mp_dl_detect_graph.c
 
