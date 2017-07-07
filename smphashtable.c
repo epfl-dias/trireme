@@ -568,6 +568,10 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
         octx->data_copy = plmalloc_ealloc(p);
         octx->data_copy->value = plmalloc_alloc(p, e->size);
         memcpy(octx->data_copy->value, e->value, e->size);
+
+#if ENABLE_MV2PL
+        value = octx->data_copy->value;
+#endif
     } else {
         octx->data_copy = NULL;
     }

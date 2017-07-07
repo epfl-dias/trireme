@@ -119,7 +119,7 @@ int mv2pl_validate(struct task *ctask, struct hash_table *hash_table, int s)
 
       /* if we have all certify locks, update data */
       if (r == LOCK_SUCCESS && octx->optype == OPTYPE_UPDATE)
-          memcpy(octx->e->value, octx->data_copy, octx->e->size);
+          memcpy(octx->e->value, octx->data_copy->value, octx->e->size);
 
       /* release lock */
       clear_lock(octx->optype, octx->e, i <= last_certified_wt);
