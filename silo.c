@@ -41,6 +41,8 @@ void silo_latch_acquire(int s, struct elem *e)
 
     LATCH_ACQUIRE(&e->latch, NULL);
 
+    e->tid |= SILO_LOCK_BIT;
+
 #endif
 }
 
@@ -371,7 +373,7 @@ final:
         for (int i = 0; i < wt_idx; i++) {
             struct op_ctx *octx = &ctx->op_ctx[write_set[i]];
 
-            memcpy(octx->e->value, octx->data_copy, octx->e->size);
+            memcpy(octx->e->value, octx->data_copy->value, octx->e->size);
 
             COMPILER_BARRIER();
 

@@ -8,7 +8,8 @@
 #include "tpcc.h"
 #include "plmalloc.h"
 #include "twopl.h"
-#include "mvcc.h"
+#include "mvto.h"
+#include "mv2pl.h"
 #include "silo.h"
 #include "se_dl_detect_graph.h"
 
@@ -242,7 +243,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       p->ninserts++;
 
 #if SHARED_EVERYTHING
-#if ENABLE_MVCC
+#if defined(ENABLE_MVTO) || defined(ENABLE_MV2PL)
       // XXX: ADD SUPPORT FOR INSERTIONS
       assert(0);
 
@@ -250,7 +251,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       if (!selock_acquire(p, e, t, ctx->ts)) {
         return NULL;
       }
-#endif //ENABLE_MVCC
+#endif //ENABLE_MVTO
 
 #elif SHARED_NOTHING
       // no logical locks. do nothing
@@ -293,14 +294,17 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 
 #if SHARED_EVERYTHING
 
-#if ENABLE_MVCC
-      if (!(e = mvcc_acquire(p, e, t, ctx->ts)))
+#if ENABLE_MVTO
+      if (!(e = mvto_acquire(p, e, t, ctx->ts)))
+          return NULL;
+#elif ENABLE_MV2PL
+      if (!(e = mv2pl_acquire(p, e, t)))
           return NULL;
 #else
       if (!selock_acquire(p, e, t, ctx->ts)) {
           return NULL;
       }
-#endif //ENABLE_MVCC
+#endif //ENABLE_MVTO
 
 #elif SHARED_NOTHING
       /* Do absolutely nothing for shared nothing as it proceeds by first
@@ -367,13 +371,13 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 
         return NULL;
       }
+#endif //IF_SHARED_EVERYTHING
 
       break;
 
     default:
       assert(0);
       break;
-#endif //IF_SHARED_EVERYTHING
   }
 
 #if GATHER_STATS
@@ -512,8 +516,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
      * this, we need to latch before making copy
      */
     if (op->optype == OPTYPE_LOOKUP || op->optype == OPTYPE_UPDATE) {
-        int alock_state;
-
         octx->data_copy = plmalloc_ealloc(p);
         octx->data_copy->value = plmalloc_alloc(p, e->size);
 
@@ -531,7 +533,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
                 old_tid = e->tid;
             }
 
-            memcpy(octx->data_copy, e, sizeof(struct elem));
             memcpy(octx->data_copy->value, e->value, e->size);
 
             COMPILER_BARRIER();
@@ -544,7 +545,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #else
         silo_latch_acquire(s, e);
         octx->tid_copy = e->tid;
-        memcpy(octx->data_copy, e, sizeof(struct elem));
         memcpy(octx->data_copy->value, e->value, e->size);
         silo_latch_release(s, e);
 #endif //IF_SILO_USE_ATOMICS
@@ -567,7 +567,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     if (op->optype == OPTYPE_UPDATE) {
         octx->data_copy = plmalloc_ealloc(p);
         octx->data_copy->value = plmalloc_alloc(p, e->size);
-        memcpy(octx->data_copy, e, sizeof(struct elem));
         memcpy(octx->data_copy->value, e->value, e->size);
     } else {
         octx->data_copy = NULL;
@@ -607,6 +606,13 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
   assert(status == TXN_COMMIT);
 
   status = silo_validate(ctask, hash_table, s);
+#elif ENABLE_MV2PL
+
+  if (status == TXN_COMMIT)
+      status = mv2pl_validate(ctask, hash_table, s);
+  else
+      mv2pl_abort(ctask, hash_table, s);
+
 #elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
     int release_notify = 1;
 //    if (status != TXN_ABORT) {
@@ -652,8 +658,8 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #if ENABLE_SILO_CC
             // in Silo, we always have local data copy in readset. Free it.
             assert (octx->data_copy);
-            plmalloc_free(p, octx->data_copy, octx->e->size);
-            plmalloc_efree(p, e);
+            plmalloc_free(p, octx->data_copy->value, octx->e->size);
+            plmalloc_efree(p, octx->data_copy);
 #else
             assert (octx->data_copy == NULL);
 #endif //IF_SILO
@@ -711,14 +717,14 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-#if ENABLE_SILO_CC
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
             ;
 #else
             memcpy(octx->e->value, octx->data_copy->value, size);
 #endif //IF_ENABLE_SILO
         }
 
-#if ENABLE_MVCC
+#if ENABLE_MVTO
         // in case of mvcc, we free the data copy only on aborts.
         // otherwise, we version it
         if (status == TXN_ABORT) {
@@ -733,14 +739,14 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         if (octx->target == s) {
 #if SHARED_EVERYTHING
 
-#if ENABLE_MVCC
+#if ENABLE_MVTO
             if (status == TXN_COMMIT)
-                mvcc_release(p, octx->e, octx->data_copy);
+                mvto_release(p, octx->e, octx->data_copy);
             else
-                mvcc_release(p, octx->e, NULL);
+                mvto_release(p, octx->e, NULL);
 #else
             selock_release(p, octx->e);
-#endif //ENABLE_MVCC
+#endif //ENABLE_MVTO
 
 #else
 #if ENABLE_WAIT_DIE_CC
@@ -863,149 +869,6 @@ int txn_commit(struct task *ctask, struct hash_table *hash_table, int s, int mod
 #endif
 
   return txn_finish(ctask, hash_table, s, TXN_COMMIT, mode, NULL);
-}
-
-int run_batch_txn(struct hash_table *hash_table, int s, void *arg,
-    struct task *ctask)
-{
-  struct hash_query *query = (struct hash_query *)arg;
-  struct partition *p = &hash_table->partitions[s];
-  struct txn_ctx *ctx = &ctask->txn_ctx;
-  int i, r = TXN_COMMIT;
-  int nops = query->nops;
-  int nremote = 0;
-  int server = -1;
-  int nrecs_per_partition = p->nrecs;
-  //void **values = (void **) memalign(CACHELINE, sizeof(void *) * nops);
-  //assert(values);
-
-  void *values[MAX_OPS_PER_QUERY];
-  short opids[MAX_OPS_PER_QUERY];
-  short nopids = 0;
-
-  // batch txns for micro benchmark
-  assert(g_benchmark == &micro_bench);
-
-  txn_start(hash_table, s, ctx);
-
-  /* XXX: REWRITE THIS TO GATHER ALL REMOTE OPS AND SEND IT USING
-   * SMP_HASH_DO_ALL
-   */
-  // do all local first. if any local fails, no point sending remote requests
-  for (i = 0; i < nops; i++) {
-    struct hash_op *op = &query->ops[i];
-    server = op->key / nrecs_per_partition;
-
-    // if local, get it
-    if (server == s) {
-      values[i] = txn_op(ctask, hash_table, s, &query->ops[i], server);
-      opids[nopids++] = 0;
-
-      if (!values[i]) {
-        r = TXN_ABORT;
-        goto final;
-      }
-    }
-  }
-
-  // now send all remote requests
-  for (i = 0; i < nops; i++) {
-    struct hash_op *op = &query->ops[i];
-    server = op->key / nrecs_per_partition;
-
-    if (server != s) {
-      if (op->optype == OPTYPE_LOOKUP) {
-        smp_hash_lookup(ctask, hash_table, s, server, op->key, i);
-        p->nlookups_remote++;
-      } else {
-        smp_hash_update(ctask, hash_table, s, server, op->key, i);
-        p->nupdates_remote++;
-      }
-
-      values[i] = NULL;
-
-      nremote++;
-    }
-  }
-
-  /* we can have a max of 16 simultaneous ops from a single task as the opid
-   * field is only 4 bits wide
-   */
-  assert(nremote < 16);
-
-  ctask->npending = nremote;
-  ctask->nresponses = 0;
-
-  // now get all remote values
-  if (nremote) {
-    smp_flush_all(hash_table, s);
-
-    task_yield(&hash_table->partitions[s], TASK_STATE_WAITING);
-
-    // when we are scheduled again, we will have all data
-    assert(nremote == ctask->nresponses);
-
-    // match data to actual operation now
-    for (i = 0; i < nremote; i++) {
-      uint64_t val = ctask->received_responses[i];
-      assert(HASHOP_GET_TID(val) == ctask->tid);
-
-      short opid = HASHOP_GET_OPID(val);
-      assert(opid < nops);
-
-      assert(values[opid] == NULL);
-
-      struct hash_op *op = &query->ops[opid];
-      struct op_ctx *octx = &ctx->op_ctx[ctx->nops];
-      octx->optype = op->optype;
-      octx->e = (struct elem *)HASHOP_GET_VAL(val);
-      octx->target = -1;
-      octx->data_copy = NULL;
-      ctx->nops++;
-      opids[nopids++] = opid;
-
-       if (octx->e) {
-        int esize = octx->e->size;
-        values[opid] = octx->e->value;
-
-        if (op->optype == OPTYPE_UPDATE) {
-          octx->data_copy = plmalloc_alloc(p, esize);
-          memcpy(octx->data_copy, values[opid], esize);
-        } else {
-          octx->data_copy = NULL;
-        }
-      } else {
-        values[opid] = NULL;
-        r = TXN_ABORT;
-      }
-    }
-  }
-
-  assert(ctx->nops == nopids);
-
-  // if some remote request failed, just abort
-  if (r == TXN_ABORT)
-    goto final;
-
-  // now we have all values. Verify them.
-  for (i = 0; i < query->nops; i++) {
-    // in both lookup and update, we just check the value
-    uint64_t *int_val = (uint64_t *)values[i];
-
-    for (int j = 0; j < YCSB_NFIELDS; j++) {
-      assert (int_val[j] == query->ops[i].key);
-    }
-  }
-
-final:
-  if (r == TXN_COMMIT)
-    txn_finish(ctask, hash_table, s, TXN_COMMIT, TXN_BATCH, opids);
-  else
-    txn_finish(ctask, hash_table, s, TXN_ABORT, TXN_BATCH, opids);
-
-  //free(values);
-
-  return r;
 }
 
 void process_requests(struct hash_table *hash_table, int s)

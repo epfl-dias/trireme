@@ -19,7 +19,7 @@
 #define TXN_BATCH 1
 #define TXN_SINGLE 0
 
-#define DATA_READY_MASK 0x8000000000000000
+#define DATA_READY_MASK         0x8000000000000000
 
 #define CL_SIZE	64 // constant for dl_detect
 

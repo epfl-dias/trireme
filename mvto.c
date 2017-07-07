@@ -2,7 +2,7 @@
 #include "smphashtable.h"
 #include "plmalloc.h"
 
-#if ENABLE_MVCC
+#if ENABLE_MVTO
 
 int tscompare(timestamp *s, timestamp *t)
 {
@@ -17,7 +17,7 @@ int tscompare(timestamp *s, timestamp *t)
     return s->core > t->core ? 1 : -1;
 }
 
-struct elem *mvcc_acquire(struct partition *p, struct elem *e,
+struct elem *mvto_acquire(struct partition *p, struct elem *e,
     char optype, uint64_t tsval)
 {
   struct elem *target = NULL;
@@ -169,7 +169,7 @@ struct elem *mvcc_acquire(struct partition *p, struct elem *e,
   return target;
 }
 
-void mvcc_release(struct partition *p, struct elem *e_new, struct elem *e_old)
+void mvto_release(struct partition *p, struct elem *e_new, struct elem *e_old)
 {
   /* latch, reset ref count to free the logical lock, unlatch */
   int alock_state;
@@ -212,4 +212,4 @@ void mvcc_release(struct partition *p, struct elem *e_new, struct elem *e_old)
   LATCH_RELEASE(&e_new->latch, &alock_state);
 }
 
-#endif //ENABLE_MVCC
+#endif //ENABLE_MVTO

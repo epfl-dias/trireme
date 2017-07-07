@@ -295,8 +295,8 @@ struct elem {
   struct lock_list owners;
 #endif
 
-#if ENABLE_MVCC
-  // timestamps used for mvcc
+#if ENABLE_MVTO
+  // timestamps used for mvto
   timestamp ts;
   timestamp max_rd_ts;
 
@@ -304,6 +304,12 @@ struct elem {
   TAILQ_HEAD(version_list, elem) versions;
   TAILQ_ENTRY(elem) prev_version;
 #endif
+
+#if ENABLE_MV2PL
+  volatile int64_t rd_counter;
+  volatile int64_t is_write_locked;
+#endif
+
 } __attribute__ ((aligned (CACHELINE)));
 
 LIST_HEAD(elist, elem);

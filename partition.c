@@ -230,13 +230,13 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   TAILQ_INIT(&e->waiters);
 #endif
 
-#if ENABLE_MVCC
+#if ENABLE_MVTO
   TAILQ_INIT(&e->versions);
   memset(&e->ts, 0, sizeof(timestamp));
   memset(&e->max_rd_ts, 0, sizeof(timestamp));
-#endif
-
-#if ENABLE_SILO_CC
+#elif ENABLE_MV2PL
+  e->rd_counter = e->is_write_locked = 0;
+#elif ENABLE_SILO_CC
   e->tid = 0;
 #endif
 

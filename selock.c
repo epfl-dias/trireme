@@ -913,7 +913,7 @@ void selock_release(struct partition *p, struct elem *e)
   return selock_nowait_with_ownerlist_release(p, e);
 #elif ENABLE_NOWAIT_CC
   return selock_nowait_release(p, e);
-#elif ENABLE_SILO_CC
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
   // with silo, nothing to do
   return;
 #elif ENABLE_DL_DETECT_CC
