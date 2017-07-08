@@ -260,8 +260,25 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   query->nops = g_ops_per_txn;
 
   /* transaction is either all read or all update */
+#if MIXED_TXN_RW
+  /* In this mode, irrespective of the thread used, we decide whether a txn is a
+   * read only txn or an update only txn. Thus all threads will run mixed
+   * read/write workloads
+   */
   if (URand(&p->seed, 1, 99) <= g_write_threshold)
       is_ronly = 1;
+#else
+  /* in this mode, we devote a bunch of threads to reads and another set to
+   * writes. Read threads do only reads, write only write. In this mode,
+   * g_write_threshold indicates the number of writer threads.
+   * g_write_threshold = 0 means all readers
+   * g_write_threshold = g_nservers means all writers
+   */
+  assert(g_write_threshold <= g_nservers);
+  if (s >= g_write_threshold)
+      is_ronly = 1;
+
+#endif
 
   for (int i = 0; i < g_ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];

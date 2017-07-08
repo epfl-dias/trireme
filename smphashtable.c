@@ -673,7 +673,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         if (octx->target == s) {
 
 #if SHARED_EVERYTHING
-          selock_release(p, octx->e);
+          selock_release(p, octx);
 #else
 #if ENABLE_WAIT_DIE_CC
           wait_die_release(s, p, s, ctask->tid,
@@ -750,7 +750,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             else
                 mvto_release(p, octx->e, NULL);
 #else
-            selock_release(p, octx->e);
+            selock_release(p, octx);
 #endif //ENABLE_MVTO
 
 #else
@@ -799,7 +799,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
         if (octx->target == s) {
 #if SHARED_EVERYTHING
-          selock_release(p, octx->e);
+          selock_release(p, octx);
 #else
 #if ENABLE_WAIT_DIE_CC
           wait_die_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);

@@ -18,6 +18,8 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 #				ENABLE_BWAIT_CC ENABLE_SILO_CC ENABLE_DL_DETECT_CC
 #				ENABLE_MVTO ENABLE_MV2PL
 #
+#	Abort backoff: ENABLE_ABORT_BACKOFF
+#
 #	key ordering: ENABLE_KEY_SORTING
 #
 #	migration: MIGRATION (use with NOLATCH because no latching is neccessary,
