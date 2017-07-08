@@ -8,6 +8,7 @@ int set_read_lock(volatile int64_t *val)
 {
     int64_t old, new;
     old = *val;
+
     while (1) {
         if (old == -1)
             return LOCK_ABORT;
@@ -30,7 +31,7 @@ void clear_lock(char optype, struct elem *e, char is_certified)
         case OPTYPE_LOOKUP:
             assert(e->rd_counter > 0);
 
-            int64_t old_val = __sync_fetch_and_sub(&e->rd_counter, -1);
+            int64_t old_val = __sync_fetch_and_sub(&e->rd_counter, 1);
             assert(old_val >= 0);
             break;
 
@@ -74,8 +75,9 @@ struct elem *mv2pl_acquire(struct partition *p, struct elem *e, char optype)
   } else {
       assert(optype == OPTYPE_UPDATE);
 
-      if (__sync_bool_compare_and_swap(&e->is_write_locked, 0, 1))
+      if (__sync_bool_compare_and_swap(&e->is_write_locked, 0, 1)) {
           target = e;
+      }
   }
 
   return target;
@@ -125,7 +127,15 @@ int mv2pl_validate(struct task *ctask, struct hash_table *hash_table, int s)
       clear_lock(octx->optype, octx->e, i <= last_certified_wt);
   }
 
-  return r == LOCK_SUCCESS ? TXN_COMMIT : TXN_ABORT;
+  if (r == LOCK_SUCCESS) {
+      dprint("srv(%d):mv2pl validation success\n", s);
+      p->nvalidate_success++;
+      return TXN_COMMIT;
+  }
+
+  dprint("srv(%d):mv2pl validation failed\n", s);
+  p->nvalidate_failure++;
+  return TXN_ABORT;
 }
 
 #endif //ENABLE_MV2PL

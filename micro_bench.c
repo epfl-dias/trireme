@@ -254,19 +254,19 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   struct partition *p = &hash_table->partitions[s];
   int r = URand(&p->seed, 1, 99);
   char is_local = (r < g_dist_threshold || g_nservers == 1);
-  char is_duplicate;
+  char is_duplicate = 0, is_ronly = 0;
   uint64_t nrecs_per_server = g_nrecs / g_nservers;
   
   query->nops = g_ops_per_txn;
 
+  /* transaction is either all read or all update */
+  if (URand(&p->seed, 1, 99) <= g_write_threshold)
+      is_ronly = 1;
+
   for (int i = 0; i < g_ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
 
-    if (URand(&p->seed, 1, 99) > g_write_threshold) {
-        op->optype = OPTYPE_UPDATE;
-    } else {
-        op->optype = OPTYPE_LOOKUP;
-    }
+    op->optype = (is_ronly ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 
     do {
       // only first NREMOTE_OPS are remote in cross-partition txns
@@ -410,9 +410,9 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     s = ctask->s;
 #endif
     if (!value) {
-	  r = TXN_ABORT;
-	  break;
-	}
+        r = TXN_ABORT;
+        break;
+    }
 
     // in both lookup and update, we just check the value
     uint64_t *int_val = (uint64_t *)value;

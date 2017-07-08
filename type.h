@@ -429,6 +429,8 @@ struct partition {
   uint64_t cur_tid;
 #endif
 
+  unsigned int seed;
+
   // tasks
   struct task unblock_task;
   struct task root_task;
@@ -443,13 +445,17 @@ struct partition {
   size_t size;
   int ninserts;
   int ncommits;
+  int ncommits_ronly;
+  int ncommits_wonly;
   int nlookups_local;
   int nupdates_local;
+  int naborts_ronly;
+  int naborts_wonly;
   int naborts;
   int nlookups_remote;
   int nupdates_remote;
-
-  unsigned int seed;
+  int nvalidate_success;
+  int nvalidate_failure;
 
   uint64_t tps;
 

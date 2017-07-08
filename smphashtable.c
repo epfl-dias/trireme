@@ -230,6 +230,13 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 
   int r;
 
+#if GATHER_STATS
+  if (t == OPTYPE_LOOKUP)
+    p->nlookups_local++;
+  else
+    p->nupdates_local++;
+#endif
+
   switch (t) {
     case OPTYPE_INSERT:
       // should not get a insert to item partition
@@ -379,13 +386,6 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       assert(0);
       break;
   }
-
-#if GATHER_STATS
-  if (t == OPTYPE_LOOKUP)
-    p->nlookups_local++;
-  else
-    p->nupdates_local++;
-#endif
 
   return e;
 }
@@ -578,13 +578,14 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 
 #endif // EN_SILO_CC
 
-    dprint("srv(%d): done %s %s op key %" PRIu64 " ctx-nops %d\n",
-        s, is_local ? "local":"remote",
-        op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key, ctx->nops);
-
     ctx->nops++;
   }
 #endif //SN
+
+  dprint("srv(%d): done %s %s op key %" PRIu64 " ctx-nops %d status %s\n",
+          s, is_local ? "local":"remote",
+          op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key, ctx->nops,
+          value ? "ok" : "fail");
 
   return value;
 }
@@ -849,10 +850,23 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
   ctx->nops = 0;
 
-  if (status == TXN_COMMIT)
+  if (status == TXN_COMMIT) {
       p->ncommits++;
-  else
+      if (ctx->op_ctx[0].optype == OPTYPE_LOOKUP) {
+          p->ncommits_ronly++;
+      }
+      else
+          p->ncommits_wonly++;
+ 
+  } else {
       p->naborts++;
+
+      if (ctx->op_ctx[0].optype == OPTYPE_LOOKUP) {
+          p->naborts_ronly++;
+      }
+      else
+          p->naborts_wonly++;
+  }
 
   return status;
 }
@@ -1804,6 +1818,8 @@ void stats_reset(struct hash_table *hash_table)
     hash_table->partitions[i].nlookups_local = 0;
     hash_table->partitions[i].nupdates_local = 0;
     hash_table->partitions[i].naborts = 0;
+    hash_table->partitions[i].naborts_ronly = 0;
+    hash_table->partitions[i].naborts_wonly = 0;
     hash_table->partitions[i].nlookups_remote = 0;
     hash_table->partitions[i].nupdates_remote = 0;
   }
@@ -1811,15 +1827,25 @@ void stats_reset(struct hash_table *hash_table)
 
 int stats_get_ncommits(struct hash_table *hash_table)
 {
-  int ncommits = 0;
+  int ncommits = 0, ncommits_ronly = 0, ncommits_wonly = 0;
+  int nvalidate_success = 0, nvalidate_failure = 0;
+
   for (int i = 0; i < g_nservers; i++) {
-    printf("srv %d commits %d\n", i,
+    dprint("srv %d commits %d\n", i,
       hash_table->partitions[i].ncommits);
 
     ncommits += hash_table->partitions[i].ncommits;
+    ncommits_ronly += hash_table->partitions[i].ncommits_ronly;
+    ncommits_wonly += hash_table->partitions[i].ncommits_wonly;
+    nvalidate_success += hash_table->partitions[i].nvalidate_success;
+    nvalidate_failure += hash_table->partitions[i].nvalidate_failure;
   }
 
-  printf("total commits %d\n", ncommits);
+  printf("total commits %d, ronly %d, wonly %d\n", ncommits,
+          ncommits_ronly, ncommits_wonly);
+
+  printf("validate success %d, failure %d\n", nvalidate_success,
+          nvalidate_failure); 
 
   return ncommits;
 
@@ -1848,7 +1874,7 @@ int stats_get_nlookups(struct hash_table *hash_table)
 {
   int nlookups = 0;
   for (int i = 0; i < g_nservers; i++) {
-    printf("srv %d lookups local: %d remote %d\n", i,
+    dprint("srv %d lookups local: %d remote %d\n", i,
       hash_table->partitions[i].nlookups_local,
       hash_table->partitions[i].nlookups_remote);
 
@@ -1865,7 +1891,7 @@ int stats_get_nupdates(struct hash_table *hash_table)
 {
   int nupdates = 0;
   for (int i = 0; i < g_nservers; i++) {
-    printf("srv %d updates local: %d remote %d \n", i,
+    dprint("srv %d updates local: %d remote %d \n", i,
       hash_table->partitions[i].nupdates_local,
       hash_table->partitions[i].nupdates_remote);
 
@@ -1880,13 +1906,18 @@ int stats_get_nupdates(struct hash_table *hash_table)
 
 int stats_get_naborts(struct hash_table *hash_table)
 {
-  int naborts = 0;
+  int naborts = 0, naborts_ronly = 0, naborts_wonly = 0;
   for (int i = 0; i < g_nservers; i++) {
-    printf("srv %d aborts %d \n", i,
+    dprint("srv %d aborts %d \n", i,
       hash_table->partitions[i].naborts);
 
     naborts += hash_table->partitions[i].naborts; 
+    naborts_ronly += hash_table->partitions[i].naborts_ronly; 
+    naborts_wonly += hash_table->partitions[i].naborts_wonly; 
   }
+
+  printf("Total aborts: %d, ronly aborts %d, wonly aborts %d\n", naborts,
+          naborts_ronly, naborts_wonly);
 
   return naborts;
 }
@@ -1896,7 +1927,7 @@ int stats_get_ninserts(struct hash_table *hash_table)
 {
   int ninserts = 0;
   for (int i = 0; i < g_nservers; i++) {
-    printf("Server %d : %d tuples %lu-KB mem \n", i,
+    dprint("Server %d : %d tuples %lu-KB mem \n", i,
       hash_table->partitions[i].ninserts, hash_table->partitions[i].size / 1024);
     ninserts += hash_table->partitions[i].ninserts;
   }
