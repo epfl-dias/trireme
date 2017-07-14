@@ -410,7 +410,7 @@ void child_fn(int s, int tid)
        * with 2pl. So add delay only for SE protocols. Also, adding penalty 
        * made things much worse for messaging. So use only for SE
        */
-#define ENABLE_ABORT_BACKOFF 1
+//#define ENABLE_ABORT_BACKOFF 1
 #endif
 #endif
 

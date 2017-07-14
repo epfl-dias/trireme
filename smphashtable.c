@@ -630,7 +630,6 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 //    }
 #endif
 
-
   while (--nops >= 0) {
     struct op_ctx *octx = &ctx->op_ctx[nops];
     int t = octx->optype;
@@ -846,10 +845,14 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
   se_dl_detect_clear_dependencies(&src, status);
   dprint("Server %d finishing\n", s);
 #endif
+
+#if !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
   smp_flush_all(hash_table, s);
+#endif
 
   ctx->nops = 0;
 
+#if GATHER_STATS
   if (status == TXN_COMMIT) {
       p->ncommits++;
       if (ctx->op_ctx[0].optype == OPTYPE_LOOKUP) {
@@ -867,6 +870,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       else
           p->naborts_wonly++;
   }
+#endif
 
   return status;
 }
@@ -1423,12 +1427,6 @@ void *hash_table_server(void* args)
   printf("srv %d rec count: %d partition sz %lu-KB "
       "tx count: %d, per_txn_op cnt: %d\n", s, p->ninserts, p->size / 1024,
       g_niters, g_ops_per_txn);
-
-  //double avg;
-  //double stddev;
-  //stats_get_buckets(hash_table, s, &avg, &stddev);
-  //printf("srv %d hash table occupancy avg %0.3f stddev %0.3f\n", s, avg, stddev);
-  //fflush(stdout);
 
   pthread_mutex_lock(&hash_table->create_client_lock);
 

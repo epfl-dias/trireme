@@ -3,9 +3,9 @@
 
 #if DIASSRV8
 #define NCORES 80
-#define NUMBER_OF_SOCKETS 8
+#define NSOCKETS 8
 #elif DIASCLD33
-#define NUMBER_OF_SOCKETS 4
+#define NSOCKETS 4
 #if HT_ENABLED
 #define NCORES 144
 #else
@@ -13,11 +13,13 @@
 #endif
 #else
 #define NCORES 4
-#define NUMBER_OF_SOCKETS 1
+#define NSOCKETS 1
 #endif
 
 #define TXN_BATCH 1
 #define TXN_SINGLE 0
+
+#define USE_PHYS_SYNCH 1
 
 #define DATA_READY_MASK         0x8000000000000000
 

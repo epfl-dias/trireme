@@ -4,19 +4,6 @@
 
 #if ENABLE_MVTO
 
-int tscompare(timestamp *s, timestamp *t)
-{
-    if (s->tsval < t->tsval)
-        return -1;
-
-    if (s->tsval > t->tsval)
-        return 1;
-
-    assert(s->core != t->core);
-
-    return s->core > t->core ? 1 : -1;
-}
-
 struct elem *mvto_acquire(struct partition *p, struct elem *e,
     char optype, uint64_t tsval)
 {

@@ -121,5 +121,6 @@ int URand(unsigned int *seed, int x, int y);
 int NURand(unsigned int *seed, int A, int x, int y);
 int make_alpha_string(unsigned int *seed, int min, int max, char* str);
 int make_numeric_string(unsigned int *seed, int min, int max, char* str);
+int tscompare(timestamp *s, timestamp *t);
 
 #endif

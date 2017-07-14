@@ -139,3 +139,15 @@ int make_numeric_string(unsigned int *seed, int min, int max, char* str)
   return cnt;
 }
 
+int tscompare(timestamp *s, timestamp *t)
+{
+    if (s->tsval < t->tsval)
+        return -1;
+
+    if (s->tsval > t->tsval)
+        return 1;
+
+    assert(s->core != t->core);
+
+    return s->core > t->core ? 1 : -1;
+}

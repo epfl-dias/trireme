@@ -4,7 +4,7 @@
 
 #if ENABLE_MV2PL
 
-int set_read_lock(volatile int64_t *val)
+int set_read_lock(volatile int64_t *val, char use_phys_synch)
 {
     int64_t old, new;
     old = *val;
@@ -13,10 +13,17 @@ int set_read_lock(volatile int64_t *val)
         if (old == -1)
             return LOCK_ABORT;
 
-        new = __sync_val_compare_and_swap(val, old, old + 1);
+        if (use_phys_synch) {
+            new = __sync_val_compare_and_swap(val, old, old + 1);
+        } else {
+            new = old;
+            *val = old + 1;
+        }
+
         if (new == old)
             break;
 
+        assert(use_phys_synch);
         old = new;
     }
 
@@ -70,7 +77,7 @@ struct elem *mv2pl_acquire(struct partition *p, struct elem *e, char optype)
       optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
   if (optype == OPTYPE_LOOKUP) {
-      if (set_read_lock(&e->rd_counter) == LOCK_SUCCESS)
+      if (set_read_lock(&e->rd_counter, USE_PHYS_SYNCH) == LOCK_SUCCESS)
           target = e;
   } else {
       assert(optype == OPTYPE_UPDATE);
