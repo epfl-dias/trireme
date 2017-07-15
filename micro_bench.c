@@ -4,6 +4,74 @@
 #include "benchmark.h"
 #include "twopl.h"
 
+#if YCSB_BENCHMARK
+  struct drand48_data *rand_buffer;
+  double g_zetan;
+  double g_zeta2;
+  double g_eta;
+  double g_alpha_half_pow;
+#endif
+
+#if YCSB_BENCHMARK
+
+double zeta(uint64_t n, double theta) {
+	double sum = 0;
+	for (uint64_t i = 1; i <= n; i++)
+		sum += pow(1.0 / i, theta);
+	return sum;
+}
+
+void init_zipf() {
+	printf("Initializing zipf\n");
+	rand_buffer = (struct drand48_data *) calloc(g_nservers, sizeof(struct drand48_data));
+	for (int i = 0; i < g_nservers; i ++) {
+		srand48_r(i + 1, &rand_buffer[i]);
+	}
+
+	uint64_t n = g_nrecs - 1;
+	g_zetan = zeta(n, g_alpha);
+	g_zeta2 = zeta(2, g_alpha);
+
+	g_eta = (1 - pow(2.0 / n, 1 - g_alpha)) / (1 - g_zeta2 / g_zetan);
+	g_alpha_half_pow = 1 + pow(0.5, g_alpha);
+	printf("n = %d\n", n);
+	printf("theta = %.2f\n", g_alpha);
+}
+
+void zipf_val(int s, struct hash_op *op) {
+	uint64_t n = g_nrecs - 1;
+
+	double alpha = 1 / (1 - g_alpha);
+
+	double u;
+	drand48_r(&rand_buffer[s], &u);
+	double uz = u * g_zetan;
+	if (uz < 1) {
+		op->key = 0;
+	} else if (uz < g_alpha_half_pow) {
+		op->key = 1;
+	} else {
+		op->key = (uint64_t)(n * pow(g_eta * u - g_eta + 1, alpha));
+	}
+
+	// get the server id for the key
+	int tserver = op->key % g_nservers;
+	// get the key count for the key
+	uint64_t key_cnt = op->key / g_nservers;
+
+	uint64_t recs_per_server = g_nrecs / g_nservers;
+	op->key = tserver * recs_per_server + key_cnt;
+
+//	printf("u = %.9f\n", u);
+//	printf("uz = %.9f\n", uz);
+//	printf("g_zetan = %.9f\n", g_zetan);
+//	printf("g_zeta2 = %.9f\n", g_zeta2);
+//	printf("g_eta = %.9f\n", g_eta);
+//	printf("key = %" PRIu64 "\n", op->key);
+	assert(op->key < g_nrecs);
+}
+#endif //YCSB_BENCHMARK
+
 void micro_load_data(struct hash_table *hash_table, int id)
 {
   struct elem *e;
@@ -54,7 +122,9 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
   uint64_t nrecs = nrecs_per_server * g_nservers;
 
   op->size = 0;
-
+#if YCSB_BENCHMARK
+  zipf_val(s, op);
+#else
   hash_key delta = 0;
   int tserver = 0;
 
@@ -169,6 +239,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
       op->key = delta + (s * nrecs_per_server);
     }
   }
+#endif //YCSB_BENCHMARK
 }
 
 static void se_make_operation(struct hash_table *hash_table, int s, 
@@ -179,7 +250,9 @@ static void se_make_operation(struct hash_table *hash_table, int s,
   uint64_t nrecs_per_server = g_nrecs / g_nservers;
 
   op->size = 0;
-
+#if YCSB_BENCHMARK
+  zipf_val(s, op);
+#else
   // use zipfian if available
   if (hash_table->keys) {
     p->q_idx++;
@@ -246,10 +319,13 @@ static void se_make_operation(struct hash_table *hash_table, int s,
         op->key = delta + (tserver * nrecs_per_server);
     }
   }
+#endif //YCSB_BENCHMARK
+//  printf("key = %" PRIu64 "\n", op->key);
 }
 
 void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
 {
+//	printf("Getting next query for server %d\n", s);
   struct hash_query *query = (struct hash_query *) arg;
   struct partition *p = &hash_table->partitions[s];
   int r = URand(&p->seed, 1, 99);

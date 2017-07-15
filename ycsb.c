@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
   while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:r:h:p:")) != -1) {
     switch (opt_char) {
       case 'a':
-        g_alpha = atoi(optarg);
+        g_alpha = atof(optarg);
         break;
       case 'h':
         g_nhot_recs = atol(optarg);
@@ -140,6 +140,7 @@ int main(int argc, char *argv[])
   printf("%d remote ops %d ops per txn \n", g_nremote_ops, g_ops_per_txn);
   assert(g_nremote_ops <= g_ops_per_txn && g_nremote_ops < MAX_OPS_PER_QUERY);
 
+#if !YCSB_BENCHMARK
   if (g_alpha) {
 #if SHARED_EVERYTHING && !MIGRATION
     assert(g_nhot_recs > 1 && g_nhot_servers == 1);
@@ -149,7 +150,7 @@ int main(int argc, char *argv[])
     assert(g_nhot_servers != 0);
     assert(g_nhot_servers <= g_nservers);
   }
-  
+#endif
   // round down nrecs to a partition multiple
   g_nrecs = (g_nrecs / g_nservers) * g_nservers;
 
@@ -170,6 +171,9 @@ void run_benchmark()
   printf(" Total #recs: %ld \n", g_nrecs);
   printf(" Iterations:   %d\n", g_niters);
 
+#if YCSB_BENCHMARK
+  init_zipf();
+#endif //YCSB_BENCHMARK
   hash_table = create_hash_table();
 
   start_hash_table_servers(hash_table);
@@ -177,12 +181,37 @@ void run_benchmark()
   printf("== results ==\n");
   printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
 #if GATHER_STATS
-  //stats_get_task_stats(hash_table);
-  stats_get_nlookups(hash_table);
-  stats_get_ninserts(hash_table);
-  stats_get_nupdates(hash_table);
-  stats_get_naborts(hash_table);
-  stats_get_ncommits(hash_table);
+	//stats_get_task_stats(hash_table);
+	stats_get_nlookups(hash_table);
+	stats_get_ninserts(hash_table);
+	stats_get_nupdates(hash_table);
+	stats_get_naborts(hash_table);
+	stats_get_ncommits(hash_table);
+
+	struct elem *e = (struct elem *) malloc(sizeof(struct elem));
+	uint64_t *freqs = (uint64_t *) calloc(g_nrecs, sizeof(uint64_t));
+
+	for (int s = 0; s < g_nservers; s++) {
+	  printf("Logging srv %d\n", s);
+	  struct partition *p = &hash_table->partitions[s];
+	  for (int i = 0; i < p->nhash; i++) {
+		  struct bucket *b = &p->table[i];
+		  LIST_FOREACH(e, &b->chain, chain) {
+			  uint64_t *int_val = (uint64_t *)e->value;
+			  freqs[e->key] = int_val[0];
+		  }
+	  }
+	}
+	FILE *fp = fopen("key_access_freqs.txt", "w");
+	if (fp != NULL) {
+	  for (uint64_t i = 0; i < g_nrecs; i ++) {
+		  fprintf(fp, "%ld %ld\n", i, freqs[i]);
+	  }
+	  fclose(fp);
+	} else {
+	  printf("Could not open file for writing\n");
+	}
+
 #endif
 
   destroy_hash_table(hash_table);

@@ -28,3 +28,11 @@ EXTERN struct task* g_tasks[144][16];
 EXTERN DL_detect dl_detector;
 #endif
 
+#if YCSB_BENCHMARK
+  EXTERN struct drand48_data *rand_buffer;
+  EXTERN double g_zetan;
+  EXTERN double g_zeta2;
+  EXTERN double g_eta;
+  EXTERN double g_alpha_half_pow;
+#endif
+
