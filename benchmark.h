@@ -1,6 +1,10 @@
 #ifndef __BENCHMARK_H_
 #define __BENCHMARK_H_
 
+#if YCSB_BENCHMARK
+	void init_zipf();
+#endif //YCSB_BENCHMARK
+
 struct benchmark {
   void (*load_data)(struct hash_table *h, int s);
   void *(*alloc_query)();
