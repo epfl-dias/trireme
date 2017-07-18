@@ -37,8 +37,13 @@
 #define MAX_SERVERS 128 // must be power of 2
 #endif
 
+#if YCSB_BENCHMARK
 #define YCSB_NFIELDS 10
 #define YCSB_FIELD_SZ 100
+#else
+#define YCSB_NFIELDS 10
+#define YCSB_FIELD_SZ 8
+#endif
 #define YCSB_REC_SZ (YCSB_NFIELDS * YCSB_FIELD_SZ)
 
 /* commn. buffer constants */
