@@ -19,6 +19,7 @@ EXTERN int g_nremote_ops;
 EXTERN int g_dist_threshold;
 EXTERN int g_write_threshold;
 EXTERN int g_batch_size;
+EXTERN int g_verbosity;
 EXTERN volatile int nready;
 
 EXTERN struct task* g_tasks[144][16];

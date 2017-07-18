@@ -279,8 +279,7 @@ int silo_validate(struct task *ctask, struct hash_table *hash_table, int s)
             op.size = 0;
             op.key = octx->e->key;
 
-            void *tmp, *ptmp[1];
-            ptmp[0] = tmp;
+            void *ptmp[1];
             smp_hash_doall(ctask, hash_table, s, octx->target, 1, pop, ptmp, 0);
 
             // the lock better be set
@@ -361,7 +360,8 @@ final:
             if (octx->target == s) {
                 silo_latch_release(s, octx->e);
             } else {
-                mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
+                mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0,
+                        octx->e, octx->optype);
             }
 #endif 
         }
@@ -393,7 +393,8 @@ final:
             if (octx->target == s) {
                 silo_latch_release(s, octx->e);
             } else {
-                mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
+                mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0,
+                        octx->e, octx->optype);
             }
 #endif 
         }

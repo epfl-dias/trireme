@@ -10,6 +10,7 @@ enum optype {
   OPTYPE_UPDATE = 2,
   OPTYPE_PLOCK_ACQUIRE = 3,
   OPTYPE_PLOCK_RELEASE = 4,
+  OPTYPE_CERTIFY = 5,
 };
 
 /**

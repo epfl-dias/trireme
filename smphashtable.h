@@ -16,8 +16,8 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
     int client_id, int s, int nqueries, struct hash_op **queries,
     void **values, int opid);
 
-void mp_release_value(struct hash_table *hash_table, int client_id, int target, int tid, int opid, void *ptr);
-void mp_mark_ready(struct hash_table *hash_table, int client_id, int target, int tid, int opid, void *ptr);
+void mp_mark_ready(struct hash_table *hash_table, int client_id, int target, int tid,
+        int opid, void *ptr, char optype);
 void mp_release_plock(int s, int c);
 void mp_release_value_(struct partition *p, struct elem *e);
 void mp_send_reply(int s, int c, short task_id, short opid, struct elem *e);

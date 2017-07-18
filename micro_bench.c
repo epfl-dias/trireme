@@ -96,9 +96,10 @@ void micro_load_data(struct hash_table *hash_table, int id)
     e = hash_insert(p, qid, YCSB_REC_SZ, NULL);
     assert(e);
 
-    value = (uint64_t *)e->value;
-    for (int i = 0; i < YCSB_NFIELDS; i++) 
-      value[i] = 0;
+    for (int i = 0; i < YCSB_NFIELDS; i++) {
+        value = (uint64_t *)(e->value + i * YCSB_FIELD_SZ);
+        value[0] = 0;
+    }
 
     e->ref_count = 1;
 
@@ -508,10 +509,13 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     }
 
     // in both lookup and update, we just check the value
-    uint64_t *int_val = (uint64_t *)value;
+    uint64_t first_field = *(uint64_t *)value;
 
-    for (int j = 1; j < YCSB_NFIELDS; j++) 
-      assert(int_val[j] == int_val[0]);
+    for (int j = 1; j < YCSB_NFIELDS; j++) {
+        uint64_t *next_field = (uint64_t *)(value + j * YCSB_FIELD_SZ);
+        assert(*next_field == first_field);
+    }
+
 
     /*
     uint64_t val = int_val[0];
@@ -524,8 +528,10 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     */
 
     if (op->optype == OPTYPE_UPDATE) {
-        for (int j = 0; j < YCSB_NFIELDS; j++) 
-            int_val[j]++;
+        for (int j = 0; j < YCSB_NFIELDS; j++) {
+            uint64_t *next_field = (uint64_t *)(value + j * YCSB_FIELD_SZ);
+            next_field[0]++;
+        }
     }
   }
 

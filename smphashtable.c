@@ -276,6 +276,10 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_DL_DETECT_CC
       r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
       		  e, t, &l, ctx->ts, &notification);
+#elif ENABLE_MV2PL
+      // XXX: Inserts not yet supported
+      assert(0);
+
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE_CC
@@ -333,6 +337,8 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_DL_DETECT_CC
       r = dl_detect_acquire(s, p, s /* client id */, ctask->tid, ctx->nops /* opid */,
                 e, t, &l, ctx->ts, &notification);
+#elif ENABLE_MV2PL
+      r = del_mv2pl_acquire(e, t);
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif //IF_ENABLE_WAIT_DIE
@@ -347,24 +353,22 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
         assert(l);
 #if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
 		while ((!l->ready) && (!notification))
-#else
-        while (!l->ready)
-#endif
           task_yield(p, TASK_STATE_READY);
 
 		if (l->ready == LOCK_ABORT_NXT) {
 			dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
 			r = LOCK_ABORT;
 			return NULL;
-		}
-
-        else
-#if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
+		} else {
         	assert((l->ready == 1) || (notification == 1));
+        }
+
 #else
+        while (!l->ready)
+            task_yield(p, TASK_STATE_READY);
+
         assert(l->ready == 1);
 #endif
-
 
       } else {
         // busted
@@ -682,7 +686,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops]: 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif ENABLE_SILO_CC
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
@@ -696,13 +700,13 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if ENABLE_SILO_CC
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
           ; // do nothing. everything is done by validate function
 #else
 
           // not silo. send out release messages
-            mp_release_value(hash_table, s, octx->target, ctask->tid,
-                    opids ? opids[nops] : 0, octx->e);
+            mp_mark_ready(hash_table, s, octx->target, ctask->tid,
+                    opids ? opids[nops] : 0, octx->e, octx->optype);
 #endif // EN_SILO_CC
         }
 
@@ -761,7 +765,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif ENABLE_SILO_CC
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
           ; // do nothing. everything is done by validate function
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
@@ -775,12 +779,12 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if ENABLE_SILO_CC
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
           ; // do nothing. everything is done by validate function
 #else
           // not silo. send out release messages
           mp_mark_ready(hash_table, s, octx->target, ctask->tid,
-              opids ? opids[nops] : 0, octx->e);
+              opids ? opids[nops] : 0, octx->e, octx->optype);
 #endif
         }
 
@@ -806,7 +810,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif ENABLE_SILO_CC
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
@@ -1010,6 +1014,9 @@ void process_requests(struct hash_table *hash_table, int s)
               j += MIGRATE_MSG_LENGTH;
               break;
           }
+        case HASHOP_RD_RELEASE:
+        case HASHOP_WT_RELEASE:
+        case HASHOP_CERT_RELEASE:
         case HASHOP_RELEASE:
         {
           struct elem *t = (struct elem *)(HASHOP_GET_VAL(inbuf[j]));
@@ -1037,6 +1044,10 @@ void process_requests(struct hash_table *hash_table, int s)
               t->tid = t->tid & ~SILO_LOCK_BIT;
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, i, tid, opid, t, 1);
+#elif ENABLE_MV2PL
+          del_mv2pl_release(p, t, optype == HASHOP_RD_RELEASE ? OPTYPE_LOOKUP : 
+                  (optype == HASHOP_WT_RELEASE ? OPTYPE_UPDATE : 
+                       OPTYPE_CERTIFY));
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
@@ -1079,6 +1090,8 @@ void process_requests(struct hash_table *hash_table, int s)
           struct lock_entry *l;
 
 		  r = dl_detect_acquire(s, p, i, tid, opid, e, OPTYPE_INSERT, &l, inbuf[j + 2], &notification);
+#elif ENABLE_MV2PL
+          assert(0);
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
 #endif
@@ -1096,6 +1109,7 @@ void process_requests(struct hash_table *hash_table, int s)
         }
         case HASHOP_LOOKUP:
         case HASHOP_UPDATE:
+        case HASHOP_CERTIFY:
         {
           hash_key key = HASHOP_GET_VAL(inbuf[j]);
           struct req *req = &reqs[nreqs];
@@ -1154,6 +1168,7 @@ void process_requests(struct hash_table *hash_table, int s)
         }
       }
     }
+
 #if !defined(MIGRATION)
     // do trial task at a time
     for (j = 0; j < nreqs; j++) {
@@ -1188,6 +1203,9 @@ void process_requests(struct hash_table *hash_table, int s)
       req->r = bwait_check_acquire(req->e, OPTYPE_UPDATE);
 #elif ENABLE_DL_DETECT_CC
       req->r = dl_detect_check_acquire(req->e,
+          	  req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#elif ENABLE_MV2PL
+      req->r = del_mv2pl_check_acquire(req->e,
           	  req->optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
@@ -1232,6 +1250,9 @@ void process_requests(struct hash_table *hash_table, int s)
             reqs[k].r = bwait_check_acquire(reqs[k].e, OPTYPE_UPDATE);
 #elif ENABLE_DL_DETECT_CC
             reqs[k].r = dl_detect_check_acquire(reqs[k].e,
+				 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
+#elif ENABLE_MV2PL
+            reqs[k].r = del_mv2pl_check_acquire(reqs[k].e,
 				 reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE);
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
@@ -1295,6 +1316,11 @@ void process_requests(struct hash_table *hash_table, int s)
 			  reqs[k].opid, reqs[k].e,
 			  reqs[k].optype == HASHOP_LOOKUP ? OPTYPE_LOOKUP : OPTYPE_UPDATE,
 			  &l, reqs[k].ts, &notification);
+
+#elif ENABLE_MV2PL
+          res = del_mv2pl_acquire(reqs[k].e, reqs[k].optype == HASHOP_LOOKUP ?
+                  OPTYPE_LOOKUP : (reqs[k].optype == HASHOP_UPDATE ?
+                      OPTYPE_UPDATE : OPTYPE_CERTIFY));
 
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
@@ -1362,7 +1388,6 @@ void process_requests(struct hash_table *hash_table, int s)
         buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
 #endif
       } else if (r == LOCK_SUCCESS) {
-        assert(req->e->ref_count > 1);
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, (unsigned long)req->e, 0);
         buffer_write_all(&boxes[i].boxes[s].out, 1, &out_msg, 0);
       } else {
@@ -1644,6 +1669,18 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 #endif
         break;
 
+       case OPTYPE_CERTIFY:
+
+        dprint("srv(%d): issue remote certify op key %" PRIu64 " to %d\n",
+          client_id, queries[i]->key, s);
+
+        msg_data[0] = MAKE_HASH_MSG(ctask->tid, opid, queries[i]->key,
+            HASHOP_CERTIFY);
+
+        buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
+
+        break;
+       
       case OPTYPE_INSERT:
         //s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
@@ -1744,7 +1781,7 @@ void mp_release_value_(struct partition *p, struct elem *e)
 }
 
 void mp_send_release_msg_(struct hash_table *hash_table, int client_id,
-    int s, int task_id, int op_id, void *ptr, int force_flush)
+    int s, int task_id, int op_id, void *ptr, uint64_t hashop, int force_flush)
 {
   struct elem *e = (struct elem *)ptr;
 
@@ -1755,7 +1792,7 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id,
   assert (s < g_nservers && client_id < g_nservers);
 
   // XXX: we are exploiting the 48-bit address here.
-  uint64_t msg_data = MAKE_HASH_MSG(task_id, op_id, (uint64_t)e, HASHOP_RELEASE);
+  uint64_t msg_data = MAKE_HASH_MSG(task_id, op_id, (uint64_t)e, hashop);
   assert(((struct elem *)HASHOP_GET_VAL(msg_data)) == e);
 
   dprint("srv(%ld): sending release msg %"PRIu64" for key %" PRIu64
@@ -1772,21 +1809,25 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id,
 
 }
 
-void mp_release_value(struct hash_table *hash_table, int client_id, int target,
-    int task_id, int op_id, void *ptr)
-{
-  mp_send_release_msg_(hash_table, client_id, target, task_id, op_id, ptr,
-      0 /* force_flush */);
-}
-
 void mp_mark_ready(struct hash_table *hash_table, int client_id, int target,
-    int task_id, int op_id, void *ptr)
+    int task_id, int op_id, void *ptr, char optype)
 {
   dprint("srv(%d): sending release msg key %" PRIu64 " rc %" PRIu64 " \n",
       client_id, ((struct elem *)ptr)->key, ((struct elem*)ptr)->ref_count);
 
+  uint64_t hashop;
+
+  if (optype == OPTYPE_LOOKUP) {
+      hashop = HASHOP_RD_RELEASE;
+  } else if (optype == OPTYPE_UPDATE) {
+      hashop = HASHOP_WT_RELEASE;
+  } else {
+      assert(optype == OPTYPE_CERTIFY);
+      hashop = HASHOP_CERT_RELEASE;
+  }
+
   mp_send_release_msg_(hash_table, client_id, target, task_id, op_id, ptr,
-      0 /* force_flush */);
+      hashop, 0);
 }
 
 void mp_release_plock(int s, int c)
@@ -1872,7 +1913,7 @@ int stats_get_nlookups(struct hash_table *hash_table)
 {
   int nlookups = 0;
   for (int i = 0; i < g_nservers; i++) {
-    dprint("srv %d lookups local: %d remote %d\n", i,
+    printf("srv %d lookups local: %d remote %d\n", i,
       hash_table->partitions[i].nlookups_local,
       hash_table->partitions[i].nlookups_remote);
 
@@ -1889,7 +1930,7 @@ int stats_get_nupdates(struct hash_table *hash_table)
 {
   int nupdates = 0;
   for (int i = 0; i < g_nservers; i++) {
-    dprint("srv %d updates local: %d remote %d \n", i,
+    printf("srv %d updates local: %d remote %d \n", i,
       hash_table->partitions[i].nupdates_local,
       hash_table->partitions[i].nupdates_remote);
 
@@ -1925,7 +1966,7 @@ int stats_get_ninserts(struct hash_table *hash_table)
 {
   int ninserts = 0;
   for (int i = 0; i < g_nservers; i++) {
-    dprint("Server %d : %d tuples %lu-KB mem \n", i,
+    printf("Server %d : %d tuples %lu-KB mem \n", i,
       hash_table->partitions[i].ninserts, hash_table->partitions[i].size / 1024);
     ninserts += hash_table->partitions[i].ninserts;
   }
