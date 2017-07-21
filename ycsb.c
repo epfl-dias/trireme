@@ -180,6 +180,10 @@ void run_benchmark()
 #if YCSB_BENCHMARK
     init_zipf();
 #endif //YCSB_BENCHMARK
+#if ENABLE_DL_DETECT_CC
+#include "dreadlock_detect.h"
+    dreadlock_init();
+#endif //ENABLE_DL_DETECT_CC
     hash_table = create_hash_table();
 
     start_hash_table_servers(hash_table);
