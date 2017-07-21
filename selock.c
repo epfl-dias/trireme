@@ -888,10 +888,19 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
     uint64_t *txnids;
     int txncnt = 0;
 
+    int nof_servers = g_nservers * g_batch_size;
+	int dep_srv[nof_servers];
+	uint64_t dep_tid[nof_servers];
+	int all_deps = 0;
+	target = plmalloc_alloc(p, sizeof(struct lock_entry));
+	assert(target);
+	target->ts = req_ts;
+	target->s = s;
+	target->task_id = g_tid;
+	target->optype = optype;
+
 #if SE_LATCH
-    dprint("srv(%d-%"PRIu64"): Acquiring the latch for key %"PRIu64"\n", s, req_ts, e->key);
     LATCH_ACQUIRE(&e->latch, &alock_state);
-    dprint("srv(%d-%"PRIu64"): Acquired the latch for key %"PRIu64"\n", s, req_ts, e->key);
     char conflict = !is_value_ready(e);
 
 #if VERIFY_CONSISTENCY
@@ -916,6 +925,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
     }
 
     bool lock_abort = false;
+
     if (!conflict) {
         uint64_t srv = g_tid;
         dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" granted w/o conflict\n",
@@ -930,12 +940,12 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
         }
 
         // insert a lock in the owners list
-        target = plmalloc_alloc(p, sizeof(struct lock_entry));
-        assert(target);
-        target->ts = req_ts;
-        target->s = s;
-        target->task_id = g_tid;
-        target->optype = optype;
+//        target = plmalloc_alloc(p, sizeof(struct lock_entry));
+//        assert(target);
+//        target->ts = req_ts;
+//        target->s = s;
+//        target->task_id = g_tid;
+//        target->optype = optype;
         target->ready = 1;
 
         TAILQ_INSERT_HEAD(&e->owners, target, next);
@@ -949,35 +959,49 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 
     } else {
         dprint("srv(%d-%"PRIu64"): There is conflict!!\n", s, req_ts);
-        uint64_t starttime = get_sys_clock();
-        bool dep_added = false;
-        int owners_cnt = 0;
-        int waiters_cnt = 0;
+
+
         TAILQ_FOREACH(l, &e->owners, next) {
-            owners_cnt ++;
-        }
-        TAILQ_FOREACH(l, &e->waiters, next) {
-            waiters_cnt ++;
-        }
-        txncnt = owners_cnt + waiters_cnt;
-        wait = 1;
-        uint64_t txnid = g_tid;
-        if (txncnt) {
-        	int trg_srv[txncnt];
-			uint64_t trg_tid[txncnt];
-            int cur = 0;
-            TAILQ_FOREACH(l, &e->owners, next) {
-            	trg_srv[cur] = l->task_id;
-            	trg_tid[cur] = l->ts;
-                cur++;
-            }
-            TAILQ_FOREACH(l, &e->waiters, next) {
-            	trg_srv[cur] = l->task_id;
-				trg_tid[cur] = l->ts;
-                cur++;
-            }
-            dreadlock_add(g_tid, req_ts, trg_srv, trg_tid, cur);
-        }
+        	dep_srv[all_deps] = l->task_id;
+        	dep_tid[all_deps] = l->ts;
+			all_deps++;
+		}
+		TAILQ_FOREACH(l, &e->waiters, next) {
+			dep_srv[all_deps] = l->task_id;
+			dep_tid[all_deps] = l->ts;
+			all_deps++;
+		}
+		wait = 1;
+
+
+//        int owners_cnt = 0;
+//        int waiters_cnt = 0;
+//
+//        TAILQ_FOREACH(l, &e->owners, next) {
+//            owners_cnt ++;
+//        }
+//        TAILQ_FOREACH(l, &e->waiters, next) {
+//            waiters_cnt ++;
+//        }
+//        txncnt = owners_cnt + waiters_cnt;
+//        wait = 1;
+//        uint64_t txnid = g_tid;
+//        if (txncnt) {
+//        	int trg_srv[txncnt];
+//			uint64_t trg_tid[txncnt];
+//            int cur = 0;
+//            TAILQ_FOREACH(l, &e->owners, next) {
+//            	trg_srv[cur] = l->task_id;
+//            	trg_tid[cur] = l->ts;
+//                cur++;
+//            }
+//            TAILQ_FOREACH(l, &e->waiters, next) {
+//            	trg_srv[cur] = l->task_id;
+//				trg_tid[cur] = l->ts;
+//                cur++;
+//            }
+//            dreadlock_add(g_tid, req_ts, trg_srv, trg_tid, cur);
+//        }
 
 #if DEBUG
 		dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" put under wait\n",
@@ -992,12 +1016,12 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 			dprint("srv(%d-%"PRIu64"): Waiting for waiter %d\n", s, req_ts, l->task_id);
 		}
 #endif //DEBUG
-		target = plmalloc_alloc(p, sizeof(struct lock_entry));
-		assert(target);
-		target->ts = req_ts;
-		target->s = s;
-		target->task_id = g_tid;
-		target->optype = optype;
+//		target = plmalloc_alloc(p, sizeof(struct lock_entry));
+//		assert(target);
+//		target->ts = req_ts;
+//		target->s = s;
+//		target->task_id = g_tid;
+//		target->optype = optype;
 		target->ready = 0;
 		TAILQ_INSERT_HEAD(&e->waiters, target, next);
 
@@ -1006,7 +1030,9 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 
     LATCH_RELEASE(&e->latch, &alock_state);
     dprint("srv(%d-%"PRIu64"): Released the latch and going to wait\n", s, req_ts);
-
+    if (all_deps) {
+		dreadlock_add(g_tid, req_ts, dep_srv, dep_tid, all_deps);
+	}
     if (wait) {
         assert(r == 0);
 
