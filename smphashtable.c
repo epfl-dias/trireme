@@ -10,6 +10,7 @@
 #include "twopl.h"
 #include "mvto.h"
 #include "mv2pl.h"
+#include "mvdreadlock.h"
 #include "silo.h"
 #include "se_dl_detect_graph.h"
 
@@ -311,6 +312,9 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_MV2PL
       if (!(e = mv2pl_acquire(p, e, t)))
           return NULL;
+#elif ENABLE_MVDREADLOCK_CC
+      if (!(e = mvdreadlock_acquire(p, e, t)))
+          return NULL;
 #else
       if (!selock_acquire(p, e, t, ctx->ts)) {
           return NULL;
@@ -573,7 +577,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
         octx->data_copy->value = plmalloc_alloc(p, e->size);
         memcpy(octx->data_copy->value, e->value, e->size);
 
-#if ENABLE_MV2PL
+#if defined(ENABLE_MV2PL) || defined(ENABLE_MVDREADLOCK_CC)
         value = octx->data_copy->value;
 #endif
     } else {
@@ -621,6 +625,12 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       status = mv2pl_validate(ctask, hash_table, s);
   else
       mv2pl_abort(ctask, hash_table, s);
+#elif ENABLE_MVDREADLOCK_CC
+
+  if (status == TXN_COMMIT)
+      status = mvdreadlock_validate(ctask, hash_table, s);
+  else
+      mvdreadlock_abort(ctask, hash_table, s);
 
 #elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
     int release_notify = 1;
@@ -686,7 +696,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops]: 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
@@ -700,7 +710,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #else
 
@@ -725,7 +735,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_MVDREADLOCK_CC)
             ;
 #else
             memcpy(octx->e->value, octx->data_copy->value, size);
@@ -765,7 +775,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
@@ -779,7 +789,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #else
           // not silo. send out release messages
@@ -810,7 +820,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);

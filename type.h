@@ -310,6 +310,10 @@ struct elem {
   volatile int64_t is_write_locked;
 #endif
 
+#if ENABLE_MVDREADLOCK_CC
+  volatile int64_t owner;
+#endif
+
 } __attribute__ ((aligned (CACHELINE)));
 
 LIST_HEAD(elist, elem);
@@ -417,6 +421,14 @@ struct partition {
   LATCH_T latch;
 #endif
 
+#if ENABLE_SILO_CC
+  uint64_t cur_tid;
+#endif
+
+#if ENABLE_MVDREADLOCK_CC
+  volatile int64_t waiting_for;
+#endif
+
 #if CLH_LOCK
   clh_qnode *my_qnode;
   clh_qnode *my_pred;
@@ -424,10 +436,6 @@ struct partition {
 
   // partition-local heap
   struct mem_heap heap;
-
-#if ENABLE_SILO_CC
-  uint64_t cur_tid;
-#endif
 
   unsigned int seed;
 
