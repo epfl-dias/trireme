@@ -76,8 +76,6 @@ int64_t certify_write(struct elem *e, char use_phys_synch)
             LOCK_SUCCESS : LOCK_ABORT;
     }
 
-    e->rd_counter = -1;
-
     return LOCK_SUCCESS;
 }
 
