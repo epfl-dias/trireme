@@ -16,7 +16,8 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 #
 #	CC types: ENABLE_WAIT_DIE_CC ENABLE_NOWAIT_OWNER_CC ENABLE_NOWAIT_CC
 #				ENABLE_BWAIT_CC ENABLE_SILO_CC ENABLE_DL_DETECT_CC
-#				ENABLE_MVTO ENABLE_MV2PL
+#				ENABLE_MVTO ENABLE_MV2PL ENABLE_SVDREADLOCK_CC
+#				ENABLE_MVDREADLOCK_CC
 #
 #	Abort backoff: ENABLE_ABORT_BACKOFF
 #
@@ -48,7 +49,7 @@ LIBSRC =  htlock.c ycsb.c smphashtable.c onewaybuffer.c \
 				 partition.c util.c zipf.c micro_bench.c twopl.c silo.c mvto.c mv2pl.c \
 				 ia32msr.c ia32perf.c selock.c \
 					plmalloc.c task.c tpcc.c se_dl_detect_graph.c mp_dl_detect_graph.c \
-					dreadlock_detect.c svdreadlock.c
+					dreadlock_detect.c svdreadlock.c mvdreadlock.c
 
 LIBOBJS = $(LIBSRC:.c=.o)
 

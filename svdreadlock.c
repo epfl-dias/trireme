@@ -124,8 +124,6 @@ struct elem *svdreadlock_acquire(struct partition *p, struct elem *e,
 
             if (cycle_found)
                 break;
-            else
-                assert(nlocks == i + 1);
         }
 
         /* if we got all locks, then we're good. Otherwise, release whatever

@@ -303,21 +303,20 @@ struct elem {
 
 #elif ENABLE_SVDREADLOCK_CC
 
-  /*
-  struct {
-      int64_t core;
-      char pad[CACHELINE - sizeof(int)];
-  } owner[NCORES] __attribute__((aligned (CACHELINE)));
-  */
   volatile int64_t owners[NCORES];
+
+#elif ENABLE_MVDREADLOCK_CC
+
+  volatile int64_t owners[NCORES];
+  volatile int64_t writer;
 
 #elif ENABLE_DL_DETECT_CC
 
   struct lock_tail waiters;
   struct lock_tail owners;
-  
+
 #else
-  
+
   struct lock_list waiters;
   struct lock_list owners;
 
@@ -327,17 +326,17 @@ struct elem {
 
 LIST_HEAD(elist, elem);
 
-/* plmalloc dses 
+/* plmalloc dses
  * Each partition, and hence each thread has a dedicated heap. Each heap
- * contains an array of buckets. Each bucket is a linked list, one list per 
+ * contains an array of buckets. Each bucket is a linked list, one list per
  * tuple type. The max #tuple-types we have is 10 for TPCC. For microbench it is
  * just 1. Each list links mem_tuple elements. Each mem_tuple
  *
  * We separate out storage of tuple data from space for storing elem structs
- * as 1) elem structs are small and it is a waste of space to use an 
+ * as 1) elem structs are small and it is a waste of space to use an
  * additional mem_tuple metadata structure to wrap each elem struct, and
  * 2) elem structs are cache aligned
- * 
+ *
  */
 struct mem_tuple {
   char *data;
@@ -373,7 +372,7 @@ struct bucket {
 
 struct op_ctx {
   int target;
-  char optype; 
+  char optype;
   struct elem *e;
   struct elem *data_copy;
   uint64_t tid_copy;
@@ -387,7 +386,7 @@ struct txn_ctx {
 
 #if SHARED_EVERYTHING
 typedef enum sethread_state {
-  STATE_WAIT, 
+  STATE_WAIT,
   STATE_READY
 } sethread_state_t;
 #endif
@@ -434,7 +433,7 @@ struct partition {
   uint64_t cur_tid;
 #endif
 
-#if ENABLE_SVDREADLOCK_CC
+#if defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
   volatile int64_t waiting_for;
 #endif
 
@@ -454,9 +453,9 @@ struct partition {
   ucontext_t main_ctx;
   struct task *current_task;
 
-  TAILQ_HEAD(ready_list, task) ready_list; 
-  TAILQ_HEAD(wait_list, task) wait_list; 
-  TAILQ_HEAD(free_list, task) free_list; 
+  TAILQ_HEAD(ready_list, task) ready_list;
+  TAILQ_HEAD(wait_list, task) wait_list;
+  TAILQ_HEAD(free_list, task) free_list;
 
   // stats
   size_t size;

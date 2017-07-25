@@ -11,6 +11,7 @@
 #include "mvto.h"
 #include "mv2pl.h"
 #include "svdreadlock.h"
+#include "mvdreadlock.h"
 #include "silo.h"
 #include "se_dl_detect_graph.h"
 
@@ -179,7 +180,7 @@ void start_hash_table_servers(struct hash_table *hash_table)
   nready = hash_table->quitting = 0;
 
   assert(NCORES >= g_nservers);
-  
+
   for (int i = 0; i < g_nservers; i++) {
     hash_table->thread_data[i].id = i;
     hash_table->thread_data[i].core = coreids[i];
@@ -315,6 +316,9 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #elif ENABLE_SVDREADLOCK_CC
       if (!(e = svdreadlock_acquire(p, e, t)))
           return NULL;
+#elif ENABLE_MVDREADLOCK_CC
+      if (!(e = mvdreadlock_acquire(p, e, t)))
+          return NULL;
 #else
       if (!selock_acquire(p, e, t, ctx->ts)) {
           return NULL;
@@ -430,7 +434,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   dprint("srv(%d): issue %s %s op key %" PRIu64 "\n",
     s, is_local ? "local":"remote",
     op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key);
-  
+
 #if defined(MIGRATION)
   if (!is_local) {
       ctask->target = target;
@@ -473,12 +477,12 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     // At validation time, we will do the locking. so we use messaging there.
 
 #if !defined(ENABLE_INDEX_LATCH)
-    
+
     // Assumes with tpcc that index latching is enabled
     assert(g_benchmark == &micro_bench);
 
 #endif// EN_INDEX_LATCH
-    
+
     l_p = &hash_table->partitions[target];
     e = local_txn_op(ctask, target, ctx, l_p, op);
 
@@ -544,7 +548,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
             memcpy(octx->data_copy->value, e->value, e->size);
 
             COMPILER_BARRIER();
-        
+
             new_tid = e->tid;
         }
 
@@ -577,7 +581,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
         octx->data_copy->value = plmalloc_alloc(p, e->size);
         memcpy(octx->data_copy->value, e->value, e->size);
 
-#if defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)
+#if defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
         value = octx->data_copy->value;
 #endif
     } else {
@@ -625,12 +629,18 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       status = mv2pl_validate(ctask, hash_table, s);
   else
       mv2pl_abort(ctask, hash_table, s);
-#elif ENABLE_SVDREADLOCK_CC
+#elif defined(ENABLE_SVDREADLOCK_CC)
 
   if (status == TXN_COMMIT)
       status = svdreadlock_validate(ctask, hash_table, s);
   else
       svdreadlock_abort(ctask, hash_table, s);
+#elif defined(ENABLE_MVDREADLOCK_CC)
+
+  if (status == TXN_COMMIT)
+      status = mvdreadlock_validate(ctask, hash_table, s);
+  else
+      mvdreadlock_abort(ctask, hash_table, s);
 
 #elif (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
     int release_notify = 1;
@@ -659,7 +669,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       assert(octx->optype == OPTYPE_LOOKUP);
       continue;
     }
-    
+
 #if MIGRATION
     if (octx->target != s) {
         ctask->target = octx->target;
@@ -669,7 +679,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         assert(s == get_affinity());
     }
 #endif
-    
+
     switch (t) {
       case OPTYPE_LOOKUP:
 
@@ -696,7 +706,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops]: 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
@@ -710,7 +720,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #else
 
@@ -735,7 +745,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)
             ;
 #else
             memcpy(octx->e->value, octx->data_copy->value, size);
@@ -775,7 +785,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
@@ -789,7 +799,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #else
           // not silo. send out release messages
@@ -820,7 +830,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
@@ -874,7 +884,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       }
       else
           p->ncommits_wonly++;
- 
+
   } else {
       p->naborts++;
 
@@ -1055,8 +1065,8 @@ void process_requests(struct hash_table *hash_table, int s)
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, i, tid, opid, t, 1);
 #elif ENABLE_MV2PL
-          del_mv2pl_release(p, t, optype == HASHOP_RD_RELEASE ? OPTYPE_LOOKUP : 
-                  (optype == HASHOP_WT_RELEASE ? OPTYPE_UPDATE : 
+          del_mv2pl_release(p, t, optype == HASHOP_RD_RELEASE ? OPTYPE_LOOKUP :
+                  (optype == HASHOP_WT_RELEASE ? OPTYPE_UPDATE :
                        OPTYPE_CERTIFY));
 #elif !defined(SHARED_EVERYTHING) && !defined(SHARED_NOTHING)
 #error "No CC algorithm specified"
@@ -1434,7 +1444,7 @@ void *hash_table_server(void* args)
   /* load only one partition in case of shared everything */
   //if (s == 0)
     g_benchmark->load_data(hash_table, s);
-  
+
 #else
 
 #if ENABLE_ASYMMETRIC_MESSAGING
@@ -1690,7 +1700,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
         buffer_write_all(&boxes[client_id].boxes[s].in, 1, msg_data, 0);
 
         break;
-       
+
       case OPTYPE_INSERT:
         //s = g_benchmark->hash_get_server(hash_table, queries[i]->key);
 
@@ -1894,7 +1904,7 @@ int stats_get_ncommits(struct hash_table *hash_table)
           ncommits_ronly, ncommits_wonly);
 
   printf("validate success %d, failure %d\n", nvalidate_success,
-          nvalidate_failure); 
+          nvalidate_failure);
 
   return ncommits;
 
@@ -1911,7 +1921,7 @@ int stats_get_task_stats(struct hash_table *hash_table) {
         struct task *t;
         for (int j = FIRST_TASK_ID; j < FIRST_TASK_ID + g_batch_size; j++) {
             struct task *t = g_tasks[i][j];
-            printf("Task %d number of times scheduled: %d\n", t->g_tid,  t->times_scheduled);   
+            printf("Task %d number of times scheduled: %d\n", t->g_tid,  t->times_scheduled);
             printf("Task %d run time: %f\n", t->g_tid, t->run_time);
             printf("Task %d commit/abort counts: %10d/%10d\n", t->g_tid, t->ncommits, t->naborts);
         }
@@ -1960,9 +1970,9 @@ int stats_get_naborts(struct hash_table *hash_table)
     dprint("srv %d aborts %d \n", i,
       hash_table->partitions[i].naborts);
 
-    naborts += hash_table->partitions[i].naborts; 
-    naborts_ronly += hash_table->partitions[i].naborts_ronly; 
-    naborts_wonly += hash_table->partitions[i].naborts_wonly; 
+    naborts += hash_table->partitions[i].naborts;
+    naborts_ronly += hash_table->partitions[i].naborts_ronly;
+    naborts_wonly += hash_table->partitions[i].naborts_wonly;
   }
 
   printf("Total aborts: %d, ronly aborts %d, wonly aborts %d\n", naborts,

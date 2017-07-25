@@ -52,7 +52,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
     p->cur_tid = 0;
 #endif
 
-#if ENABLE_SVDREADLOCK_CC
+#if defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
     p->waiting_for = -1;
 #endif
 
@@ -244,9 +244,13 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   memset(&e->max_rd_ts, 0, sizeof(timestamp));
 #elif ENABLE_MV2PL
   e->rd_counter = e->is_write_locked = 0;
-#elif ENABLE_SVDREADLOCK_CC
+#elif defined(ENABLE_SVDREADLOCK_CC)
   for (int i = 0; i < NCORES; i++)
       e->owners[i] = -1;
+#elif defined(ENABLE_MVDREADLOCK_CC)
+  for (int i = 0; i < NCORES; i++)
+      e->owners[i] = -1;
+  e->writer = -1;
 #elif ENABLE_SILO_CC
   e->tid = 0;
 #endif

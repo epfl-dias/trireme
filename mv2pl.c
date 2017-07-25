@@ -63,7 +63,7 @@ void clear_lock(char optype, struct elem *e, char is_certified,
     }
 }
 
-int64_t certify_write(struct elem *e, char use_phys_synch)
+int certify_write(struct elem *e, char use_phys_synch)
 {
     int64_t val = e->rd_counter;
     if (val > 0)
