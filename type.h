@@ -285,6 +285,8 @@ struct elem {
 #if ENABLE_SILO_CC
 
   uint64_t tid;
+  struct lock_list waiters;
+  struct lock_list owners;
 
 #elif ENABLE_MVTO
 
@@ -321,6 +323,7 @@ struct elem {
   struct lock_list owners;
 
 #endif
+
 
 } __attribute__ ((aligned (CACHELINE)));
 

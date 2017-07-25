@@ -66,7 +66,7 @@ int certify_write(struct partition *p, struct elem *e, int s)
     assert(e->writer == s);
 
     /* spin on each lock until we get it or we detect a deadlock */
-    for (int i = 0; i < NCORES; i++) {
+    for (int i = 0; i < g_nservers; i++) {
         if (i == s) {
             assert(e->owners[i] == s);
             nlocks++;
@@ -124,7 +124,7 @@ void clear_lock(char optype, struct elem *e, int s, char is_certified)
         assert(e->owners[s] == s);
 
         if (is_certified) {
-            for (int j = NCORES - 1; j >= 0; j--) {
+            for (int j = g_nservers - 1; j >= 0; j--) {
                 assert(e->owners[j] == s);
                 e->owners[j] = -1;
             }

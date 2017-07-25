@@ -100,7 +100,7 @@ struct elem *svdreadlock_acquire(struct partition *p, struct elem *e,
         assert(optype == OPTYPE_UPDATE);
 
         /* spin on each lock until we get it or we detect a deadlock */
-        for (int i = 0; i < NCORES; i++) {
+        for (int i = 0; i < g_nservers; i++) {
             do {
                 int64_t owner = __sync_val_compare_and_swap(&e->owners[i], -1, s);
                 if (owner == -1) {
@@ -129,7 +129,7 @@ struct elem *svdreadlock_acquire(struct partition *p, struct elem *e,
         /* if we got all locks, then we're good. Otherwise, release whatever
          * we got and fail
          */
-        if (nlocks == NCORES) {
+        if (nlocks == g_nservers) {
             target = e;
         } else {
 
@@ -160,7 +160,7 @@ void svdreadlock_abort(struct task *ctask, struct hash_table *hash_table, int s)
             break;
 
         case OPTYPE_UPDATE:
-            for (int j = NCORES - 1; j >= 0; j--) {
+            for (int j = g_nservers - 1; j >= 0; j--) {
                 assert(octx->e->owners[j] == s);
                 octx->e->owners[j] = -1;
             }
@@ -193,7 +193,7 @@ int svdreadlock_validate(struct task *ctask, struct hash_table *hash_table, int 
             if (r == LOCK_SUCCESS && octx->optype == OPTYPE_UPDATE)
                 memcpy(octx->e->value, octx->data_copy->value, octx->e->size);
 
-            for (int j = NCORES - 1; j >= 0; j--) {
+            for (int j = g_nservers - 1; j >= 0; j--) {
                 assert(octx->e->owners[j] == s);
                 octx->e->owners[j] = -1;
             }

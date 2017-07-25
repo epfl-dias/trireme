@@ -15,9 +15,17 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 # 				DRW_LOCK
 #
 #	CC types: ENABLE_WAIT_DIE_CC ENABLE_NOWAIT_OWNER_CC ENABLE_NOWAIT_CC
-#				ENABLE_BWAIT_CC ENABLE_SILO_CC ENABLE_DL_DETECT_CC
-#				ENABLE_MVTO ENABLE_MV2PL ENABLE_SVDREADLOCK_CC
+#				ENABLE_BWAIT_CC ENABLE_SILO_CC
+#				ENABLE_DL_DETECT_CC:
+#					1) +ENABLE_CYCLE_DETECTION (default)
+#					2) -(nothing) (dreadlocks)
+#					3) ENABLE_SVDREADLOCK_CC (the optimized rwlock style
+#					dldetect)
+#
+#				Multiversion protocols:
 #				ENABLE_MVDREADLOCK_CC
+#				ENABLE_MVTO
+#				ENABLE_MV2PL
 #
 #	Abort backoff: ENABLE_ABORT_BACKOFF
 #
@@ -39,7 +47,7 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 #
 # compile shared nothing with pthread_spinlock
 # compile trireme with nothing
-DFLAGS = 
+DFLAGS =
 CFLAGS = -march=native -std=c99 -Wfatal-errors -Werror -D_GNU_SOURCE -g -ggdb -O3 -fno-omit-frame-pointer -D$(ARCH) -D$(PLATFORM) $(DFLAGS) #-DSE_INDEX_LATCH
 LFLAGS = -lpthread -lm -lrt -lnuma #-ltcmalloc
 MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
