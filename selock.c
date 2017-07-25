@@ -952,31 +952,25 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 
         if (!TAILQ_EMPTY(&e->waiters)) {
             TAILQ_FOREACH(l, &e->waiters, next) {
-//            	int trg_srv = l->task_id;
-//                dreadlock_add(g_tid, req_ts, &trg_srv, &l->ts, 1);
-            	dep_srv[all_deps] = l->task_id;
-				dep_tid[all_deps] = l->ts;
-				all_deps++;
+            	int trg_srv = l->task_id;
+                dreadlock_add(g_tid, req_ts, &trg_srv, &l->ts, 1);
             }
         }
 
     } else {
         dprint("srv(%d-%"PRIu64"): There is conflict!!\n", s, req_ts);
 
-        TAILQ_FOREACH(l, &e->waiters, next) {
+
+        TAILQ_FOREACH(l, &e->owners, next) {
+        	dep_srv[all_deps] = l->task_id;
+        	dep_tid[all_deps] = l->ts;
+			all_deps++;
+		}
+		TAILQ_FOREACH(l, &e->waiters, next) {
 			dep_srv[all_deps] = l->task_id;
 			dep_tid[all_deps] = l->ts;
 			all_deps++;
 		}
-        if (all_deps) {
-        	TAILQ_FOREACH(l, &e->owners, next) {
-				dep_srv[all_deps] = l->task_id;
-				dep_tid[all_deps] = l->ts;
-				all_deps++;
-			}
-        }
-
-
 		wait = 1;
 
 
@@ -1037,7 +1031,14 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
     LATCH_RELEASE(&e->latch, &alock_state);
     dprint("srv(%d-%"PRIu64"): Released the latch and going to wait\n", s, req_ts);
     if (all_deps) {
-		dreadlock_add(g_tid, req_ts, dep_srv, dep_tid, all_deps);
+    	if (conflict) {
+    		dreadlock_add(g_tid, req_ts, dep_srv, dep_tid, all_deps);
+    	} else {
+    		for (int i = 0; i < all_deps; i++) {
+    			dreadlock_add(dep_srv[i], dep_tid[i], &g_tid, &req_ts, 1);
+    		}
+    	}
+
 	}
     if (wait) {
         assert(r == 0);
@@ -1068,14 +1069,13 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
         	LATCH_ACQUIRE(&e->latch, &alock_state);
         	dprint("srv(%d-%"PRIu64"): Acquired the latch for key %"PRIu64"\n", s, req_ts, e->key);
 
-//        	TAILQ_FOREACH(l, &e->waiters, next) {
-//        		if ((l->s == s) && (l->ts == req_ts)) {
-//        			TAILQ_REMOVE(&e->waiters, l, next);
-//        			found_waiter = 1;
-//        			break;
-//        		}
-//        	}
-        	TAILQ_REMOVE(&e->waiters, target, next);
+        	TAILQ_FOREACH(l, &e->waiters, next) {
+        		if ((l->s == s) && (l->ts == req_ts)) {
+        			TAILQ_REMOVE(&e->waiters, l, next);
+        			found_waiter = 1;
+        			break;
+        		}
+        	}
 
         	LATCH_RELEASE(&e->latch, &alock_state);
         	dprint("srv(%d-%"PRIu64"): Released the latch for key %"PRIu64"\n", s, req_ts, e->key);
