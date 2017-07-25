@@ -245,7 +245,8 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 #elif ENABLE_MV2PL
   e->rd_counter = e->is_write_locked = 0;
 #elif ENABLE_MVDREADLOCK_CC
-  e->owner = -1;
+  for (int i = 0; i < NCORES; i++)
+      e->owners[i] = -1;
 #elif ENABLE_SILO_CC
   e->tid = 0;
 #endif

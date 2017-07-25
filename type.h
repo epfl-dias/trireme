@@ -283,19 +283,11 @@ struct elem {
 
   // tid used for silo
 #if ENABLE_SILO_CC
+
   uint64_t tid;
-#endif
 
-  // waiters and owners used for 2pl
-#if ENABLE_DL_DETECT_CC
-  struct lock_tail waiters;
-  struct lock_tail owners;
-#else
-  struct lock_list waiters;
-  struct lock_list owners;
-#endif
+#elif ENABLE_MVTO
 
-#if ENABLE_MVTO
   // timestamps used for mvto
   timestamp ts;
   timestamp max_rd_ts;
@@ -303,15 +295,32 @@ struct elem {
   // mvcc also needs to maintain queue of versions
   TAILQ_HEAD(version_list, elem) versions;
   TAILQ_ENTRY(elem) prev_version;
-#endif
 
-#if ENABLE_MV2PL
+#elif ENABLE_MV2PL
+
   volatile int64_t rd_counter;
   volatile int64_t is_write_locked;
-#endif
 
-#if ENABLE_MVDREADLOCK_CC
-  volatile int64_t owner;
+#elif ENABLE_MVDREADLOCK_CC
+
+  /*
+  struct {
+      int64_t core;
+      char pad[CACHELINE - sizeof(int)];
+  } owner[NCORES] __attribute__((aligned (CACHELINE)));
+  */
+  volatile int64_t owners[NCORES];
+
+#elif ENABLE_DL_DETECT_CC
+
+  struct lock_tail waiters;
+  struct lock_tail owners;
+  
+#else
+  
+  struct lock_list waiters;
+  struct lock_list owners;
+
 #endif
 
 } __attribute__ ((aligned (CACHELINE)));
