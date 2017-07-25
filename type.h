@@ -301,7 +301,7 @@ struct elem {
   volatile int64_t rd_counter;
   volatile int64_t is_write_locked;
 
-#elif ENABLE_MVDREADLOCK_CC
+#elif ENABLE_SVDREADLOCK_CC
 
   /*
   struct {
@@ -434,7 +434,7 @@ struct partition {
   uint64_t cur_tid;
 #endif
 
-#if ENABLE_MVDREADLOCK_CC
+#if ENABLE_SVDREADLOCK_CC
   volatile int64_t waiting_for;
 #endif
 

@@ -2,7 +2,7 @@
 #include "smphashtable.h"
 #include "plmalloc.h"
 
-#if ENABLE_MVDREADLOCK_CC
+#if ENABLE_SVDREADLOCK_CC
 
 void gather_deps(char *deps, int me, int owner)
 {
@@ -59,7 +59,7 @@ int cycle_check(struct elem *e, int index, int me, int owner)
 
 }
 
-struct elem *mvdreadlock_acquire(struct partition *p, struct elem *e,
+struct elem *svdreadlock_acquire(struct partition *p, struct elem *e,
         char optype)
 {
     struct elem *target = NULL;
@@ -147,7 +147,7 @@ struct elem *mvdreadlock_acquire(struct partition *p, struct elem *e,
     return target;
 }
 
-void mvdreadlock_abort(struct task *ctask, struct hash_table *hash_table, int s)
+void svdreadlock_abort(struct task *ctask, struct hash_table *hash_table, int s)
 {
     struct txn_ctx *ctx = &ctask->txn_ctx;
     struct partition *p = &hash_table->partitions[s];
@@ -172,7 +172,7 @@ void mvdreadlock_abort(struct task *ctask, struct hash_table *hash_table, int s)
     return;
 }
 
-int mvdreadlock_validate(struct task *ctask, struct hash_table *hash_table, int s)
+int svdreadlock_validate(struct task *ctask, struct hash_table *hash_table, int s)
 {
     /* latch, reset ref count to free the logical lock, unlatch */
     struct txn_ctx *ctx = &ctask->txn_ctx;
@@ -205,4 +205,4 @@ int mvdreadlock_validate(struct task *ctask, struct hash_table *hash_table, int 
     return TXN_COMMIT;
 }
 
-#endif //ENABLE_MV2PL
+#endif //ENABLE_SVDREADLOCK
