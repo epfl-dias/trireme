@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
     assert(g_nremote_ops <= g_ops_per_txn &&
             g_nremote_ops < MAX_OPS_PER_QUERY);
 
-#if !YCSB_BENCHMARK
+#if !defined(YCSB_BENCHMARK)
     if (g_alpha) {
 #if SHARED_EVERYTHING && !MIGRATION
         assert(g_nhot_recs > 1 && g_nhot_servers == 1);
