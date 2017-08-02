@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     /* defaults */
     g_nservers = 1;
     g_nrecs = 1000000;
-    g_alpha = 0.9;
+    g_alpha = 0.8;
     g_niters = 100000000;
     g_nhot_servers = 0;
     g_nhot_recs = 0;

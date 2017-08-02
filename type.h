@@ -305,12 +305,12 @@ struct elem {
 
 #elif ENABLE_SVDREADLOCK_CC
 
-  volatile int64_t owners[NCORES];
+  volatile char owners[NCORES];
 
 #elif ENABLE_MVDREADLOCK_CC
 
-  volatile int64_t owners[NCORES];
-  volatile int64_t writer;
+  volatile char owners[NCORES];
+  volatile char writer;
 
 #elif ENABLE_DL_DETECT_CC
 
