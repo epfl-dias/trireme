@@ -14,13 +14,14 @@ PLATFORM = $(shell uname -n | tr a-z A-Z)
 # 				RW_LOCK (CUSTOM_RW_LOCK or default=PTHREAD_RW_LOCK)
 # 				DRW_LOCK
 #
-#	CC types: ENABLE_WAIT_DIE_CC ENABLE_NOWAIT_OWNER_CC ENABLE_NOWAIT_CC
+# 	CC types: ENABLE_WAIT_DIE_CC ENABLE_NOWAIT_OWNER_CC ENABLE_NOWAIT_CC
 #				ENABLE_BWAIT_CC ENABLE_SILO_CC
 #				ENABLE_DL_DETECT_CC:
 #					1) +ENABLE_CYCLE_DETECTION (default)
 #					2) -(nothing) (dreadlocks)
-#					3) ENABLE_SVDREADLOCK_CC (the optimized rwlock style
-#					dldetect)
+#					3) ENABLE_SVDREADLOCK_CC (the optimized rwlock style impl.)
+#					4) ENABLE_MVDREADLOCK_CC (rwlock + 2v)
+#					5) ENABLE_FSVDREADLOCK_CC (sv-rwlock + fairness)
 #
 #				Multiversion protocols:
 #				ENABLE_MVDREADLOCK_CC
@@ -54,10 +55,11 @@ MAKEDEPEND = gcc -M $(CFLAGS) -o $*.d $<
 
 LIBSRC =  htlock.c ycsb.c smphashtable.c onewaybuffer.c \
 				 alock.c tlock.c taslock.c rwticket_lock.c sspinlock.c rwlock.c drwlock.c clh.c\
-				 partition.c util.c zipf.c micro_bench.c twopl.c silo.c mvto.c mv2pl.c \
-				 ia32msr.c ia32perf.c selock.c \
-					plmalloc.c task.c tpcc.c se_dl_detect_graph.c mp_dl_detect_graph.c \
-					dreadlock_detect.c svdreadlock.c mvdreadlock.c
+				 partition.c util.c zipf.c micro_bench.c tpcc.c \
+				 ia32msr.c ia32perf.c selock.c plmalloc.c task.c \
+				 twopl.c silo.c mvto.c mv2pl.c mv2pl_drwlock.c \
+				 se_dl_detect_graph.c mp_dl_detect_graph.c \
+				 dreadlock_detect.c mvdreadlock.c fsv_dreadlock.c svdreadlock.c 
 
 LIBOBJS = $(LIBSRC:.c=.o)
 

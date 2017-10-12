@@ -303,14 +303,48 @@ struct elem {
   volatile int64_t rd_counter;
   volatile int64_t is_write_locked;
 
+#elif ENABLE_MV2PL_DRWLOCK
+  struct {
+    volatile int value;
+    char pad[CACHELINE - 4];
+  } rd_counter[NCORES] __attribute__((aligned (CACHELINE)));
+
+  volatile int64_t is_write_locked;
+
 #elif ENABLE_SVDREADLOCK_CC
 
-  volatile char owners[NCORES];
+  //volatile char owners[NCORES];
+  struct {
+      volatile int spinlock;
+      char pad[CACHELINE - 4];
+  } owners[NCORES] __attribute__((aligned (CACHELINE)));
+
+#elif ENABLE_FSVDREADLOCK_CC
+
+  struct {
+      volatile int id;
+      char pad[CACHELINE - 4];
+  } owners[NCORES] __attribute__((aligned (CACHELINE)));
+
+  int waiters[NCORES];
+  
+  struct
+  {
+      volatile uint32_t ticket;
+      volatile uint32_t users;
+  } tlock;
 
 #elif ENABLE_MVDREADLOCK_CC
 
-  volatile char owners[NCORES];
-  volatile char writer;
+  //volatile char owners[NCORES];
+  //volatile char writer;
+  
+  struct {
+      volatile int spinlock;
+      char pad[CACHELINE - 4];
+  } owners[NCORES] __attribute__((aligned (CACHELINE)));
+
+  volatile int writer;
 
 #elif ENABLE_DL_DETECT_CC
 
@@ -383,6 +417,9 @@ struct op_ctx {
 
 struct txn_ctx {
   uint64_t ts;
+#if GATHER_STATS
+  double start_time;
+#endif
   int nops;
   struct op_ctx op_ctx[MAX_OPS_PER_QUERY];
 };
@@ -436,7 +473,7 @@ struct partition {
   uint64_t cur_tid;
 #endif
 
-#if defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
+#if defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC)
   volatile int64_t waiting_for;
 #endif
 
@@ -476,10 +513,10 @@ struct partition {
   int nvalidate_success;
   int nvalidate_failure;
 
-  uint64_t tps;
-
-  uint64_t busyclock;
-  uint64_t idleclock;
+  double tps;
+  double total_txn_latency;
+  double max_txn_latency;
+  double min_txn_latency;
 
 } __attribute__ ((aligned (CACHELINE)));
 

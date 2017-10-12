@@ -29,12 +29,12 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
   p->nvalidate_success = 0;
   p->nvalidate_failure = 0;
   p->naborts = 0;
-
   p->nlookups_remote = 0;
   p->nupdates_remote = 0;
 
-  p->busyclock = 0;
-  p->idleclock = 0;
+  p->total_txn_latency = p->max_txn_latency = 0;
+  p->min_txn_latency = UINT64_MAX;
+
   p->seed = rand();
 
 #if SHARED_NOTHING
@@ -52,7 +52,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
     p->cur_tid = 0;
 #endif
 
-#if defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
+#if defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC)
     p->waiting_for = -1;
 #endif
 
@@ -244,12 +244,24 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   memset(&e->max_rd_ts, 0, sizeof(timestamp));
 #elif ENABLE_MV2PL
   e->rd_counter = e->is_write_locked = 0;
+#elif ENABLE_MV2PL_DRWLOCK
+  for (int i = 0; i < NCORES; i++)
+      e->rd_counter[i].value = 0;
+  e->is_write_locked = 0;
 #elif defined(ENABLE_SVDREADLOCK_CC)
   for (int i = 0; i < NCORES; i++)
-      e->owners[i] = -1;
+      e->owners[i].spinlock = -1;
+#elif defined(ENABLE_FSVDREADLOCK_CC)
+  for (int i = 0; i < NCORES; i++) {
+      e->owners[i].id = -1;
+      e->waiters[i] = -1;
+  }
+
+  e->tlock.ticket = e->tlock.users = 0;
+
 #elif defined(ENABLE_MVDREADLOCK_CC)
   for (int i = 0; i < NCORES; i++)
-      e->owners[i] = -1;
+      e->owners[i].spinlock = -1;
   e->writer = -1;
 #elif ENABLE_SILO_CC
   e->tid = 0;

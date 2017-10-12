@@ -190,13 +190,15 @@ void run_benchmark()
 
     printf("== results ==\n");
     printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
+    stats_get_naborts(hash_table);
+    stats_get_ncommits(hash_table);
+
 #if GATHER_STATS
     //stats_get_task_stats(hash_table);
     stats_get_nlookups(hash_table);
     stats_get_ninserts(hash_table);
     stats_get_nupdates(hash_table);
-    stats_get_naborts(hash_table);
-    stats_get_ncommits(hash_table);
+    stats_get_latency(hash_table);
 
     if (g_verbosity == 1) {
         struct elem *e = (struct elem *) malloc(sizeof(struct elem));

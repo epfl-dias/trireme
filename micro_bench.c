@@ -283,21 +283,6 @@ static void se_make_operation(struct hash_table *hash_table, int s,
         op->key = URand(&p->seed, 0, g_nrecs - 1);
 #endif
     } else {
-      /* generate key based on bernoulli dist. alpha is probability
-       * #items in one range = 0 to (nrecs * hot_fraction)
-       * Based on probability pick right range
-       */
-        /*
-      if (!is_local) {
-        int t_server = URand(&p->seed, 0, g_nhot_servers - 1);
-        op->key = t_server * nrecs_per_server + URand(&p->seed, 0, g_nhot_recs -1);
-      } else {
-        //cold range
-          int t_server = URand(&p->seed, 0, g_nservers - 1);
-        op->key = t_server * nrecs_per_server + URand(&p->seed, g_nhot_recs + 1, nrecs_per_server - 1);
-      }
-      */
-
         /* The two records we access remotely are hot records. The rest
          * are cold accesses
        */
@@ -470,35 +455,6 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
     assert((tserver >= 0) && (tserver < g_batch_size * g_nservers));
 
-//    printf("The target server for key %ld is %d (should be %d); nrec_per_partition = %d\n",
-//    		op->key, tserver, (((int)(op->key))/nrecs_per_partition), nrecs_per_partition);
-//    dprint("The target server for key %"PRIu64" is %d (%"PRIu64"); nrec_per_partition = %d\n",
-//        		op->key, tserver, (op->key / nrecs_per_partition), nrecs_per_partition);
-//
-//    if ((op->key / nrecs_per_partition) != (((op->key))/nrecs_per_partition))
-//    	assert(0);
-
-    // try ith operation i+1 times before aborting only with NOWAIT CC
-//#if ENABLE_WAIT_DIE_CC || defined(SHARED_NOTHING)
-//    int nretries = 1;
-//#else
-//    int nretries = i + 1;
-//#endif
-//    for (int j = 0; j < nretries; j++) {
-//      value = txn_op(ctask, hash_table, s, op, tserver);
-//
-//#if defined(MIGRATION)
-//      s = ctask->s;
-//      assert(s == get_affinity());
-//#endif
-//      if (value)
-//        break;
-//    }
-//
-//    if (!value) {
-//      r = TXN_ABORT;
-//      break;
-//    }
     value = txn_op(ctask, hash_table, s, op, tserver);
 #if defined(MIGRATION)
     s = ctask->s;
@@ -515,17 +471,6 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
         uint64_t *next_field = (uint64_t *)(value + j * YCSB_FIELD_SZ);
         assert(*next_field == first_field);
     }
-
-
-    /*
-    uint64_t val = int_val[0];
-    assert(val == op->key);
-
-    if (op->optype == OPTYPE_UPDATE) {
-        int_val[0] = op->key;
-        int_val[1]++;
-    }
-    */
 
     if (op->optype == OPTYPE_UPDATE) {
         for (int j = 0; j < YCSB_NFIELDS; j++) {

@@ -685,9 +685,10 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
     }
 
     LATCH_RELEASE(&e->latch, &alock_state);
-    dprint("srv(%d-%"PRIu64"): Released the latch and going to wait\n", s, req_ts);
+    dprint("srv(%d-%"PRIu64"): Released the latch\n", s, req_ts);
 
     if (wait) {
+        dprint("srv(%d-%"PRIu64"): Going to wait\n", s, req_ts);
         assert(r == 0);
 
         /* now spin until another thread signals us that we have the lock */

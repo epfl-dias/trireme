@@ -32,19 +32,19 @@ DBGFLAGS="-DYCSB_BENCHMARK"
 #                               latching test                                 #
 ###############################################################################
 #silo spinlock
-make clean
-make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_SILO_CC $DBGFLAGS"
-do_test_zipf_ycsb se-silo-rw-sensitivity.log 1
+#make clean
+#make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_SILO_CC $DBGFLAGS"
+#do_test_zipf_ycsb se-silo-rw-sensitivity.log 1
 
 #nowait rwlock
-make clean
-make "DFLAGS=-DSHARED_EVERYTHING -DENABLE_NOWAIT_CC -DSE_LATCH -DRW_LOCK -DCUSTOM_RW_LOCK $DBGFLAGS"
-do_test_zipf_ycsb se-nowait-rwlock-rw-sensitivity.log 1
+#make clean
+#make "DFLAGS=-DSHARED_EVERYTHING -DENABLE_NOWAIT_CC -DSE_LATCH -DRW_LOCK -DCUSTOM_RW_LOCK $DBGFLAGS"
+#do_test_zipf_ycsb se-nowait-rwlock-rw-sensitivity.log 1
 
 #dl-detect default
-make clean
-make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_DL_DETECT_CC -DENABLE_CYCLE_DETECTION $DBGFLAGS"
-do_test_zipf_ycsb se-default-dldetect-rw-sensitivity.log 1
+#make clean
+#make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_DL_DETECT_CC -DENABLE_CYCLE_DETECTION $DBGFLAGS"
+#do_test_zipf_ycsb se-default-dldetect-rw-sensitivity.log 1
 
 #dl-detect dreadlock
 #make clean
@@ -56,47 +56,52 @@ do_test_zipf_ycsb se-default-dldetect-rw-sensitivity.log 1
 #make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_SVDREADLOCK_CC $DBGFLAGS"
 #do_test_zipf_ycsb se-rdoptimized-dldetect-rw-sensitivity.log 1
 
-#dl-detect optimized svdreadlock
+#dl-detect optimized mvdreadlock
 #make clean
 #make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_MVDREADLOCK_CC $DBGFLAGS"
 #do_test_zipf_ycsb se-mvdldetect-rw-sensitivity.log 1
 
 #2v2pl test
+#make clean
+#make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_MV2PL $DBGFLAGS"
+#do_test_zipf_ycsb se-mv2pl-rw-sensitivity.log 1
+
+#2v2pl_drwlock test
 make clean
-make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_MV2PL $DBGFLAGS"
-do_test_zipf_ycsb se-mv2pl-rw-sensitivity.log 1
+make "DFLAGS=-DSHARED_EVERYTHING -DSE_LATCH -DPTHREAD_SPINLOCK -DENABLE_MV2PL_DRWLOCK $DBGFLAGS"
+do_test_zipf_ycsb se-mv2pl-drwlock-rw-sensitivity.log 1
 
 ###############################################################################
 #                               sn                                           #
 ###############################################################################
 #sn
-make clean
-make "DFLAGS=-DSHARED_NOTHING -DPTHREAD_SPINLOCK $DBGFLAGS"
-do_test_zipf_ycsb sn-zipf-rw-sensivity.log 1
+#make clean
+#make "DFLAGS=-DSHARED_NOTHING -DPTHREAD_SPINLOCK $DBGFLAGS"
+#do_test_zipf_ycsb sn-zipf-rw-sensivity.log 1
 
 ###############################################################################
 #                               Messaging test                                #
 ###############################################################################
 #nowait msg
-make clean
-make "DFLAGS=-DENABLE_NOWAIT_CC $DBGFLAGS"
-do_test_zipf_ycsb tr-nowait-b1-multitable-zipf-rw-sensivity.log 1
-do_test_zipf_ycsb tr-nowait-b4-multitable-zipf-rw-sensivity.log 4
+#make clean
+#make "DFLAGS=-DENABLE_NOWAIT_CC $DBGFLAGS"
+#do_test_zipf_ycsb tr-nowait-b1-multitable-zipf-rw-sensivity.log 1
+#do_test_zipf_ycsb tr-nowait-b4-multitable-zipf-rw-sensivity.log 4
 
 #silo msg
-make clean
-make "DFLAGS=-DENABLE_SILO_CC $DBGFLAGS"
-do_test_zipf_ycsb tr-silo-b1-multitable-zipf-rw-sensivity.log 1
-do_test_zipf_ycsb tr-silo-b4-multitable-zipf-rw-sensivity.log 4
+#make clean
+#make "DFLAGS=-DENABLE_SILO_CC $DBGFLAGS"
+#do_test_zipf_ycsb tr-silo-b1-multitable-zipf-rw-sensivity.log 1
+#do_test_zipf_ycsb tr-silo-b4-multitable-zipf-rw-sensivity.log 4
 
 #dl-detect msg
-make clean
-make "DFLAGS=-DENABLE_DL_DETECT_CC $DBGFLAGS"
-do_test_zipf_ycsb tr-dl-detect-b1-multitable-zipf-rw-sensivity.log 1
-do_test_zipf_ycsb tr-dl-detect-b4-multitable-zipf-rw-sensivity.log 4
+#make clean
+#make "DFLAGS=-DENABLE_DL_DETECT_CC $DBGFLAGS"
+#do_test_zipf_ycsb tr-dl-detect-b1-multitable-zipf-rw-sensivity.log 1
+#do_test_zipf_ycsb tr-dl-detect-b4-multitable-zipf-rw-sensivity.log 4
 
 #mv2pl msg
-make clean
-make "DFLAGS=-DENABLE_MV2PL $DBGFLAGS"
-do_test_zipf_ycsb tr-mv2pl-b1-multitable-zipf-rw-sensivity.log 1
-do_test_zipf_ycsb tr-mv2pl-b4-multitable-zipf-rw-sensivity.log 4
+#make clean
+#make "DFLAGS=-DENABLE_MV2PL $DBGFLAGS"
+#do_test_zipf_ycsb tr-mv2pl-b1-multitable-zipf-rw-sensivity.log 1
+#do_test_zipf_ycsb tr-mv2pl-b4-multitable-zipf-rw-sensivity.log 4

@@ -310,10 +310,10 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #if ENABLE_MVTO
       if (!(e = mvto_acquire(p, e, t, ctx->ts)))
           return NULL;
-#elif ENABLE_MV2PL
+#elif defined(ENABLE_MV2PL) || defined(ENABLE_MV2PL_DRWLOCK)
       if (!(e = mv2pl_acquire(p, e, t)))
           return NULL;
-#elif ENABLE_SVDREADLOCK_CC
+#elif defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC)
       if (!(e = svdreadlock_acquire(p, e, t)))
           return NULL;
 #elif ENABLE_MVDREADLOCK_CC
@@ -581,7 +581,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
         octx->data_copy->value = plmalloc_alloc(p, e->size);
         memcpy(octx->data_copy->value, e->value, e->size);
 
-#if defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
+#if defined(ENABLE_MV2PL) || defined(ENABLE_MV2PL_DRWLOCK) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC)
         value = octx->data_copy->value;
 #endif
     } else {
@@ -607,6 +607,9 @@ void txn_start(struct hash_table *hash_table, int s,
 {
   ctx->nops = 0;
   ctx->ts = read_tsc();
+#if GATHER_STATS
+  ctx->start_time = now();
+#endif
 }
 
 int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
@@ -617,20 +620,33 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
   int nops = ctx->nops;
   int nrels;
 
+#if GATHER_STATS
+  if (status == TXN_COMMIT) {
+      double end_time = now();
+      double txn_latency = end_time - ctx->start_time;
+      if (txn_latency > p->max_txn_latency)
+          p->max_txn_latency = txn_latency;
+
+      if (txn_latency < p->min_txn_latency)
+          p->min_txn_latency = txn_latency;
+
+      p->total_txn_latency += txn_latency;
+  }
+#endif
+
 #if ENABLE_SILO_CC
   // at this point, we need to validate the txn under silo to determine if it
   // can complete or not
   assert(status == TXN_COMMIT);
 
   status = silo_validate(ctask, hash_table, s);
-#elif ENABLE_MV2PL
+#elif defined(ENABLE_MV2PL) || defined(ENABLE_MV2PL_DRWLOCK)
 
   if (status == TXN_COMMIT)
       status = mv2pl_validate(ctask, hash_table, s);
   else
       mv2pl_abort(ctask, hash_table, s);
-#elif defined(ENABLE_SVDREADLOCK_CC)
-
+#elif defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC)
   if (status == TXN_COMMIT)
       status = svdreadlock_validate(ctask, hash_table, s);
   else
@@ -706,7 +722,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops]: 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
@@ -720,7 +736,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
           ; // do nothing. everything is done by validate function
 #else
 
@@ -745,7 +761,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
             ;
 #else
             memcpy(octx->e->value, octx->data_copy->value, size);
@@ -785,7 +801,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
           ; // do nothing. everything is done by validate function
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
@@ -799,7 +815,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
           ; // do nothing. everything is done by validate function
 #else
           // not silo. send out release messages
@@ -830,7 +846,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
@@ -876,7 +892,6 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 
   ctx->nops = 0;
 
-#if GATHER_STATS
   if (status == TXN_COMMIT) {
       p->ncommits++;
       if (ctx->op_ctx[0].optype == OPTYPE_LOOKUP) {
@@ -894,7 +909,6 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
       else
           p->naborts_wonly++;
   }
-#endif
 
   return status;
 }
@@ -1929,6 +1943,31 @@ int stats_get_task_stats(struct hash_table *hash_table) {
 }
 #endif
 
+int stats_get_latency(struct hash_table *hash_table)
+{
+
+    double total_latency = 0, min_latency = UINT64_MAX, max_latency = 0;
+    uint64_t ntxns = 0;
+
+    for (int i = 0; i < g_nservers; i++) {
+        struct partition *p = &hash_table->partitions[i];
+        total_latency += p->total_txn_latency;
+        if (min_latency > p->min_txn_latency)
+            min_latency = p->min_txn_latency;
+
+        if (max_latency < p->max_txn_latency)
+            max_latency = p->max_txn_latency;        
+
+        ntxns += p->q_idx;
+    }
+
+    printf("Total latency (secs) %f, ntxns %"PRIu64", Avg latency %f us,"
+            "min latency %f us, max_latency %f us\n", total_latency, ntxns,
+            total_latency * 1000000 / ntxns, min_latency * 1000000,
+            max_latency * 1000000);
+
+}
+
 int stats_get_nlookups(struct hash_table *hash_table)
 {
   int nlookups = 0;
@@ -2041,21 +2080,6 @@ void stats_get_mem(struct hash_table *hash_table, size_t *used, size_t *total)
 
   *total = m;
   *used = u;
-}
-
-double stats_get_cpu_usage(struct hash_table *hash_table)
-{
-  struct partition *p;
-  uint64_t busy = 0;
-  uint64_t idle = 0;
-
-  for (int i = 0; i < g_nservers; i++) {
-    p = &hash_table->partitions[i];
-    busy += p->busyclock;
-    idle += p->idleclock;
-  }
-
-  return (double)busy / (double)(busy + idle);
 }
 
 double stats_get_tps(struct hash_table *hash_table)

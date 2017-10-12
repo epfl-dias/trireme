@@ -15,9 +15,7 @@
 #define dprint(...) 
 #endif
 
-#define CPU_FREQ 2 	// in GHz/s
-#define NOGRAPHITE
-#define TIME_ENABLE	true
+#define CPU_FREQ 2800488
 
 /* bitarray macros */
 #define BITMASK(b) (1 << ((b) % CHAR_BIT))
@@ -106,11 +104,7 @@ static inline uint64_t get_server_clock() {
 }
 
 static inline uint64_t get_sys_clock() {
-  #if TIME_ENABLE
 	return get_server_clock();
-  #else
-	return 0;
-  #endif
 }
 
 

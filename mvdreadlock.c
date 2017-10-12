@@ -40,7 +40,7 @@ int cycle_check(struct elem *e, int index, int me, int owner)
 
         gather_deps(deps, me, owner);
 
-        if ((e->owners[index] == owner || e->writer == owner) && deps[me]) {
+        if ((e->owners[index].spinlock == owner || e->writer == owner) && deps[me]) {
             /* deadlock detected. break out */
             cycle_found = 1;
         }
@@ -51,7 +51,7 @@ int cycle_check(struct elem *e, int index, int me, int owner)
          * so simply spin waiting for owner to be cleared if owner is not
          * blocked
          */
-        while (powner->waiting_for == -1 && e->owners[index] == owner)
+        while (powner->waiting_for == -1 && e->owners[index].spinlock == owner)
             _mm_pause();
     }
 
@@ -68,13 +68,13 @@ int certify_write(struct partition *p, struct elem *e, int s)
     /* spin on each lock until we get it or we detect a deadlock */
     for (int i = 0; i < g_nservers; i++) {
         if (i == s) {
-            assert(e->owners[i] == s);
+            assert(e->owners[i].spinlock == s);
             nlocks++;
             continue;
         }
 
         do {
-            int64_t owner = __sync_val_compare_and_swap(&e->owners[i], -1, s);
+            int owner = __sync_val_compare_and_swap(&e->owners[i].spinlock, -1, s);
             if (owner == -1) {
                 nlocks++;
                 break;
@@ -102,7 +102,7 @@ int certify_write(struct partition *p, struct elem *e, int s)
     if (cycle_found) {
         for (int i = nlocks - 1; i >= 0; i--) {
             if (i != s)
-                e->owners[i] = -1;
+                e->owners[i].spinlock = -1;
         }
     }
 
@@ -115,22 +115,22 @@ void clear_lock(char optype, struct elem *e, int s, char is_certified)
 {
     switch(optype) {
     case OPTYPE_LOOKUP:
-        assert(e->owners[s] == s);
-        e->owners[s] = -1;
+        assert(e->owners[s].spinlock == s);
+        e->owners[s].spinlock = -1;
         break;
 
     case OPTYPE_UPDATE:
         assert(e->writer == s);
-        assert(e->owners[s] == s);
+        assert(e->owners[s].spinlock == s);
 
         if (is_certified) {
             for (int j = g_nservers - 1; j >= 0; j--) {
-                assert(e->owners[j] == s);
-                e->owners[j] = -1;
+                assert(e->owners[j].spinlock == s);
+                e->owners[j].spinlock = -1;
             }
         }
 
-        e->owners[s] = -1;
+        e->owners[s].spinlock = -1;
         e->writer = -1;
 
         break;
@@ -153,10 +153,10 @@ struct elem *mvdreadlock_acquire(struct partition *p, struct elem *e,
      */
     do {
 
-        int64_t owner;
+        int owner;
 
         if (optype == OPTYPE_LOOKUP)
-            owner = __sync_val_compare_and_swap(&e->owners[s], -1, s);
+            owner = __sync_val_compare_and_swap(&e->owners[s].spinlock, -1, s);
         else
             owner = __sync_val_compare_and_swap(&e->writer, -1, s);
 
@@ -179,10 +179,10 @@ struct elem *mvdreadlock_acquire(struct partition *p, struct elem *e,
     /* if we didnt find cycle, we're good */
     if (!cycle_found) {
         if (optype == OPTYPE_LOOKUP) {
-            assert(e->owners[s] == s);
+            assert(e->owners[s].spinlock == s);
         } else {
-            assert(e->writer == s && e->owners[s] == -1);
-            e->owners[s] = s;
+            assert(e->writer == s && e->owners[s].spinlock == -1);
+            e->owners[s].spinlock = s;
         }
 
         target = e;

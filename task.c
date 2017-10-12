@@ -403,21 +403,21 @@ void child_fn(int s, int tid)
 
 
 
-#if !defined(ENABLE_ABORT_BACKOFF)
-#if defined(SHARED_EVERYTHING) && !defined(ENABLE_SILO_CC)
+//#if !defined(ENABLE_ABORT_BACKOFF)
+//#if defined(SHARED_EVERYTHING) && !defined(MIGRATION) && !defined(ENABLE_SILO_CC)
       /* back off by sleeping. This is similar to the penalty in dbx100. 
        * Backoff helps 2pl protocols a lot but not silo that much. So use only
        * with 2pl. So add delay only for SE protocols. Also, adding penalty 
        * made things much worse for messaging. So use only for SE
        */
-#define ENABLE_ABORT_BACKOFF 1
-#endif
-#endif
+//#define ENABLE_ABORT_BACKOFF 1
+//#endif
+//#endif
 
-#if ENABLE_ABORT_BACKOFF
+//#if ENABLE_ABORT_BACKOFF
       uint64_t penalty = URand(&p->seed, 0, ABORT_PENALTY);
       usleep(penalty / 1000);
-#endif
+//#endif
 
       dprint("srv(%d): task %d rerunning aborted txn\n", s, self->tid);
     } else {
