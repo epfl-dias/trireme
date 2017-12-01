@@ -24,6 +24,9 @@ EXTERN volatile int nready;
 
 EXTERN struct task* g_tasks[144][16];
 
+EXTERN int g_active_servers;
+EXTERN int g_startup_servers;
+
 #if ENABLE_DL_DETECT_CC
 #include "dl_detect.h"
 EXTERN DL_detect dl_detector;

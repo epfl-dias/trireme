@@ -55,11 +55,11 @@ void zipf_val(int s, struct hash_op *op) {
 	}
 
 	// get the server id for the key
-	int tserver = op->key % g_nservers;
+	int tserver = op->key % g_startup_servers;
 	// get the key count for the key
-	uint64_t key_cnt = op->key / g_nservers;
+	uint64_t key_cnt = op->key / g_startup_servers;
 
-	uint64_t recs_per_server = g_nrecs / g_nservers;
+	uint64_t recs_per_server = g_nrecs / g_startup_servers;
 	op->key = tserver * recs_per_server + key_cnt;
 
 //	printf("u = %.9f\n", u);
@@ -80,7 +80,7 @@ void micro_load_data(struct hash_table *hash_table, int id)
 
 #if SHARED_EVERYTHING
     // quick hack to get SE to load data from all threads
-  uint64_t nrecs_per_server = p->nrecs / g_nservers;
+  uint64_t nrecs_per_server = p->nrecs / g_startup_servers;
   uint64_t qid = id * nrecs_per_server;
   uint64_t eqid = qid + nrecs_per_server;
 #else
@@ -120,7 +120,7 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   uint64_t nrecs_per_server = p->nrecs; 
-  uint64_t nrecs = nrecs_per_server * g_nservers;
+  uint64_t nrecs = nrecs_per_server * g_startup_servers;
 
   op->size = 0;
 #if YCSB_BENCHMARK
@@ -248,7 +248,7 @@ static void se_make_operation(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   uint64_t nrecs = p->nrecs; 
-  uint64_t nrecs_per_server = g_nrecs / g_nservers;
+  uint64_t nrecs_per_server = g_nrecs / g_startup_servers;
 
   op->size = 0;
 #if YCSB_BENCHMARK
@@ -315,9 +315,9 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   struct hash_query *query = (struct hash_query *) arg;
   struct partition *p = &hash_table->partitions[s];
   int r = URand(&p->seed, 1, 99);
-  char is_local = (r < g_dist_threshold || g_nservers == 1);
+  char is_local = (r < g_dist_threshold || g_active_servers == 1);
   char is_duplicate = 0, is_ronly = 0;
-  uint64_t nrecs_per_server = g_nrecs / g_nservers;
+  uint64_t nrecs_per_server = g_nrecs / g_startup_servers;
   
   query->nops = g_ops_per_txn;
 
@@ -449,7 +449,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     struct hash_op *op = &query->ops[i];
     
 #if defined(MIGRATION)
-    int tserver = (int)(op->key / (g_nrecs/g_nservers));
+    int tserver = (int)(op->key / (g_nrecs/g_startup_servers));
 #else
     int tserver = ((int)(op->key)) / nrecs_per_partition;
 #endif

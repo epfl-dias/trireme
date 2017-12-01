@@ -71,6 +71,7 @@ int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table,
 int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
     int client_id, int server, hash_key key, short opid);
 
+
 struct hash_table *create_hash_table()
 {
 #if ENABLE_ASYMMETRIC_MESSAGING
@@ -163,6 +164,7 @@ void destroy_hash_table(struct hash_table *hash_table)
   free(hash_table);
 }
 
+#if 0
 void start_hash_table_servers(struct hash_table *hash_table)
 {
 #if ENABLE_DL_DETECT_CC
@@ -179,32 +181,70 @@ void start_hash_table_servers(struct hash_table *hash_table)
   void *value;
   nready = hash_table->quitting = 0;
 
-  assert(NCORES >= g_nservers);
+  assert(NCORES >= g_active_servers);
 
-  for (int i = 0; i < g_nservers; i++) {
+  for (int i = 0; i < g_active_servers; i++) {
     hash_table->thread_data[i].id = i;
+#if ENABLE_VIRTUALIZATION
+    hash_table->thread_data[i].core = i;
+#else
     hash_table->thread_data[i].core = coreids[i];
+#endif
     hash_table->thread_data[i].hash_table = hash_table;
 
-    printf("Assinging core %d to srv %d\n", coreids[i], i);
+    printf("Assinging core %d to srv %d\n", hash_table->thread_data[i].core, i);
 
     r = pthread_create(&hash_table->threads[i], NULL, hash_table_server, (void *) (&hash_table->thread_data[i]));
     assert(r == 0);
   }
 
   /* wait for everybody to start */
-  while (nready != g_nservers) ;
+  while (nready != g_active_servers) ;
 
   /* sleep for preconfigured time */
   usleep(RUN_TIME);
 
   hash_table->quitting = 1;
 
-  for (int i = 0; i < g_nservers; i++) {
+  for (int i = 0; i < g_active_servers; i++) {
     r = pthread_join(hash_table->threads[i], &value);
     assert(r == 0);
   }
 }
+
+void start_hash_table_servers_hotplug(struct hash_table *hash_table, int hotplugged_servers)
+{
+	int r;
+	void *value;
+	nready = 0;
+
+	int old_g_active_servers = g_active_servers;
+	g_active_servers += hotplugged_servers;
+	assert(g_active_servers <= g_nservers);
+	assert(g_active_servers <= NCORES);
+
+
+	for (int i = old_g_active_servers; i < g_active_servers; i++) {
+		hash_table->thread_data[i].id = i;
+		hash_table->thread_data[i].core = i;
+		hash_table->thread_data[i].hash_table = hash_table;
+		printf("Assinging core %d to srv %d\n", hash_table->thread_data[i].core, i);
+
+		r = pthread_create(&hash_table->threads[i], NULL, hash_table_server, (void *) (&hash_table->thread_data[i]));
+		assert(r == 0);
+	}
+
+	while (nready != g_active_servers);
+
+	usleep(RUN_TIME);
+
+
+	for (int i = 0; i < g_active_servers; i++) {
+		r = pthread_join(hash_table->threads[i], &value);
+		assert(r == 0);
+	}
+}
+#endif //0
 
 void create_hash_table_client(struct hash_table *hash_table)
 {
@@ -1436,7 +1476,7 @@ void process_requests(struct hash_table *hash_table, int s)
 #endif
   }
 }
-
+#if 0
 void *hash_table_server(void* args)
 {
   int i, r;
@@ -1493,7 +1533,7 @@ void *hash_table_server(void* args)
 
   pthread_mutex_unlock(&hash_table->create_client_lock);
 
-  while (nready != g_nservers) ;
+  while (nready != g_active_servers) ;
 
   printf("srv %d starting txns\n", s);
   fflush(stdout);
@@ -1580,6 +1620,7 @@ void *hash_table_server(void* args)
 
   return NULL;
 }
+#endif
 
 int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table,
     int client_id, int server, hash_key key, short op_id)

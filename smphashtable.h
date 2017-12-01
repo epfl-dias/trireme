@@ -5,7 +5,7 @@
 
 struct hash_table *create_hash_table();
 void destroy_hash_table(struct hash_table *hash_table);
-void start_hash_table_servers(struct hash_table *hash_table);
+//void start_hash_table_servers(struct hash_table *hash_table);
 void stop_hash_table_servers(struct hash_table *hash_table);
 void create_hash_table_client(struct hash_table *hash_table);
 

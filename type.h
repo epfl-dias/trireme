@@ -518,6 +518,14 @@ struct partition {
   double max_txn_latency;
   double min_txn_latency;
 
+  // communication
+  int signal_id;
+  int action_id;	// persistent
+  volatile int *actions;
+  volatile int thread_termination_flag;
+  pthread_mutex_t cv_mtx;
+  pthread_cond_t cv;
+
 } __attribute__ ((aligned (CACHELINE)));
 
 /**

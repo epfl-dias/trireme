@@ -7,6 +7,7 @@
 #include "hashprotocol.h"
 #include "smphashtable.h"
 #include "partition.h"
+#include "master.h"
 
 int queries_per_txn = 1;
 int query_mask      = (1 << 29) - 1;
@@ -60,6 +61,11 @@ int main(int argc, char *argv[])
                 g_nservers = atoi(optarg);
                 assert(g_nservers < MAX_SERVERS);
                 break;
+            case 'c':
+            	g_active_servers = atoi(optarg);
+            	g_startup_servers = g_active_servers;
+            	assert(g_active_servers < MAX_SERVERS);
+            	break;
             case 'i':
                 g_niters = atoi(optarg);
                 break;
@@ -157,8 +163,14 @@ int main(int argc, char *argv[])
         assert(g_nhot_servers <= g_nservers);
     }
 #endif
+//#if ENABLE_VIRTUALIZATION
+//    g_active_servers = 0;
+//#else
+//    g_active_servers = g_nservers;
+//#endif
+
     // round down nrecs to a partition multiple
-    g_nrecs = (g_nrecs / g_nservers) * g_nservers;
+    g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;
 
     // set benchmark to micro for now
     //g_benchmark = &tpcc_bench;
