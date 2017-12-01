@@ -181,11 +181,10 @@ int main(int argc, char *argv[])
     // round down nrecs to a partition multiple
     g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;
 
-    g_benchmark = &tpcc_bench;
+    assert(g_benchmark);
 
-    // set benchmark to micro for now
-    //g_benchmark = &micro_bench;
     run_benchmark();
+
     return 0;
 }
 
