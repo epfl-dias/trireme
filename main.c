@@ -52,7 +52,8 @@ int main(int argc, char *argv[])
     int opt_char;
 
     /* defaults */
-    g_nservers = g_startup_servers = g_active_servers = 1;
+    g_startup_servers = g_active_servers = 0;
+    g_nservers = 1;
     g_nrecs = 1000000;
     g_alpha = 0.8;
     g_niters = 100000000;
@@ -138,6 +139,12 @@ int main(int argc, char *argv[])
                 help();
                 break;
         }
+    }
+
+    // if startup/active servers is not specified, just set it to total
+    if (!g_active_servers) {
+        g_startup_servers = g_nservers;
+        g_active_servers = g_nservers;
     }
 
 #if ENABLE_BWAIT_CC
