@@ -889,7 +889,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
     uint64_t *txnids;
     int txncnt = 0;
 
-    int nof_servers = g_nservers * g_batch_size;
+    int nof_servers = g_nservers * g_nfibers;
 	int dep_srv[nof_servers];
 	uint64_t dep_tid[nof_servers];
 	int all_deps = 0;

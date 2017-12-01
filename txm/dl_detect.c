@@ -26,9 +26,9 @@ int get_thdid_from_txnid(uint64_t txnid) {
 /********************************************************/
 void DL_detect_init(DL_detect *ptr) {
 	dprint("Initializing dl detect\n");
-	ptr->dependency = (DepThd *) malloc(g_nservers * g_batch_size * sizeof(DepThd));
-	ptr->V = g_nservers * g_batch_size;
-	for (int i = 0; i < g_nservers * g_batch_size; i ++) {
+	ptr->dependency = (DepThd *) malloc(g_nservers * g_nfibers * sizeof(DepThd));
+	ptr->V = g_nservers * g_nfibers;
+	for (int i = 0; i < g_nservers * g_nfibers; i ++) {
 		pthread_mutex_init(&ptr->dependency[i].lock, NULL);
 		LIST_INIT(&ptr->dependency[i].adj);
 		ptr->dependency[i].adj_size = 0;

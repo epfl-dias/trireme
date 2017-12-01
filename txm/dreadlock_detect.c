@@ -10,7 +10,7 @@
 
 void dreadlock_init() {
 	printf("Initializing dreadlock-detect\n");
-	int nof_servers = g_nservers * g_batch_size;
+	int nof_servers = g_nservers * g_nfibers;
 
 	all_deps = (dreadlock_deps **) malloc(nof_servers * sizeof(dreadlock_deps *));
 	tid_graph = (uint64_t **) malloc(nof_servers * sizeof(uint64_t *));
@@ -40,7 +40,7 @@ void dreadlock_init() {
 
 void dreadlock_add(int cur_srv, uint64_t cur_ts, int *trg_srv, uint64_t *trg_tid, int deps) {
 	pthread_mutex_lock(&dep_add_mtx[cur_srv]);
-	int nof_servers = g_nservers * g_batch_size;
+	int nof_servers = g_nservers * g_nfibers;
 	if (cur_ts != active_ts[cur_srv]) {
 		deps_per_server[cur_srv] = 0;
 	}
@@ -56,7 +56,7 @@ void dreadlock_add(int cur_srv, uint64_t cur_ts, int *trg_srv, uint64_t *trg_tid
 }
 
 int dreadlock_wait(int cur_srv, uint64_t cur_tid, volatile char *ready) {
-	int nof_servers = g_nservers * g_batch_size;
+	int nof_servers = g_nservers * g_nfibers;
 
 	// first update the local dependencies
 	int cur_srv_deps = deps_per_server[cur_srv];

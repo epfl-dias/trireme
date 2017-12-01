@@ -4,73 +4,22 @@
 #include "benchmark.h"
 #include "twopl.h"
 
-#if YCSB_BENCHMARK
-  struct drand48_data *rand_buffer;
-  double g_zetan;
-  double g_zeta2;
-  double g_eta;
-  double g_alpha_half_pow;
+#define MICRO_NFIELDS 10
+#define MICRO_FIELD_SZ 8
+#define MICRO_REC_SZ (MICRO_NFIELDS * MICRO_FIELD_SZ)
+
+void micro_init()
+{
+    if (g_alpha) {
+#if SHARED_EVERYTHING && !MIGRATION
+        assert(g_nhot_recs > 1 && g_nhot_servers == 1);
+#else
+        assert(g_nhot_recs != 0);
 #endif
-
-#if YCSB_BENCHMARK
-
-double zeta(uint64_t n, double theta) {
-	double sum = 0;
-	for (uint64_t i = 1; i <= n; i++)
-		sum += pow(1.0 / i, theta);
-	return sum;
+        assert(g_nhot_servers != 0);
+        assert(g_nhot_servers <= g_nservers);
+    }
 }
-
-void init_zipf() {
-	printf("Initializing zipf\n");
-	rand_buffer = (struct drand48_data *) calloc(g_nservers, sizeof(struct drand48_data));
-	for (int i = 0; i < g_nservers; i ++) {
-		srand48_r(i + 1, &rand_buffer[i]);
-	}
-
-	uint64_t n = g_nrecs - 1;
-	g_zetan = zeta(n, g_alpha);
-	g_zeta2 = zeta(2, g_alpha);
-
-	g_eta = (1 - pow(2.0 / n, 1 - g_alpha)) / (1 - g_zeta2 / g_zetan);
-	g_alpha_half_pow = 1 + pow(0.5, g_alpha);
-	printf("n = %d\n", n);
-	printf("theta = %.2f\n", g_alpha);
-}
-
-void zipf_val(int s, struct hash_op *op) {
-	uint64_t n = g_nrecs - 1;
-
-	double alpha = 1 / (1 - g_alpha);
-
-	double u;
-	drand48_r(&rand_buffer[s], &u);
-	double uz = u * g_zetan;
-	if (uz < 1) {
-		op->key = 0;
-	} else if (uz < g_alpha_half_pow) {
-		op->key = 1;
-	} else {
-		op->key = (uint64_t)(n * pow(g_eta * u - g_eta + 1, alpha));
-	}
-
-	// get the server id for the key
-	int tserver = op->key % g_startup_servers;
-	// get the key count for the key
-	uint64_t key_cnt = op->key / g_startup_servers;
-
-	uint64_t recs_per_server = g_nrecs / g_startup_servers;
-	op->key = tserver * recs_per_server + key_cnt;
-
-//	printf("u = %.9f\n", u);
-//	printf("uz = %.9f\n", uz);
-//	printf("g_zetan = %.9f\n", g_zetan);
-//	printf("g_zeta2 = %.9f\n", g_zeta2);
-//	printf("g_eta = %.9f\n", g_eta);
-//	printf("key = %" PRIu64 "\n", op->key);
-	assert(op->key < g_nrecs);
-}
-#endif //YCSB_BENCHMARK
 
 void micro_load_data(struct hash_table *hash_table, int id)
 {
@@ -93,11 +42,11 @@ void micro_load_data(struct hash_table *hash_table, int id)
   
   while (qid < eqid) {
     p->ninserts++;
-    e = hash_insert(p, qid, YCSB_REC_SZ, NULL);
+    e = hash_insert(p, qid, MICRO_REC_SZ, NULL);
     assert(e);
 
-    for (int i = 0; i < YCSB_NFIELDS; i++) {
-        value = (uint64_t *)(e->value + i * YCSB_FIELD_SZ);
+    for (int i = 0; i < MICRO_NFIELDS; i++) {
+        value = (uint64_t *)(e->value + i * MICRO_FIELD_SZ);
         value[0] = 0;
     }
 
@@ -123,9 +72,6 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
   uint64_t nrecs = nrecs_per_server * g_startup_servers;
 
   op->size = 0;
-#if YCSB_BENCHMARK
-  zipf_val(s, op);
-#else
   hash_key delta = 0;
   int tserver = 0;
 
@@ -240,7 +186,6 @@ static void sn_make_operation(struct hash_table *hash_table, int s,
       op->key = delta + (s * nrecs_per_server);
     }
   }
-#endif //YCSB_BENCHMARK
 }
 
 static void se_make_operation(struct hash_table *hash_table, int s, 
@@ -251,9 +196,6 @@ static void se_make_operation(struct hash_table *hash_table, int s,
   uint64_t nrecs_per_server = g_nrecs / g_startup_servers;
 
   op->size = 0;
-#if YCSB_BENCHMARK
-  zipf_val(s, op);
-#else
   // use zipfian if available
   if (hash_table->keys) {
     p->q_idx++;
@@ -305,8 +247,6 @@ static void se_make_operation(struct hash_table *hash_table, int s,
         op->key = delta + (tserver * nrecs_per_server);
     }
   }
-#endif //YCSB_BENCHMARK
-//  printf("key = %" PRIu64 "\n", op->key);
 }
 
 void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
@@ -322,15 +262,7 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   query->nops = g_ops_per_txn;
 
   /* transaction is either all read or all update */
-#if MIXED_TXN_RW
-  /* In this mode, irrespective of the thread used, we decide whether a txn is a
-   * read only txn or an update only txn. Thus all threads will run mixed
-   * read/write workloads
-   */
-  if (URand(&p->seed, 1, 99) <= g_write_threshold)
-      is_ronly = 1;
-#else
-  /* in this mode, we devote a bunch of threads to reads and another set to
+  /* we devote a bunch of threads to reads and another set to
    * writes. Read threads do only reads, write only write. In this mode,
    * g_write_threshold indicates the number of writer threads.
    * g_write_threshold = 0 means all readers
@@ -339,8 +271,6 @@ void micro_get_next_query(struct hash_table *hash_table, int s, void *arg)
   assert(g_write_threshold <= g_nservers);
   if (s >= g_write_threshold)
       is_ronly = 1;
-
-#endif
 
   for (int i = 0; i < g_ops_per_txn; i++) {
     struct hash_op *op = &query->ops[i];
@@ -453,7 +383,7 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 #else
     int tserver = ((int)(op->key)) / nrecs_per_partition;
 #endif
-    assert((tserver >= 0) && (tserver < g_batch_size * g_nservers));
+    assert((tserver >= 0) && (tserver < g_nfibers * g_nservers));
 
     value = txn_op(ctask, hash_table, s, op, tserver);
 #if defined(MIGRATION)
@@ -467,14 +397,14 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
     // in both lookup and update, we just check the value
     uint64_t first_field = *(uint64_t *)value;
 
-    for (int j = 1; j < YCSB_NFIELDS; j++) {
-        uint64_t *next_field = (uint64_t *)(value + j * YCSB_FIELD_SZ);
+    for (int j = 1; j < MICRO_NFIELDS; j++) {
+        uint64_t *next_field = (uint64_t *)(value + j * MICRO_FIELD_SZ);
         assert(*next_field == first_field);
     }
 
     if (op->optype == OPTYPE_UPDATE) {
-        for (int j = 0; j < YCSB_NFIELDS; j++) {
-            uint64_t *next_field = (uint64_t *)(value + j * YCSB_FIELD_SZ);
+        for (int j = 0; j < MICRO_NFIELDS; j++) {
+            uint64_t *next_field = (uint64_t *)(value + j * MICRO_FIELD_SZ);
             next_field[0]++;
         }
     }
@@ -510,9 +440,10 @@ int micro_run_txn(struct hash_table *hash_table, int s, void *arg,
 }
 
 struct benchmark micro_bench = {
-  .load_data = micro_load_data,
-  .alloc_query = micro_alloc_query,
-  .get_next_query = micro_get_next_query,
-  .run_txn = micro_run_txn,
-  .verify_txn = NULL,
+    .init = micro_init,
+    .load_data = micro_load_data,
+    .alloc_query = micro_alloc_query,
+    .get_next_query = micro_get_next_query,
+    .run_txn = micro_run_txn,
+    .verify_txn = NULL,
 };

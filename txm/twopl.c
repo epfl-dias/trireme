@@ -453,7 +453,7 @@ int bwait_check_acquire(struct elem *e, char optype)
 struct se_dl_detect_graph_node *dep_graph_nodes;
 
 void dl_detect_init_data_structures() {
-	int all_servers = g_nservers * g_batch_size;
+	int all_servers = g_nservers * g_nfibers;
 	dep_graph_nodes = (struct se_dl_detect_graph_node *) malloc(all_servers * sizeof(struct se_dl_detect_graph_node));
 	for (int i = 0; i < all_servers; i ++) {
 		dep_graph_nodes[i].neighbors = (struct se_waiter_node *) malloc(all_servers * sizeof(struct se_waiter_node));
@@ -476,7 +476,7 @@ int not_two_readers_ww(struct lock_entry *lt, struct lock_entry *le) {
 
 int add_dependencies(int s, struct partition *p,
 		struct lock_entry *inserted_waiter, struct elem *e) {
-	uint64_t node_id = inserted_waiter->s * g_batch_size + inserted_waiter->task_id - 2;
+	uint64_t node_id = inserted_waiter->s * g_nfibers + inserted_waiter->task_id - 2;
 	dep_graph_nodes[node_id].e = e;
 	dep_graph_nodes[node_id].opid = inserted_waiter->op_id;
 	dep_graph_nodes[node_id].sender_srv = s;
@@ -495,7 +495,7 @@ int add_dependencies(int s, struct partition *p,
 			assert(not_two_readers_ww(inserted_waiter, nxt));
 			// this is a writer, so add a dependency
 			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = nxt->op_id;
-			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_batch_size + nxt->task_id - 2;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_nfibers + nxt->task_id - 2;
 			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = nxt->ts;
 			dep_graph_nodes[node_id].waiters_size++;
 		} else {
@@ -510,7 +510,7 @@ int add_dependencies(int s, struct partition *p,
 				}
 				assert(not_two_readers_wo(inserted_waiter, owner));
 				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = owner->op_id;
-				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = owner->s * g_batch_size + owner->task_id - 2;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = owner->s * g_nfibers + owner->task_id - 2;
 				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = owner->ts;
 				dep_graph_nodes[node_id].waiters_size++;
 			}
@@ -522,7 +522,7 @@ int add_dependencies(int s, struct partition *p,
 			// add a dependency to the next waiter
 			assert(not_two_readers_ww(inserted_waiter, nxt));
 			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = nxt->op_id;
-			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_batch_size + nxt->task_id - 2;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_nfibers + nxt->task_id - 2;
 			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = nxt->ts;
 			dep_graph_nodes[node_id].waiters_size++;
 			// only if added a lookup node, move forward
@@ -536,7 +536,7 @@ int add_dependencies(int s, struct partition *p,
 			TAILQ_FOREACH(owner, &e->owners, next) {
 				assert(not_two_readers_wo(inserted_waiter, owner));
 				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = owner->op_id;
-				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = owner->s * g_batch_size + owner->task_id - 2;
+				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = owner->s * g_nfibers + owner->task_id - 2;
 				dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = owner->ts;
 				dep_graph_nodes[node_id].waiters_size++;
 			}
@@ -546,7 +546,7 @@ int add_dependencies(int s, struct partition *p,
 			assert(not_two_readers_ww(inserted_waiter, nxt));
 			// add a dependency
 			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = nxt->op_id;
-			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_batch_size + nxt->task_id - 2;
+			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].srvfib = nxt->s * g_nfibers + nxt->task_id - 2;
 			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].ts = nxt->ts;
 			dep_graph_nodes[node_id].waiters_size++;
 			// move forward

@@ -1149,8 +1149,8 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
 #endif
 
-  r = tpcc_run_neworder_txn(hash_table, s, q, ctask); 
-  //r = tpcc_run_payment_txn(hash_table, s, q, ctask); 
+  //r = tpcc_run_neworder_txn(hash_table, s, q, ctask); 
+  r = tpcc_run_payment_txn(hash_table, s, q, ctask); 
 
   return r;
 }
@@ -1457,6 +1457,7 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
 }
 
 struct benchmark tpcc_bench = {
+  .init = NULL,
   .alloc_query = tpcc_alloc_query,
 #if SHARED_EVERYTHING
   .load_data = se_tpcc_load_data, 

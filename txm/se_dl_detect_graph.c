@@ -28,7 +28,7 @@ int se_nodes_equal(struct se_waiter_node *node1, struct se_waiter_node *node2) {
 }
 
 void se_dl_detect_init_dependency_graph() {
-	all_servers_cnt = g_nservers * g_batch_size;
+	all_servers_cnt = g_nservers * g_nfibers;
 
 	se_cycle_remaining_nodes = (int **) malloc(all_servers_cnt * sizeof(int *));
 	se_cycle_remaining_nodes_ts = (uint64_t **) malloc(all_servers_cnt * sizeof(uint64_t *));
@@ -236,7 +236,7 @@ int next_node(struct dl_detect_graph_node *src, struct dl_detect_graph_node *dea
 
 		for (int i = 0; i < src->waiters_size; i ++) {
 			dprint("DL DETECT[CYCLE] --- Trying node (%d,%d,%ld)\n", src->neighbors[i].srv, src->neighbors[i].fib, src->neighbors[i].ts);
-			int idx = src->neighbors[i].srv * g_batch_size + src->neighbors[i].fib;
+			int idx = src->neighbors[i].srv * g_nfibers + src->neighbors[i].fib;
 			if (src->neighbors[i].ts == graph_nodes[idx].ts) {
 				ret = next_node(&graph_nodes[idx], deadlock_node, deadlock_flag);
 				graph_nodes[idx].visited = 0;

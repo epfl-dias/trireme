@@ -195,9 +195,12 @@ void dl_detect_fn(int s)
 
   int detect_cycle = 0;
   struct dl_detect_graph_node src, rmv, deadlock_node;
-  src.neighbors = (struct waiter_node *) calloc(g_nservers * g_batch_size, sizeof(struct waiter_node));
-  rmv.neighbors = (struct waiter_node *) calloc(g_nservers * g_batch_size, sizeof(struct waiter_node));
-  deadlock_node.neighbors = (struct waiter_node *) calloc(g_nservers * g_batch_size, sizeof(struct waiter_node));
+  src.neighbors = (struct waiter_node *) calloc(g_nservers * g_nfibers,
+          sizeof(struct waiter_node));
+  rmv.neighbors = (struct waiter_node *) calloc(g_nservers * g_nfibers,
+          sizeof(struct waiter_node));
+  deadlock_node.neighbors = (struct waiter_node *) calloc(g_nservers * g_nfibers,
+          sizeof(struct waiter_node));
 
   mp_dl_detect_init_dependency_graph();
 
@@ -468,17 +471,17 @@ void root_fn(int s, int tid)
   struct partition *p = &hash_table->partitions[s];
   struct task *self = &p->root_task;
 
-  assert(g_batch_size <= NTASKS - 2);
+  assert(g_nfibers <= NTASKS - 2);
 
   // add unblock task to ready list
   TAILQ_INSERT_TAIL(&p->ready_list, &p->unblock_task, next);
   
-  for (i = 0; i < g_batch_size; i++) {
+  for (i = 0; i < g_nfibers; i++) {
       r = task_create(p);
       assert(r == 1);
     }
 
-    for (i = 0; i < g_batch_size; i++) {
+    for (i = 0; i < g_nfibers; i++) {
       int t = task_join(self);
     }
 
@@ -489,7 +492,7 @@ void init_task(struct task *t, int tid, void (*fn)(), ucontext_t *next_ctx,
   int s)
 {
   t->tid = tid;
-  t->g_tid = s * g_batch_size + tid - 2;
+  t->g_tid = s * g_nfibers + tid - 2;
   getcontext(&t->ctx);
   //t->ctx.uc_stack.ss_sp = malloc(TASK_STACK_SIZE);
   t->ctx.uc_stack.ss_sp = mmap(NULL, TASK_STACK_SIZE, PROT_READ | PROT_WRITE,

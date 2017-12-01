@@ -26,15 +26,15 @@
 void dl_detect_graph_clear_all_dependencies(int idx, uint64_t ts);
 
 void dl_detect_graph_init() {
-	nodes_index = (struct hash_node_list *) calloc(NODES_INDEX_SIZE * g_nservers * g_batch_size, sizeof(struct hash_node_list));
-	for (int i = 0; i < g_nservers * g_batch_size; i ++) {
+	nodes_index = (struct hash_node_list *) calloc(NODES_INDEX_SIZE * g_nservers * g_nfibers, sizeof(struct hash_node_list));
+	for (int i = 0; i < g_nservers * g_nfibers; i ++) {
 	  LIST_INIT(&nodes_index[i]);
 	}
 }
 
 int get_index(struct node txn_node) {
-	int index = (txn_node.srv * g_batch_size + txn_node.fib) * NODES_INDEX_SIZE + txn_node.ts % NODES_INDEX_SIZE;
-//	int index = (txn_node.srv * g_batch_size + txn_node.fib);
+	int index = (txn_node.srv * g_nfibers + txn_node.fib) * NODES_INDEX_SIZE + txn_node.ts % NODES_INDEX_SIZE;
+//	int index = (txn_node.srv * g_nfibers + txn_node.fib);
 	return index;
 }
 

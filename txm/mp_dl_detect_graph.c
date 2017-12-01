@@ -15,7 +15,7 @@
 
 
 int get_node_index(struct dl_detect_graph_node *node) {
-	int idx = node->srv * g_batch_size + node->fib;
+	int idx = node->srv * g_nfibers + node->fib;
 
 	return idx;
 }
@@ -34,13 +34,13 @@ int nodes_equal(struct waiter_node *node1, struct waiter_node *node2) {
 }
 
 void mp_dl_detect_init_dependency_graph() {
-	cycle_visited_nodes = (int *) malloc(g_nservers * g_batch_size * sizeof(int));
-	cycle_remaining_nodes = (int *) malloc(g_nservers * g_batch_size * sizeof(int));
-	cycle_added_nodes = (int *) malloc(g_nservers * g_batch_size * sizeof(int));
+	cycle_visited_nodes = (int *) malloc(g_nservers * g_nfibers * sizeof(int));
+	cycle_remaining_nodes = (int *) malloc(g_nservers * g_nfibers * sizeof(int));
+	cycle_added_nodes = (int *) malloc(g_nservers * g_nfibers * sizeof(int));
 
-	graph_nodes = (struct dl_detect_graph_node *) malloc(g_nservers * g_batch_size * sizeof(struct dl_detect_graph_node));
-	for (int i = 0; i < g_nservers * g_batch_size; i ++) {
-		graph_nodes[i].neighbors = (struct waiter_node *) malloc(g_nservers * g_batch_size * sizeof(struct waiter_node));
+	graph_nodes = (struct dl_detect_graph_node *) malloc(g_nservers * g_nfibers * sizeof(struct dl_detect_graph_node));
+	for (int i = 0; i < g_nservers * g_nfibers; i ++) {
+		graph_nodes[i].neighbors = (struct waiter_node *) malloc(g_nservers * g_nfibers * sizeof(struct waiter_node));
 	}
 }
 
@@ -103,13 +103,13 @@ int mp_dl_detect_add_dependency(struct dl_detect_graph_node *src) {
 int iterative_cycle_check(struct dl_detect_graph_node *src, struct dl_detect_graph_node *deadlock_node, int *deadlock_flag) {
 	int ret = 0;
 
-	int src_idx = src->srv * g_batch_size + src->fib;
-	int idx = src->srv * g_batch_size + src->fib;
+	int src_idx = src->srv * g_nfibers + src->fib;
+	int idx = src->srv * g_nfibers + src->fib;
 
 	int cycle_remaining_nodes_w_idx = 0;
 	int cycle_remaining_nodes_r_idx = 0;
-	memset(cycle_visited_nodes, 0, g_batch_size * g_nservers * sizeof(int));
-	memset(cycle_added_nodes, 0, g_batch_size * g_nservers * sizeof(int));
+	memset(cycle_visited_nodes, 0, g_nfibers * g_nservers * sizeof(int));
+	memset(cycle_added_nodes, 0, g_nfibers * g_nservers * sizeof(int));
 	cycle_remaining_nodes[cycle_remaining_nodes_w_idx++] = idx;
 
 	while (cycle_remaining_nodes_r_idx < cycle_remaining_nodes_w_idx) {
@@ -118,7 +118,7 @@ int iterative_cycle_check(struct dl_detect_graph_node *src, struct dl_detect_gra
 		if (!cycle_visited_nodes[idx]) {
 			cycle_visited_nodes[idx] = 1;
 			for (int i = 0; i < graph_nodes[idx].waiters_size; i ++) {
-				int waiter_index = graph_nodes[idx].neighbors[i].srv * g_batch_size + graph_nodes[idx].fib;
+				int waiter_index = graph_nodes[idx].neighbors[i].srv * g_nfibers + graph_nodes[idx].fib;
 				if (graph_nodes[waiter_index].ts == graph_nodes[idx].neighbors[i].ts) {
 					if (waiter_index == src_idx) {
 						// DEADLOCK
@@ -133,8 +133,8 @@ int iterative_cycle_check(struct dl_detect_graph_node *src, struct dl_detect_gra
 				}
 			}
 		}
-		assert(cycle_remaining_nodes_r_idx <= g_nservers * g_batch_size);
-		assert(cycle_remaining_nodes_w_idx <= g_nservers * g_batch_size);
+		assert(cycle_remaining_nodes_r_idx <= g_nservers * g_nfibers);
+		assert(cycle_remaining_nodes_w_idx <= g_nservers * g_nfibers);
 	}
 
 	return ret;
@@ -170,7 +170,7 @@ int next_node(struct dl_detect_graph_node *src, struct dl_detect_graph_node *dea
 
 		for (int i = 0; i < src->waiters_size; i ++) {
 			dprint("DL DETECT[CYCLE] --- Trying node (%d,%d,%ld)\n", src->neighbors[i].srv, src->neighbors[i].fib, src->neighbors[i].ts);
-			int idx = src->neighbors[i].srv * g_batch_size + src->neighbors[i].fib;
+			int idx = src->neighbors[i].srv * g_nfibers + src->neighbors[i].fib;
 			if (src->neighbors[i].ts == graph_nodes[idx].ts) {
 				ret = next_node(&graph_nodes[idx], deadlock_node, deadlock_flag);
 				graph_nodes[idx].visited = 0;

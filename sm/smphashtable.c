@@ -1974,7 +1974,7 @@ int stats_get_task_stats(struct hash_table *hash_table) {
     }
     for (int i = 0; i < g_nservers; i++) {
         struct task *t;
-        for (int j = FIRST_TASK_ID; j < FIRST_TASK_ID + g_batch_size; j++) {
+        for (int j = FIRST_TASK_ID; j < FIRST_TASK_ID + g_nfibers; j++) {
             struct task *t = g_tasks[i][j];
             printf("Task %d number of times scheduled: %d\n", t->g_tid,  t->times_scheduled);
             printf("Task %d run time: %f\n", t->g_tid, t->run_time);
