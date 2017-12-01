@@ -26,12 +26,33 @@ void get_next_query(int client_id, struct hash_query *query);
 void get_mixed_query(int client_id, struct hash_query *query);
 void (*qgen)(int client_id, struct hash_query *query);
 
+void help()
+{
+    printf("benchmark options are: \n"
+            "-a alpha value for zipf/probability for bernoulli\n"
+            "-b type of benchmark (0 = micro, 1 = ycsb, 2 = tpcc)\n"
+            "-c number of active servers (used in virt)\n"
+            "-d ratio of distributed to local txns\n"
+            "-f number of fibers per thread \n"
+            "-h fraction of records to use for hot bernoulli range\n"
+            "-i number of iterations\n"
+            "-o ops per iteration\n"
+            "-p #servers to use for holding hot bernoulli range\n"
+            "-r nremote operations per txn\n"
+            "-s number of servers / partitions\n"
+            "-t max #records\n"
+            "-v stats verbosity (0/1 log of access counts\n"
+            "-w hash insert ratio over total number of queries\n");
+
+    exit(1);
+}
+
 int main(int argc, char *argv[])
 {
     int opt_char;
 
     /* defaults */
-    g_nservers = 1;
+    g_nservers = g_startup_servers = g_active_servers = 1;
     g_nrecs = 1000000;
     g_alpha = 0.8;
     g_niters = 100000000;
@@ -44,6 +65,9 @@ int main(int argc, char *argv[])
     g_nfibers = 1;
     g_verbosity = 0;
     g_benchmark = &micro_bench;
+
+    if (argc < 2)
+        help();
 
     while((opt_char = getopt(argc, argv, "a:s:c:f:i:n:t:m:w:d:f:b:e:u:o:r:h:p:")) != -1) {
         switch (opt_char) {
@@ -111,23 +135,8 @@ int main(int argc, char *argv[])
                 g_write_threshold = atoi(optarg);
                 break;
             default:
-                printf("benchmark options are: \n"
-                    "-a alpha value for zipf/probability for bernoulli\n"
-                    "-b type of benchmark (0 = micro, 1 = ycsb, 2 = tpcc)\n"
-                    "-c number of active servers (used in virt)\n"
-                    "-d ratio of distributed to local txns\n"
-                    "-f number of fibers per thread \n"
-                    "-h fraction of records to use for hot bernoulli range\n"
-                    "-i number of iterations\n"
-                    "-o ops per iteration\n"
-                    "-p #servers to use for holding hot bernoulli range\n"
-                    "-r nremote operations per txn\n"
-                    "-s number of servers / partitions\n"
-                    "-t max #records\n"
-                    "-v stats verbosity (0/1 log of access counts\n"
-                    "-w hash insert ratio over total number of queries\n");
-
-                exit(1);
+                help();
+                break;
         }
     }
 
