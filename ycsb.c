@@ -1,8 +1,6 @@
 #define __MAIN__
 
-#include "ia32perf.h"
 #include "headers.h"
-#include "dl_detect.h"
 #include "benchmark.h"
 #include "hashprotocol.h"
 #include "smphashtable.h"
