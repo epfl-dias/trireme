@@ -1,0 +1,60 @@
+You can optionally use the following compilation options passed in as DFLAGS
+ 	DEBUG, PRINT_PROGRESS, VERIFY_CONSISTENCY (for hash_insert), GATHER_STATS
+
+    configs:  
+                SHARED_EVERYTHING
+                SHARED_NOTHING
+
+    latching: 
+                SE_LATCH (enables record latching)
+                SE_INDEX_LATCH (hash bucket latching: enabled by default)
+                
+   lock types:  
+                PTHREAD_SPINLOCK
+                PTHREAD_MUTEX
+                ANDERSON_LOCK
+ 				TAS_LOCK
+                TICKET_LOCK
+                HTLOCK
+                RWTICKET_LOCK
+                CLH_LOCK
+ 				RW_LOCK (CUSTOM_RW_LOCK or default=PTHREAD_RW_LOCK)
+ 				DRW_LOCK
+
+ 	CC types:
+                Single version protocols
+                ENABLE_WAIT_DIE_CC
+                ENABLE_NOWAIT_OWNER_CC
+                ENABLE_NOWAIT_CC
+				ENABLE_BWAIT_CC
+                ENABLE_SILO_CC
+				ENABLE_DL_DETECT_CC:
+					1) +ENABLE_CYCLE_DETECTION (default)
+					2) -(nothing) (dreadlocks)
+					3) ENABLE_SVDREADLOCK_CC (the optimized rwlock style impl.)
+					4) ENABLE_MVDREADLOCK_CC (rwlock + 2v)
+					5) ENABLE_FSVDREADLOCK_CC (sv-rwlock + fairness)
+
+				Multiversion protocols:
+				    ENABLE_MV2PL
+				    ENABLE_MVDREADLOCK_CC (experimental)
+				    ENABLE_MVTO (not complete)
+
+	Abort backoff: 
+                ENABLE_ABORT_BACKOFF
+
+	key ordering:
+                ENABLE_KEY_SORTING
+
+	migration for fibers:
+                MIGRATION (use with NOLATCH because no latching is neccessary,
+				but keep SE_LATCH because if not, locking does not work)
+
+ 	messaging-specific options (does not work now): 
+                ENABLE_OP_BATCHING
+
+ 	hyperthreading (changes thread mapping on known DIAS servers):
+                HT_ENABLED
+
+ 	assymetric client--server (Orthrus setup for VLDB paper):
+                ENABLE_ASYMMETRIC_MESSAGING
