@@ -378,7 +378,7 @@ void child_fn(int s, int tid)
 
   struct hash_query *next_query = get_next_query(hash_table, s, self);
 
-  while (next_query) {
+  while ((next_query) && (!p->thread_termination_flag)) {
 
     dprint("srv(%d): task %d issuing txn \n", s, self->tid);
 
