@@ -187,5 +187,7 @@ struct elem *plmalloc_ealloc(struct partition *p)
 
 void plmalloc_efree(struct partition *p, struct elem *e)
 {
+  e->size = 0;
+
   LIST_INSERT_HEAD(&p->heap.efree_list, e, chain);
 }

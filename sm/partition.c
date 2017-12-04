@@ -2,6 +2,7 @@
 
 #include "headers.h"
 #include "partition.h"
+#include "benchmark.h"
 #include "tpcc.h"
 #include "plmalloc.h"
 
@@ -267,8 +268,9 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   e->tid = 0;
 #endif
 
-  if (!LIST_EMPTY(eh))
-      assert(0);
+  if (!LIST_EMPTY(eh)) {
+      assert(g_benchmark == &tpcc_bench);
+  }
 
   LIST_INSERT_HEAD(eh, e, chain);
 

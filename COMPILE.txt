@@ -7,7 +7,7 @@ You can optionally use the following compilation options passed in as DFLAGS
 
     latching: 
                 SE_LATCH (enables record latching)
-                SE_INDEX_LATCH (hash bucket latching: enabled by default)
+                SE_INDEX_LATCH (hash bucket latching)
                 
    lock types:  
                 PTHREAD_SPINLOCK

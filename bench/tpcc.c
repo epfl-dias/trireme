@@ -64,6 +64,14 @@ static int set_last_name(int num, char* name)
   return strlen(name);
 }
 
+static void tpcc_init()
+{
+#if !defined(SE_INDEX_LATCH)
+    printf("Index latching not defined for TPCC!\n");
+    exit(1);
+#endif
+}
+
 void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
     void *arg)
 {
@@ -1160,8 +1168,8 @@ void tpcc_get_next_query(struct hash_table *hash_table, int s,
 {
   hash_table->partitions[s].q_idx++;
 
-  tpcc_get_next_neworder_query(hash_table, s, arg);
-  //tpcc_get_next_payment_query(hash_table, s, arg);
+  //tpcc_get_next_neworder_query(hash_table, s, arg);
+  tpcc_get_next_payment_query(hash_table, s, arg);
 }
 
 void tpcc_verify_txn(struct hash_table *hash_table, int id)
@@ -1457,7 +1465,7 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
 }
 
 struct benchmark tpcc_bench = {
-  .init = NULL,
+  .init = tpcc_init,
   .alloc_query = tpcc_alloc_query,
 #if SHARED_EVERYTHING
   .load_data = se_tpcc_load_data, 
