@@ -24,9 +24,12 @@ struct tpcc_query {
   int w_id;
   int d_id;
   int c_id;
-
+  //stock level input
+  int threshold;
+  //delivery input
+  int o_carrier_id;
+  //order status input
   // payment input
-  int d_w_id;
   int c_w_id;
   int c_d_id;
   char c_last[LAST_NAME_LEN];
@@ -43,12 +46,12 @@ struct tpcc_query {
 
 /* fwd declarations */
 static int fetch_cust_records(struct hash_table *hash_table, int id,
-    struct task *ctask, struct tpcc_customer **c_recs, 
+    struct task *ctask, struct tpcc_customer **c_recs,
     struct secondary_record *sr, struct tpcc_query *q,
     short *opids, short *nopids);
 
 static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
-    struct task *ctask, struct tpcc_customer **c_recs, 
+    struct task *ctask, struct tpcc_customer **c_recs,
     struct secondary_record *sr, struct tpcc_query *q,
     short *opids, short *nopids);
 
@@ -58,7 +61,7 @@ static int set_last_name(int num, char* name)
   {"BAR", "OUGHT", "ABLE", "PRI", "PRES",
     "ESE", "ANTI", "CALLY", "ATION", "EING"};
 
-  strcpy(name, n[num/100]); 
+  strcpy(name, n[num/100]);
   strcat(name, n[(num/10)%10]);
   strcat(name, n[num%10]);
   return strlen(name);
@@ -72,48 +75,7 @@ static void tpcc_init()
 #endif
 }
 
-void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
-    void *arg)
-{
-  struct partition *p = &hash_table->partitions[s];
-  struct tpcc_query *q = (struct tpcc_query *) arg;
-
-  q->w_id = s + 1;
-  q->d_w_id = s + 1;
-  q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
-  q->h_amount = URand(&p->seed, 1, 5000);
-  int x = URand(&p->seed, 1, 100);
-  int y = URand(&p->seed, 1, 100);
-
-  if(x <= 85 || g_dist_threshold == 100) {
-    // home warehouse
-    q->c_d_id = q->d_id;
-    q->c_w_id = s + 1;
-  } else {
-    q->c_d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
-
-    // remote warehouse if we have >1 wh
-    if(g_nservers > 1) {
-      while((q->c_w_id = URand(&p->seed, 1, g_nservers)) == (s + 1))
-        ; 
-
-    } else {
-      q->c_w_id = s + 1;
-    }
-  }
-
-  if (y <= 60) {
-    // by last name
-    q->by_last_name = TRUE;
-    set_last_name(NURand(&p->seed, 255, 0, 999), q->c_last);
-  } else {
-    // by cust id
-    q->by_last_name = FALSE;
-    q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
-  }
-}
-
-void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s, 
+void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
     void *arg)
 {
   struct partition *p = &hash_table->partitions[s];
@@ -144,7 +106,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
           dup = 1;
           break;
         }
-    } while(dup);     
+    } while(dup);
 
     int x = URand(&p->seed, 1, 100);
     if (g_dist_threshold == 100)
@@ -165,7 +127,91 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
     i->ol_quantity = URand(&p->seed, 1, 10);
   }
 }
-    
+
+void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
+    void *arg)
+{
+  struct partition *p = &hash_table->partitions[s];
+  struct tpcc_query *q = (struct tpcc_query *) arg;
+
+  q->w_id = s + 1;
+  q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+  q->h_amount = URand(&p->seed, 1, 5000);
+  int x = URand(&p->seed, 1, 100);
+  int y = URand(&p->seed, 1, 100);
+
+  if(x <= 85 || g_dist_threshold == 100) {
+    // home warehouse
+    q->c_d_id = q->d_id;
+    q->c_w_id = s + 1;
+  } else {
+    q->c_d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+
+    // remote warehouse if we have >1 wh
+    if(g_nservers > 1) {
+      while((q->c_w_id = URand(&p->seed, 1, g_nservers)) == (s + 1))
+        ;
+
+    } else {
+      q->c_w_id = s + 1;
+    }
+  }
+
+  if (y <= 60) {
+    // by last name
+    q->by_last_name = TRUE;
+    set_last_name(NURand(&p->seed, 255, 0, 999), q->c_last);
+  } else {
+    // by cust id
+    q->by_last_name = FALSE;
+    q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
+  }
+}
+
+void tpcc_get_next_orderstatus_query(struct hash_table *hash_table, int s,
+    void *arg)
+{
+
+  struct partition *p = &hash_table->partitions[s];
+  struct tpcc_query *q = (struct tpcc_query *) arg;
+  q->w_id = s + 1;
+  q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+
+  int y = URand(&p->seed, 1, 100);
+  if (y <= 60) {
+    // by last name
+    q->by_last_name = TRUE;
+    set_last_name(NURand(&p->seed, 255, 0, 999), q->c_last);
+  } else {
+    // by cust id
+    q->by_last_name = FALSE;
+    q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
+  }
+
+}
+
+void tpcc_get_next_delivery_query(struct hash_table *hash_table, int s,
+    void *arg)
+{
+  struct partition *p = &hash_table->partitions[s];
+  struct tpcc_query *q = (struct tpcc_query *) arg;
+  q->w_id = s + 1;
+  q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+  q->o_carrier_id = URand(&p->seed, 1, 10);
+
+}
+
+void tpcc_get_next_stocklevel_query(struct hash_table *hash_table, int s,
+    void *arg)
+{
+  struct partition *p = &hash_table->partitions[s];
+  struct tpcc_query *q = (struct tpcc_query *) arg;
+  q->w_id = s + 1;
+  q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
+  q->threshold = URand(&p->seed, 10, 20);
+
+}
+
 static uint64_t cust_derive_key(char * c_last, int c_d_id, int c_w_id)
 {
   uint64_t key = 0;
@@ -183,7 +229,7 @@ static void load_stock(int w_id, struct partition *p)
   struct elem *e;
   hash_key key, base_sid, sid;
   struct tpcc_stock *r;
-    
+
   base_sid = w_id * TPCC_MAX_ITEMS;
   for (int i = 1; i <= TPCC_MAX_ITEMS; i++) {
     sid = base_sid + i;
@@ -201,10 +247,10 @@ static void load_stock(int w_id, struct partition *p)
     r->s_ytd = 0;
     r->s_order_cnt = 0;
     r->s_remote_cnt = 0;
-    
+
     int len = make_alpha_string(&p->seed, 26, 50, r->s_data);
     if (RAND(&p->seed, 100) < 10) {
-      int idx = URand(&p->seed, 0, len - 8); 
+      int idx = URand(&p->seed, 0, len - 8);
       memcpy(&r->s_data[idx], "original", 8);
     }
 
@@ -296,8 +342,8 @@ static void load_customer(int w_id, struct partition *p)
       r->c_ytd_payment = 10.0;
       r->c_payment_cnt = 1;
 
-      /* create secondary index using the main hash table itself. 
-       * we can do this by deriving a key from the last name,dist,wh id 
+      /* create secondary index using the main hash table itself.
+       * we can do this by deriving a key from the last name,dist,wh id
        * and using it to create a new record which will contain both
        * the real key of all records with that last name
        * XXX: Note that this key is not unique - so all names hashing to
@@ -320,7 +366,7 @@ static void load_customer(int w_id, struct partition *p)
       } else {
         sie = hash_insert(p, sr_key, sizeof(struct secondary_record), NULL);
         assert(sie);
- 
+
         sr = (struct secondary_record *) sie->value;
 
         /* XXX: memory leak possibility - if this record is ever freed
@@ -337,7 +383,7 @@ static void load_customer(int w_id, struct partition *p)
       }
 
       assert(sr_idx < sr_nids);
-   
+
       /* add this record to the index */
       sr->sr_rids[sr_idx] = key;
       if (++sr_idx == sr_nids) {
@@ -383,7 +429,7 @@ static void load_order(int w_id, struct partition *p)
   assert(cperm);
 
   for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
-    init_permutation(p, cperm); 
+    init_permutation(p, cperm);
 
     for (int o = 1; o <= TPCC_NCUST_PER_DIST; o++) {
       ckey = MAKE_CUST_KEY(w_id, d, o);
@@ -416,7 +462,7 @@ static void load_order(int w_id, struct partition *p)
         hash_key ol_pkey = MAKE_OL_KEY(w_id, d, o, ol);
         hash_key ol_key = MAKE_HASH_KEY(ORDER_LINE_TID, ol_pkey);
 
-        struct elem *e_ol = hash_insert(p, ol_key, 
+        struct elem *e_ol = hash_insert(p, ol_key,
             sizeof(struct tpcc_order_line), NULL);
         assert(e_ol);
 
@@ -451,7 +497,7 @@ static void load_order(int w_id, struct partition *p)
       // NEW ORDER
       if (o > 2100) {
         key = MAKE_HASH_KEY(NEW_ORDER_TID, ckey);
-        struct elem *e_no = hash_insert(p, key, 
+        struct elem *e_no = hash_insert(p, key,
             sizeof(struct tpcc_new_order), NULL);
         assert(e_no);
 
@@ -459,7 +505,7 @@ static void load_order(int w_id, struct partition *p)
         e_no->ref_count++;
 
         struct tpcc_new_order *r_no = (struct tpcc_new_order *) e_no->value;
- 
+
         r_no->no_o_id = o;
         r_no->no_d_id = d;
         r_no->no_w_id = w_id;
@@ -478,7 +524,7 @@ void load_item(int w_id, struct partition *p)
   int data_len;
 
   assert(w_id == 1);
-    
+
   for (int i = 1; i <= TPCC_MAX_ITEMS; i++) {
     key = MAKE_HASH_KEY(ITEM_TID, i);
     e = hash_insert(p, key, sizeof(struct tpcc_item), NULL);
@@ -591,7 +637,7 @@ void tpcc_load_warehouse(struct hash_table *hash_table, int w_id, int id)
   load_district(w_id, p);
 }
 
-/* shared-everything data loader just piggy backs on default. 
+/* shared-everything data loader just piggy backs on default.
  * By doing so, it will load data belonging to all warehouses
  * in a single shared hashtable
  */
@@ -611,7 +657,7 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
   tpcc_load_warehouse(hash_table, id + 1, id);
 }
 
-int tpcc_run_neworder_txn(struct hash_table *hash_table, int id, 
+int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     struct tpcc_query *q, struct task *ctask)
 {
   uint64_t key, pkey;
@@ -632,7 +678,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   /* we have to acquire all partition locks in warehouse order.  */
   char bits[BITNSLOTS(MAX_SERVERS)];
   int i, alock_state, partitions[MAX_SERVERS], npartitions;
- 
+
   memset(bits, 0, sizeof(bits));
   BITSET(bits, w_id);
 
@@ -644,7 +690,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
 
   npartitions = 0;
   for (i = 1; i <= g_nservers; i++) {
-    if (BITTEST(bits, i)) { 
+    if (BITTEST(bits, i)) {
       partitions[npartitions++] = i;
       LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
     }
@@ -662,8 +708,8 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
    */
   pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
   MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-  
-  struct tpcc_warehouse *w_r = 
+
+  struct tpcc_warehouse *w_r =
     (struct tpcc_warehouse *) txn_op(ctask, hash_table, id, &op, w_id - 1);
 
   if (!w_r) {
@@ -671,20 +717,20 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     r = TXN_ABORT;
     goto final;
   }
- 
+
   double w_tax = w_r->w_tax;
   key = MAKE_CUST_KEY(w_id, d_id, c_id);
   pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
   MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
 
-  struct tpcc_customer *c_r = 
+  struct tpcc_customer *c_r =
     (struct tpcc_customer *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   if (!c_r) {
     dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
     r = TXN_ABORT;
     goto final;
   }
- 
+
   uint64_t c_discount = c_r->c_discount;
 
   /*
@@ -695,7 +741,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   key = MAKE_DIST_KEY(w_id, d_id);
   pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
-  struct tpcc_district *d_r = 
+  struct tpcc_district *d_r =
     (struct tpcc_district *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   if (!d_r) {
     dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
@@ -706,13 +752,13 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   uint64_t o_id = d_r->d_next_o_id;
   double d_tax = d_r->d_tax;
 
-  /* 
+  /*
    * EXEC SQL UPDATE district SET d _next_o_id = :d _next_o_id + 1
-   * WHERE d _id = :d_id AN D d _w _id = :w _id ; 
+   * WHERE d _id = :d_id AN D d _w _id = :w _id ;
    */
   d_r->d_next_o_id++;
 
-  /* 
+  /*
    * EXEC SQL INSERT IN TO ORDERS (o_id , o_d _id , o_w _id , o_c_id ,
    * o_entry_d , o_ol_cnt, o_all_local)
    * VALUES (:o_id , :d _id , :w _id , :c_id ,
@@ -721,7 +767,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   key = MAKE_CUST_KEY(w_id, d_id, o_id);
   pkey = MAKE_HASH_KEY(ORDER_TID, key);
   MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order)), pkey);
-  struct tpcc_order *o_r = 
+  struct tpcc_order *o_r =
     (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   assert(o_r);
 
@@ -734,17 +780,17 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   o_r->o_w_id = w_id;
   o_r->o_entry_d = o_entry_d;
   o_r->o_ol_cnt = ol_cnt;
-  
+
   // for now only local
   o_r->o_all_local = !remote;
 
-  /* 
+  /*
    * EXEC SQL INSERT IN TO NEW_ORDER (no_o_id , no_d_id , no_w _id )
    * VALUES (:o_id , :d _id , :w _id );
    */
   pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
   MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_new_order)), pkey);
-  struct tpcc_new_order *no_r = 
+  struct tpcc_new_order *no_r =
     (struct tpcc_new_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   assert(no_r);
 
@@ -759,14 +805,14 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     uint64_t ol_supply_w_id = q->item[ol_number].ol_supply_w_id;
     uint64_t ol_quantity = q->item[ol_number].ol_quantity;
 
-    /* 
+    /*
      * EXEC SQL SELECT i_price, i_name , i_data
      * INTO :i_price, :i_name, :i_data
      * FROM item WHERE i_id = ol_i_id
      */
     pkey = MAKE_HASH_KEY(ITEM_TID, ol_i_id);
     MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-    struct tpcc_item *i_r = 
+    struct tpcc_item *i_r =
       (struct tpcc_item *) txn_op(ctask, hash_table, id, &op, id);
     assert(i_r);
     if (!i_r) {
@@ -779,7 +825,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     //char *i_name = i_r->i_name;
     //char *i_data = i_r->i_data;
 
-    /* 
+    /*
      * EXEC SQL SELECT s_quantity, s_d ata,
      * s_d ist_01, s_dist_02, s_d ist_03, s_d ist_04, s_d ist_05
      * s_d ist_06, s_dist_07, s_d ist_08, s_d ist_09, s_d ist_10
@@ -801,7 +847,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
       goto final;
     }
     uint64_t s_quantity = s_r->s_quantity;
-    /* 
+    /*
     char *s_data = s_r->s_data;
     char *s_dist[10];
     for (int i = 0; i < 10; i++)
@@ -822,7 +868,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
 
     s_r->s_quantity = quantity;
 
-    /* 
+    /*
      * EXEC SQL INSERT
      * INTO order_line(ol_o_id, ol_d_id, ol_w_id, ol_number,
      * ol_i_id, ol_supply_w_id,
@@ -834,7 +880,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     key = MAKE_OL_KEY(w_id, d_id, o_id, ol_number);
     pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
     MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order_line)), pkey);
-    struct tpcc_order_line *ol_r = 
+    struct tpcc_order_line *ol_r =
       (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
 
     assert(ol_r);
@@ -850,13 +896,13 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     ol_r->ol_supply_w_id = ol_supply_w_id;
     ol_r->ol_quantity = ol_quantity;
     ol_r->ol_amount = ol_amount;
-  
+
   }
 
 final:
 
 #if SHARED_NOTHING
-  /* in shared nothing case, there is now way a transaction will ever be 
+  /* in shared nothing case, there is now way a transaction will ever be
    * aborted. We always get all partition locks before we start. So txn
    * execution is completely serial. Likewise, there is no need to reset
    * reference counts in records for logical locks as we don't need them.
@@ -876,11 +922,11 @@ final:
   else
     txn_abort(ctask, hash_table, id, TXN_SINGLE);
 #endif
-  
+
   return r;
 }
 
-int tpcc_run_payment_txn (struct hash_table *hash_table, int id, 
+int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     struct tpcc_query *q, struct task *ctask)
 {
   struct hash_op op;
@@ -903,7 +949,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   /* we have to acquire all partition locks in warehouse order.  */
   char bits[BITNSLOTS(MAX_SERVERS)];
   int i, alock_state, partitions[MAX_SERVERS], npartitions;
- 
+
   memset(bits, 0, sizeof(bits));
   BITSET(bits, w_id);
   BITSET(bits, c_w_id);
@@ -912,7 +958,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
 
   npartitions = 0;
   for (i = 1; i <= g_nservers; i++) {
-    if (BITTEST(bits, i)) { 
+    if (BITTEST(bits, i)) {
       partitions[npartitions++] = i;
       LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
     }
@@ -936,7 +982,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
   opids[nopids++] = 0;
-  struct tpcc_warehouse *w_r = 
+  struct tpcc_warehouse *w_r =
     (struct tpcc_warehouse *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   CHK_ABORT(w_r);
 
@@ -956,7 +1002,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
   opids[nopids++] = 0;
-  struct tpcc_district *d_r = 
+  struct tpcc_district *d_r =
     (struct tpcc_district *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   CHK_ABORT(d_r);
 
@@ -978,7 +1024,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
     opids[nopids++] = 0;
 
     CHK_ABORT(sr);
- 
+
     struct tpcc_customer *c_recs[MAX_OPS_PER_QUERY];
     assert(sr->sr_idx < MAX_OPS_PER_QUERY);
 
@@ -988,10 +1034,10 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
         opids, &nopids);
 #else
     if (c_w_id == w_id) {
-      nmatch = fetch_cust_records(hash_table, id, ctask, c_recs, sr, q, 
+      nmatch = fetch_cust_records(hash_table, id, ctask, c_recs, sr, q,
           opids, &nopids);
     } else {
-      nmatch = batch_fetch_cust_records(hash_table, id, ctask, c_recs, sr, q, 
+      nmatch = batch_fetch_cust_records(hash_table, id, ctask, c_recs, sr, q,
           opids, &nopids);
     }
 #endif
@@ -1000,7 +1046,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
       r = TXN_ABORT;
       goto final;
     }
-    
+
     assert(nmatch > 0);
 
     /*============================================================================+
@@ -1090,7 +1136,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
   key = MAKE_HASH_KEY(HISTORY_TID, pkey);
   MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_order)), key);
   opids[nopids++] = 0;
-  struct tpcc_history *h_r = 
+  struct tpcc_history *h_r =
     (struct tpcc_history *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   CHK_ABORT(h_r);
 
@@ -1105,7 +1151,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
 final:
 
 #if SHARED_NOTHING
-  /* in shared nothing case, there is now way a transaction will ever be 
+  /* in shared nothing case, there is now way a transaction will ever be
    * aborted. We always get all partition locks before we start. So txn
    * execution is completely serial. Likewise, there is no need to reset
    * reference counts in records for logical locks as we don't need them.
@@ -1127,6 +1173,543 @@ final:
   return r;
 }
 
+int tpcc_run_orderstatus_txn(struct hash_table *hash_table, int id,
+    struct tpcc_query *q, struct task *ctask)
+ {
+	/*
+	This transaction accesses
+	customer
+	orders
+	order_line
+	*/
+  struct hash_op op;
+  uint64_t key, pkey;
+  int ol_number = 1;
+  int w_id = q->w_id;
+  int d_id = q->d_id;
+  int c_id = q->c_id;
+  int c_w_id = q->c_w_id;
+  short opids[MAX_OPS_PER_QUERY];
+  short nopids = 0;
+
+  int r = TXN_COMMIT;
+
+  assert(q->w_id == id + 1);
+
+  #if SHARED_NOTHING
+    /* we have to acquire all partition locks in warehouse order.  */
+    char bits[BITNSLOTS(MAX_SERVERS)];
+    int i, alock_state, partitions[MAX_SERVERS], npartitions;
+
+    memset(bits, 0, sizeof(bits));
+    BITSET(bits, w_id);
+    //XXX what to do here?
+    assert(BITTEST(bits, 0) == 0);
+
+    npartitions = 0;
+    for (i = 1; i <= g_nservers; i++) {
+      if (BITTEST(bits, i)) {
+        partitions[npartitions++] = i;
+        LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
+      }
+    }
+  #endif
+
+  struct tpcc_customer *c_r;
+  if (q->by_last_name) {
+
+  /*
+  * EXEC SQL SELECT count(c_id) INTO :namecnt
+  * FROM customer
+  * WHERE c_last=:c_last AND c_d_id=:d_id AND c_w_id=:w_id;
+  */
+    key = cust_derive_key(q->c_last, d_id, w_id);
+    pkey = MAKE_HASH_KEY(CUSTOMER_SIDX_TID, key);
+    MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+    struct secondary_record *sr = NULL;
+
+    sr =  (struct secondary_record *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+    opids[nopids++] = 0;
+
+    CHK_ABORT(sr);
+
+    struct tpcc_customer *c_recs[MAX_OPS_PER_QUERY];
+    assert(sr->sr_idx < MAX_OPS_PER_QUERY);
+
+    int nmatch = 0;
+#if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
+    nmatch = fetch_cust_records(hash_table, id, ctask, c_recs, sr, q,
+        opids, &nopids);
+#else
+      nmatch = batch_fetch_cust_records(hash_table, id, ctask, c_recs, sr, q,
+          opids, &nopids);
+#endif
+
+    if (nmatch == -1) {
+      r = TXN_ABORT;
+      goto final;
+    }
+
+    assert(nmatch > 0);
+
+  /*
+   * for (n=0; n<namecnt/2; n++)
+   * {
+   * EXEC SQL FETCH c_name
+   * INTO :c_balance, :c_first, :c_middle, :c_id;
+   * }
+   */
+   // now sort based on first name and get middle element
+   // XXX: Inefficient bubble sort for now. Also the strcmp below has a huge
+   // overhead. We need some sorted secondary index structure
+   for (int i = 0; i < nmatch; i++) {
+     for (int j = i + 1; j < nmatch; j++) {
+       if (strcmp(c_recs[i]->c_first, c_recs[j]->c_first) > 0) {
+         struct tpcc_customer *tmp = c_recs[i];
+         c_recs[i] = c_recs[j];
+         c_recs[j] = tmp;
+       }
+     }
+   }
+
+   c_r = c_recs[nmatch / 2];
+}
+else{
+
+  /*
+   * EXEC SQL SELECT c_balance, c_first, c_middle, c_last
+   * INTO :c_balance, :c_first, :c_middle, :c_last
+   * FROM customer
+   *  WHERE c_id=:c_id AND c_d_id=:d_id AND c_w_id=:w_id;
+   */
+   key = MAKE_CUST_KEY(w_id, d_id, c_id);
+  pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
+  MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+
+  struct tpcc_customer *c_r =
+    (struct tpcc_customer *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+  if (!c_r) {
+    dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+    r = TXN_ABORT;
+    goto final;
+  }
+
+  double c_balance = c_r->c_balance;
+  char c_first[FIRST_NAME_LEN];
+  for(int i = 0; i < FIRST_NAME_LEN; ++i){
+    c_first[i] = c_r->c_first[i];
+  }
+  char c_middle[2];
+  c_middle[0] = c_r->c_middle[0];
+  c_middle[1] = c_r->c_middle[1];
+
+	char c_last[LAST_NAME_LEN];
+  for(int i = 0 ; i < LAST_NAME_LEN ; ++i){
+    c_last[i] = c_r->c_last[i];
+  }
+
+  /*
+   * EXEC SQL SELECT o_id, o_carrier_id, o_entry_d
+   * INTO :o_id, :o_carrier_id, :entdate
+   * FROM orders
+   *  ORDER BY o_id DESC;
+   */
+   int counter1 = 0;
+   int64_t o_id[TPCC_NCUST_PER_DIST];
+   int64_t o_carrier_id[TPCC_NCUST_PER_DIST];
+   int64_t entdate[TPCC_NCUST_PER_DIST];
+   for (int o = TPCC_NCUST_PER_DIST ; o > 0 ; o--){
+     key = MAKE_CUST_KEY(w_id, d_id, o);
+     pkey = MAKE_HASH_KEY(ORDER_TID, key);
+     MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+     struct tpcc_order *o_r =
+      (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+      if(o_r){
+        o_id[counter1] = o_r->o_id;
+        o_carrier_id[counter1] = o_r->o_carrier_id;
+        entdate[counter1] = o_r->o_entry_d;
+        counter1 ++;
+      }
+    }
+
+  /*
+   * EXEC SQL DECLARE c_line CURSOR FOR
+   * SELECT ol_i_id, ol_supply_w_id, ol_quantity,
+       ol_amount, ol_delivery_d
+   * FROM order_line
+   *  WHERE ol_o_id=:o_id AND ol_d_id=:d_id AND ol_w_id=:w_id;
+   */
+   int counter2 = 0;
+ 	 int64_t ol_i_id[TPCC_MAX_OL_PER_ORDER-5];
+ 	 int64_t ol_supply_w_id[TPCC_MAX_OL_PER_ORDER-5];
+ 	 int64_t ol_delivery_d[TPCC_MAX_OL_PER_ORDER-5];
+ 	 int64_t ol_quantity[TPCC_MAX_OL_PER_ORDER-5];
+ 	 double ol_amount[TPCC_MAX_OL_PER_ORDER-5];
+   for(long ol_number = 5 ; ol_number < TPCC_MAX_OL_PER_ORDER ; ++ol_number){
+
+      key = MAKE_OL_KEY(w_id, d_id, o_id[counter1], ol_number);
+      pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
+      MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+      struct tpcc_order_line *ol_r =
+        (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+
+      if(ol_r){
+        ol_i_id[counter2] = ol_r->ol_i_id;
+        ol_supply_w_id[counter2] = ol_r->ol_supply_w_id;
+        ol_quantity[counter2] = ol_r->ol_quantity;
+        ol_amount[counter2] = ol_r->ol_amount;
+        ol_delivery_d[counter2] = ol_r->ol_delivery_d;
+        ++counter2;
+
+      }
+   }
+}
+
+final:
+
+#if SHARED_NOTHING
+  /* in shared nothing case, there is now way a transaction will ever be
+   * aborted. We always get all partition locks before we start. So txn
+   * execution is completely serial. Likewise, there is no need to reset
+   * reference counts in records for logical locks as we don't need them.
+   *
+   * So just unlatch the partitions and be done
+   */
+
+  assert (r == TXN_COMMIT);
+  for (i = 0; i < npartitions; i++) {
+    int t = partitions[i];
+    assert (BITTEST(bits, t));
+    LATCH_RELEASE(&hash_table->partitions[t - 1].latch, &alock_state);
+  }
+
+#else
+  txn_finish(ctask, hash_table, id, r, TXN_SINGLE, opids);
+#endif
+
+  return r;
+
+ }
+
+ int tpcc_run_delivery_txn(struct hash_table *hash_table, int id,
+     struct tpcc_query *q, struct task *ctask)
+ {
+	/*
+	This transaction accesses
+	new_order
+	orders
+	order_line
+	customer
+	*/
+  struct hash_op op;
+  uint64_t key, pkey;
+  int w_id = q->w_id;
+  int d_id = q->d_id;
+  struct txn_ctx *ctx = &ctask->txn_ctx;
+  short opids[MAX_OPS_PER_QUERY];
+  short nopids = 0;
+
+  int r = TXN_COMMIT;
+
+  assert(q->w_id == id + 1);
+
+  #if SHARED_NOTHING
+    /* we have to acquire all partition locks in warehouse order.  */
+    char bits[BITNSLOTS(MAX_SERVERS)];
+    int i, alock_state, partitions[MAX_SERVERS], npartitions;
+
+    memset(bits, 0, sizeof(bits));
+    BITSET(bits, w_id);
+    //XXX what to do here?
+    assert(BITTEST(bits, 0) == 0);
+
+    npartitions = 0;
+    for (i = 1; i <= g_nservers; i++) {
+      if (BITTEST(bits, i)) {
+        partitions[npartitions++] = i;
+        LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
+      }
+    }
+
+  #endif
+
+  txn_start(hash_table, id, ctx);
+
+  int current_time = time(NULL);
+  int no_o_id;
+  int c_id;
+  //printf("W:%d\n",w_id);
+  for(int d_id = 1 ; d_id < TPCC_NDIST_PER_WH + 1 ; d_id++){
+
+    /*
+   * EXEC SQL DECLARE c_no CURSOR FOR
+   * SELECT no_o_id
+   * FROM new_order
+   * WHERE no_d_id = :d_id AND no_w_id = :w_id
+   * ORDER BY no_o_id ASC;
+   */
+
+    for (int o = 1; o <= TPCC_NCUST_PER_DIST; o++){
+      no_o_id = o;
+      key = MAKE_CUST_KEY(w_id, d_id, o);
+      pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
+      //XXX Here I am doing a look up but it should be changed to delete
+      MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+      struct tpcc_order *no_r =
+        (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+      if(no_r){
+
+        break;
+        }
+      }
+
+   /*
+    * EXEC SQL SELECT o_c_id INTO :c_id FROM orders
+    * 	WHERE o_id = :no_o_id AND o_d_id = :d_id AND
+    *		o_w_id = :w_id;
+    */
+   key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
+   pkey = MAKE_HASH_KEY(ORDER_TID, key);
+   MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+   struct tpcc_order *o_r =
+     (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+   if(o_r){
+
+     c_id = o_r->o_c_id;
+   }
+
+   /*
+   * EXEC SQL UPDATE orders SET o_carrier_id = :o_carrier_id
+   * 	WHERE o_id = :no_o_id AND o_d_id = :d_id AND
+   * 		o_w_id = :w_id;
+   */
+   key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
+   pkey = MAKE_HASH_KEY(ORDER_TID, key);
+   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+   o_r =
+     (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+
+   if(o_r){
+     o_r->o_carrier_id = q->o_carrier_id;
+   }
+
+   /*
+   * EXEC SQL UPDATE order_line SET ol_delivery_d = :datetime
+   *	WHERE ol_o_id = :no_o_id AND ol_d_id = :d_id AND
+   *		ol_w_id = :w_id;
+   */
+
+   for (int ol_number = 5 ; ol_number <= TPCC_MAX_OL_PER_ORDER ; ol_number++){
+
+      key = MAKE_OL_KEY(w_id, d_id, no_o_id, ol_number);
+      pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
+      MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+      struct tpcc_order_line *ol_r =
+        (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+
+      if(ol_r){
+        ol_r->ol_delivery_d = current_time;
+      }
+    }
+
+   /*
+    * EXEC SQL SELECT SUM(ol_amount) INTO :ol_total
+    *	FROM order_line
+    *		WHERE ol_o_id = :no_o_id AND ol_d_id = :d_id
+    *			AND ol_w_id = :w_id;
+    */
+
+    long sum = 0;
+    for(long ol_number = 5 ; ol_number <= TPCC_MAX_OL_PER_ORDER ; ++ol_number){
+      key = MAKE_OL_KEY(w_id, d_id, no_o_id, ol_number);
+      pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
+      MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+      struct tpcc_order_line *ol_r =
+        (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+        //There is a possible bug here, none of the ol_r are valid although the previous transaction
+        //successfuly updates ol_r records. I guess some locks are hold, because when I comment the previous transaction
+        //we can successfully access the records of ol_r
+      if(ol_r){
+        printf("found one in new order line");
+        sum = sum + ol_r->ol_amount;
+      }
+    }
+
+  /*
+   * EXEC SQL UPDATE customer SET c_balance = c_balance + :ol_total
+   *	WHERE c_id = :c_id AND c_d_id = :d_id AND
+   *		c_w_id = :w_id;
+   */
+   key = MAKE_CUST_KEY(w_id, d_id, c_id);
+   pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
+   MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+
+   struct tpcc_customer *c_r =
+     (struct tpcc_customer *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+
+  if (c_r) {
+        c_r->c_balance = c_r->c_balance + sum;
+    }
+
+  //printf("D:%d,O:%d,time:%d\n",d_id,no_o_id,current_time);
+
+}
+  final:
+
+  #if SHARED_NOTHING
+    /* in shared nothing case, there is now way a transaction will ever be
+     * aborted. We always get all partition locks before we start. So txn
+     * execution is completely serial. Likewise, there is no need to reset
+     * reference counts in records for logical locks as we don't need them.
+     *
+     * So just unlatch the partitions and be done
+     */
+
+    assert (r == TXN_COMMIT);
+    for (i = 0; i < npartitions; i++) {
+      int t = partitions[i];
+      assert (BITTEST(bits, t));
+      LATCH_RELEASE(&hash_table->partitions[t - 1].latch, &alock_state);
+    }
+
+  #else
+    txn_finish(ctask, hash_table, id, r, TXN_SINGLE, opids);
+  #endif
+
+    return r;
+  }
+
+  int tpcc_run_stocklevel_txn(struct hash_table *hash_table, int id,
+      struct tpcc_query *q, struct task *ctask)
+  {
+	/*
+	This transaction accesses
+	order_line,
+	stock,
+	district
+	*/
+
+  struct hash_op op;
+  uint64_t key, pkey;
+  int w_id = q->w_id;
+  int d_id = q->d_id;
+  short opids[MAX_OPS_PER_QUERY];
+  short nopids = 0;
+
+  int r = TXN_COMMIT;
+
+  assert(q->w_id == id + 1);
+
+  #if SHARED_NOTHING
+    /* we have to acquire all partition locks in warehouse order.  */
+    char bits[BITNSLOTS(MAX_SERVERS)];
+    int i, alock_state, partitions[MAX_SERVERS], npartitions;
+
+    memset(bits, 0, sizeof(bits));
+    BITSET(bits, w_id);
+    //XXX what to do here?
+
+    assert(BITTEST(bits, 0) == 0);
+
+    npartitions = 0;
+    for (i = 1; i <= g_nservers; i++) {
+      if (BITTEST(bits, i)) {
+        partitions[npartitions++] = i;
+        LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
+      }
+    }
+  #endif
+
+    /*
+     * EXEC SQL SELECT d_next_o_id INTO :o_id
+     * FROM district
+     * WHERE d_w_id=:w_id AND d_id=:d_id;
+     */
+     key = MAKE_DIST_KEY(w_id, d_id);
+     pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
+     MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+     struct tpcc_district *d_r =
+       (struct tpcc_district *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+    if (!d_r) {
+      dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+      r = TXN_ABORT;
+      goto final;
+    }
+     int64_t o_id = d_r->d_next_o_id;
+
+     /*
+     * EXEC SQL SELECT COUNT(DISTINCT (s_i_id)) INTO :stock_count
+     * FROM order_line, stock
+     * WHERE ol_w_id=:w_id AND
+     * ol_d_id=:d_id AND ol_o_id<:o_id AND
+     * ol_o_id>=:o_id-20 AND s_w_id=:w_id AND
+     * s_i_id=ol_i_id AND s_quantity < :threshold;
+     */
+  /**/
+   int64_t ol_o_id = o_id - 20;
+     int ol_number = 1;
+     int stock_count = 0;
+
+     while(ol_o_id < o_id){
+       while(ol_number < 21){
+
+        key = MAKE_OL_KEY(w_id, d_id, o_id, ol_number);
+        pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
+        MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+        struct tpcc_order_line *ol_r =
+          (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+          if (ol_r) {
+            key = MAKE_STOCK_KEY(w_id, ol_o_id);
+            pkey = MAKE_HASH_KEY(STOCK_TID, key);
+            MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+
+            struct tpcc_stock *s_r = NULL;
+            //XXX why should we pass ol_supply_w_id to txn_op
+            s_r = (struct tpcc_stock *) txn_op(ctask, hash_table, id, &op, q->w_id - 1);
+            //XXX currently it aborts in all cases but I assume that it is because I am running transactions by one by one
+            if (!s_r) {
+              dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+              r = TXN_ABORT;
+              goto final;
+            }
+
+
+            if(s_r->s_quantity < q->threshold){
+              //XXX Should I check for distinct members?
+              stock_count++;
+            }
+
+          }
+          ol_number = ol_number + 1;
+      }
+      ol_o_id = ol_o_id + 1;
+    }
+  /**/
+  final:
+
+  #if SHARED_NOTHING
+    /* in shared nothing case, there is now way a transaction will ever be
+     * aborted. We always get all partition locks before we start. So txn
+     * execution is completely serial. Likewise, there is no need to reset
+     * reference counts in records for logical locks as we don't need them.
+     *
+     * So just unlatch the partitions and be done
+     */
+
+    assert (r == TXN_COMMIT);
+    for (i = 0; i < npartitions; i++) {
+      int t = partitions[i];
+      assert (BITTEST(bits, t));
+      LATCH_RELEASE(&hash_table->partitions[t - 1].latch, &alock_state);
+    }
+
+  #else
+    txn_finish(ctask, hash_table, id, r, TXN_SINGLE, opids);
+  #endif
+
+    return r;
+   }
+
 void *tpcc_alloc_query()
 {
   struct tpcc_query *q = malloc(sizeof(struct tpcc_query));
@@ -1143,7 +1726,7 @@ void tpcc_free_query(void *p)
   free (q);
 }
 
-int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg, 
+int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
     struct task *ctask)
 {
   int r;
@@ -1157,13 +1740,16 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
 #endif
 
-  //r = tpcc_run_neworder_txn(hash_table, s, q, ctask); 
-  r = tpcc_run_payment_txn(hash_table, s, q, ctask); 
+  //r = tpcc_run_neworder_txn(hash_table, s, q, ctask);
+  //r = tpcc_run_payment_txn(hash_table, s, q, ctask);
+  //r = tpcc_run_orderstatus_txn(hash_table, s, q, ctask);
+  //r = tpcc_run_delivery_txn(hash_table, s, q, ctask);
+  r = tpcc_run_stocklevel_txn(hash_table, s, q, ctask);
 
   return r;
 }
 
-void tpcc_get_next_query(struct hash_table *hash_table, int s, 
+void tpcc_get_next_query(struct hash_table *hash_table, int s,
     void *arg)
 {
   hash_table->partitions[s].q_idx++;
@@ -1193,7 +1779,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
   struct tpcc_warehouse *w_r = (struct tpcc_warehouse *)e->value;
   assert(w_r);
- 
+
   double d_ytd = 0;
   for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
     key = MAKE_DIST_KEY(w_id, d);
@@ -1205,8 +1791,8 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
     struct tpcc_district *d_r = (struct tpcc_district *)e->value;
     assert(d_r);
 
-    d_ytd += d_r->d_ytd; 
-  
+    d_ytd += d_r->d_ytd;
+
   }
 
   assert(d_ytd == w_r->w_ytd);
@@ -1271,7 +1857,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
         if (max_no_o_id[no_r->no_d_id] < no_r->no_o_id)
           max_no_o_id[no_r->no_d_id] = no_r->no_o_id;
-        
+
         if (min_no_o_id[no_r->no_d_id] > no_r->no_o_id)
           min_no_o_id[no_r->no_d_id] = no_r->no_o_id;
 
@@ -1293,9 +1879,9 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
       }
 
       e = LIST_NEXT(e, chain);
-    } 
+    }
   }
-  
+
   for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
     key = MAKE_DIST_KEY(w_id, d);
     pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
@@ -1317,12 +1903,12 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
     //check 4: sum (O_OL_CNT) = number of rows in the ORDER-LINE table
     assert(sum_o_ol_cnt[d] == nrows_ol[d]);
 
-    //check 5: 
+    //check 5:
   }
 }
 
 static int fetch_cust_records(struct hash_table *hash_table, int id,
-    struct task *ctask, struct tpcc_customer **c_recs, 
+    struct task *ctask, struct tpcc_customer **c_recs,
     struct secondary_record *sr, struct tpcc_query *q,
     short *opids, short *nopids)
 {
@@ -1347,7 +1933,7 @@ static int fetch_cust_records(struct hash_table *hash_table, int id,
     /* XXX: Painful here. We have to retrieve all customers with update lock
      * as we potentially anybody could be the median guy. We might need lock
      * escalation if this becomes a bottleneck in practice
-     * 
+     *
      * XXX: We are requesting one by one. We can batch all requests here
      */
     hash_key pkey = MAKE_HASH_KEY(CUSTOMER_TID, sr->sr_rids[i]);
@@ -1374,8 +1960,8 @@ static int fetch_cust_records(struct hash_table *hash_table, int id,
 }
 
 static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
-    struct task *ctask, struct tpcc_customer **c_recs, 
-    struct secondary_record *sr, struct tpcc_query *q, 
+    struct task *ctask, struct tpcc_customer **c_recs,
+    struct secondary_record *sr, struct tpcc_query *q,
     short *opids, short *nopids)
 {
   /*==========================================================================+
@@ -1396,7 +1982,7 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
   struct partition *p = &hash_table->partitions[id];
   short opid_idx = *nopids;
 
-  dprint("srv(%d): batch fetching %d cust records from %d\n", id, sr_nids, 
+  dprint("srv(%d): batch fetching %d cust records from %d\n", id, sr_nids,
       c_w_id - 1);
 
   assert(c_w_id != w_id);
@@ -1407,8 +1993,8 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
     hash_key pkey = MAKE_HASH_KEY(CUSTOMER_TID, sr->sr_rids[i]);
 
     /* XXX: we are setting opid to 0 here and this should be fine. This is
-     * because, we are sending all requests to the same server. As the 
-     * server will process requests , we will  get response back in same 
+     * because, we are sending all requests to the same server. As the
+     * server will process requests , we will  get response back in same
      * order as we requested them. So no need for opids
      */
     smp_hash_update(ctask, hash_table, id, c_w_id - 1, pkey, i);
@@ -1468,7 +2054,7 @@ struct benchmark tpcc_bench = {
   .init = tpcc_init,
   .alloc_query = tpcc_alloc_query,
 #if SHARED_EVERYTHING
-  .load_data = se_tpcc_load_data, 
+  .load_data = se_tpcc_load_data,
 #else
   .load_data = tpcc_load_data,
 #endif

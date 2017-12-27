@@ -337,8 +337,10 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
       if (!e) {
-        printf("srv(%d): lookup key %"PRIu64" failed\n", s, op->key);
-        assert(0);
+	//XXX I have changed this part
+        //printf("srv(%d): lookup key %"PRIu64" failed\n", s, op->key);
+        //assert(0);
+        return NULL;
       }
 
       // if this is the ITEM TID, we are done
