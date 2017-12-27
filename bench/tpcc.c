@@ -1294,7 +1294,7 @@ else{
     goto final;
   }
 
-  double c_balance = c_r->c_balance;
+  /*double c_balance = c_r->c_balance;
   char c_first[FIRST_NAME_LEN];
   for(int i = 0; i < FIRST_NAME_LEN; ++i){
     c_first[i] = c_r->c_first[i];
@@ -1306,7 +1306,7 @@ else{
 	char c_last[LAST_NAME_LEN];
   for(int i = 0 ; i < LAST_NAME_LEN ; ++i){
     c_last[i] = c_r->c_last[i];
-  }
+  }*/
 
   /*
    * EXEC SQL SELECT o_id, o_carrier_id, o_entry_d
@@ -1653,7 +1653,7 @@ final:
      while(ol_o_id < o_id){
        while(ol_number < 21){
 
-        key = MAKE_OL_KEY(w_id, d_id, o_id, ol_number);
+        key = MAKE_OL_KEY(w_id, d_id, ol_o_id, ol_number);
         pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
         MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
         struct tpcc_order_line *ol_r =
@@ -1666,19 +1666,13 @@ final:
             struct tpcc_stock *s_r = NULL;
             //XXX why should we pass ol_supply_w_id to txn_op
             s_r = (struct tpcc_stock *) txn_op(ctask, hash_table, id, &op, q->w_id - 1);
-            //XXX currently it aborts in all cases but I assume that it is because I am running transactions by one by one
-            if (!s_r) {
-              dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
-              r = TXN_ABORT;
-              goto final;
+            //I don't abort transaction here
+            if(s_r){
+              if(s_r->s_quantity < q->threshold){
+                //XXX Should I check for distinct members?
+                stock_count++;
+              }
             }
-
-
-            if(s_r->s_quantity < q->threshold){
-              //XXX Should I check for distinct members?
-              stock_count++;
-            }
-
           }
           ol_number = ol_number + 1;
       }
@@ -1742,9 +1736,9 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
 
   //r = tpcc_run_neworder_txn(hash_table, s, q, ctask);
   //r = tpcc_run_payment_txn(hash_table, s, q, ctask);
-  //r = tpcc_run_orderstatus_txn(hash_table, s, q, ctask);
+  r = tpcc_run_orderstatus_txn(hash_table, s, q, ctask);
   //r = tpcc_run_delivery_txn(hash_table, s, q, ctask);
-  r = tpcc_run_stocklevel_txn(hash_table, s, q, ctask);
+  //r = tpcc_run_stocklevel_txn(hash_table, s, q, ctask);
 
   return r;
 }
