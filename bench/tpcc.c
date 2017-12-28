@@ -591,21 +591,6 @@ void tpcc_load_warehouse(struct hash_table *hash_table, int w_id, int id)
   load_district(w_id, p);
 }
 
-/* shared-everything data loader just piggy backs on default. 
- * By doing so, it will load data belonging to all warehouses
- * in a single shared hashtable
- */
-void se_tpcc_load_data(struct hash_table *hash_table, int id)
-{
-  /* this should be called only as this is only called in the
-   * shared everything config
-   */
-  assert(id == 0);
-
-  for (int i = 0; i < g_nservers; i++)
-    tpcc_load_warehouse(hash_table, i + 1 /*wid*/, id);
-}
-
 void tpcc_load_data(struct hash_table *hash_table, int id)
 {
   tpcc_load_warehouse(hash_table, id + 1, id);
@@ -1157,7 +1142,7 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
 #endif
 #endif
 
-  //r = tpcc_run_neworder_txn(hash_table, s, q, ctask); 
+  //r = tpcc_run_neworder_txn(hash_table, s, q, ctask);
   r = tpcc_run_payment_txn(hash_table, s, q, ctask); 
 
   return r;
@@ -1467,11 +1452,7 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
 struct benchmark tpcc_bench = {
   .init = tpcc_init,
   .alloc_query = tpcc_alloc_query,
-#if SHARED_EVERYTHING
-  .load_data = se_tpcc_load_data, 
-#else
   .load_data = tpcc_load_data,
-#endif
   .get_next_query = tpcc_get_next_query,
   .run_txn = tpcc_run_txn,
   .verify_txn = tpcc_verify_txn,
