@@ -180,8 +180,16 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   int h = hash_get_bucket(p, key);
 
 #if SHARED_EVERYTHING
-  // Quick hack to make all threads in SE load data
-  struct bucket *b = &(hash_table->partitions[0].table[h]);
+  /* Quick hack to make all threads in SE load data. With the exception of ITEM
+   * table which is loaded in global partition, rest of data is pointed to by
+   * hashtable belonging to the first partition
+   */
+  struct bucket *b;
+  if ((key & TID_MASK) == ITEM_TID) {
+    b = &p->table[h];
+  } else {
+    b = &(hash_table->partitions[0].table[h]);
+  }
 #else
   struct bucket *b = &p->table[h];
 #endif
@@ -280,4 +288,3 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 
   return e;
 }
-

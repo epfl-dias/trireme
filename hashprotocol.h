@@ -1,6 +1,7 @@
 #ifndef __HASHPROTOCOL_H_
 #define __HASHPROTOCOL_H_
 
+/********/
 /**
  * hash operations
  */
@@ -45,8 +46,8 @@ struct hash_query {
 };
 
 enum query_state {
-  HASH_QUERY_EMPTY, 
-  HASH_QUERY_COMMITTED, 
+  HASH_QUERY_EMPTY,
+  HASH_QUERY_COMMITTED,
   HASH_QUERY_ABORTED
 };
 

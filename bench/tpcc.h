@@ -21,6 +21,7 @@
 #define FIRST_NAME_LEN 16
 #define LAST_NAME_LEN 16
 
+
 #define WAREHOUSE_TID 0x0000100000000000
 
 struct tpcc_warehouse {

@@ -336,8 +336,8 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     case OPTYPE_LOOKUP:
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
+      //XXX I had to change this part for implementing the cursor
       if (!e) {
-	//XXX I have changed this part
         //printf("srv(%d): lookup key %"PRIu64" failed\n", s, op->key);
         //assert(0);
         return NULL;
@@ -435,6 +435,15 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 #endif //IF_SHARED_EVERYTHING
 
       break;
+
+    case OPTYPE_DELETE:
+      e = hash_lookup(p, op->key);
+      if (!e) {
+        return NULL;
+      }
+      hash_remove(p, e);
+      break;
+      //XXX I have not add any support for share_everything and share_nothing
 
     default:
       assert(0);
@@ -764,7 +773,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops]: 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
@@ -778,7 +787,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #else
 
@@ -803,7 +812,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
             ;
 #else
             memcpy(octx->e->value, octx->data_copy->value, size);
@@ -843,7 +852,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
@@ -857,7 +866,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #else
           // not silo. send out release messages
@@ -888,7 +897,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
@@ -1999,7 +2008,7 @@ int stats_get_latency(struct hash_table *hash_table)
             min_latency = p->min_txn_latency;
 
         if (max_latency < p->max_txn_latency)
-            max_latency = p->max_txn_latency;        
+            max_latency = p->max_txn_latency;
 
         ntxns += p->q_idx;
     }
@@ -2138,4 +2147,3 @@ double stats_get_tps(struct hash_table *hash_table)
 
   return tps;
 }
-

@@ -11,9 +11,12 @@
 #else
 #define NCORES 72
 #endif
+#elif DIASCLD31
+#define NCORES 24
+#define NSOCKETS 2
 #else
-#define NCORES 4
-#define NSOCKETS 1
+#define NCORES 24
+#define NSOCKETS 2
 #endif
 
 #define TXN_BATCH 1
@@ -31,7 +34,7 @@
 #define TXN_ABORT 1
 #define ABORT_PENALTY 100000 // same as dbx1000
 
-#define CACHELINE 64 
+#define CACHELINE 64
 #define MAX_CLIENTS 128 // must be power of 2
 #ifndef MAX_SERVERS
 #define MAX_SERVERS 128 // must be power of 2
@@ -71,7 +74,7 @@
 #define LOCK_INVALID 3
 #define LOCK_ABORT_NXT 4
 
-/** 
+/**
  * Hash Table Operations
  */
 /* exploit the fact that we have 48-bit address space and use the upper
@@ -99,11 +102,11 @@
 
 #endif
 
-#define HASHOP_LOOKUP         0x1000000000000000 
-#define HASHOP_INSERT         0x2000000000000000 
-#define HASHOP_UPDATE         0x3000000000000000 
-#define HASHOP_RELEASE        0x4000000000000000 
-#define HASHOP_PLOCK_ACQUIRE  0x5000000000000000 
+#define HASHOP_LOOKUP         0x1000000000000000
+#define HASHOP_INSERT         0x2000000000000000
+#define HASHOP_UPDATE         0x3000000000000000
+#define HASHOP_RELEASE        0x4000000000000000
+#define HASHOP_PLOCK_ACQUIRE  0x5000000000000000
 #define HASHOP_PLOCK_RELEASE  0x6000000000000000
 #define HASHOP_MIGRATE        0x7000000000000000
 #define HASHOP_RD_RELEASE     0x8000000000000000
