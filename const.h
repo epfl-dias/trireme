@@ -11,6 +11,9 @@
 #else
 #define NCORES 72
 #endif
+#elif DIASCLD31
+#define NCORES 24
+#define NSOCKETS 2
 #else
 #define NCORES 4
 #define NSOCKETS 1

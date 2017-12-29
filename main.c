@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
                 break;
             case 's':
                 g_nservers = atoi(optarg);
-                assert(g_nservers < MAX_SERVERS);
+                assert(g_nservers < MAX_SERVERS && g_nservers <= NCORES);
                 break;
             case 't':
                 g_nrecs = atol(optarg);
