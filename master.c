@@ -9,6 +9,7 @@
 #include "benchmark.h"
 #include "worker.h"
 #include "smphashtable.h"
+#include "partition.h"
 
 void *hash_table_server(void* args)
 {
