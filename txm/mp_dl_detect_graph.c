@@ -20,7 +20,7 @@ int get_node_index(struct dl_detect_graph_node *node) {
 	return idx;
 }
 
-int nodes_equal(struct waiter_node *node1, struct waiter_node *node2) {
+int mp_nodes_equal(struct waiter_node *node1, struct waiter_node *node2) {
 	int ret = 0;
 
 	if ((node1->fib == node2->fib) &&
@@ -219,7 +219,7 @@ void mp_dl_detect_remove_dependency(struct dl_detect_graph_node *src) {
 		for (int j = 0; j < src->waiters_size; j ++) {
 			int i = 0;
 			while (i < cur->waiters_size) {
-				if (nodes_equal(&cur->neighbors[i], &src->neighbors[j])) {
+				if (mp_nodes_equal(&cur->neighbors[i], &src->neighbors[j])) {
 					memmove(&cur->neighbors[i], &cur->neighbors[i + 1], (cur->waiters_size - i - 1) * sizeof(struct waiter_node));
 					cur->waiters_size--;
 					break;
