@@ -15,8 +15,8 @@
 #define NCORES 24
 #define NSOCKETS 2
 #else
-#define NCORES 24
-#define NSOCKETS 2
+#define NCORES 4
+#define NSOCKETS 1
 #endif
 
 #define TXN_BATCH 1

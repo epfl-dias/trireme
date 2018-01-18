@@ -6,11 +6,11 @@
 #include "plmalloc.h"
 #include "tpcc.h"
 
-#define NO_MIX 45
-#define P_MIX 43
-#define OS_MIX 4
-#define D_MIX 4
-#define SL_MIX 4
+#define NO_MIX 45 //45
+#define P_MIX 43 //43
+#define OS_MIX 8 //4
+#define D_MIX 0 //4
+#define SL_MIX 4 //4
 #define MIX_COUNT 100
 
 
@@ -23,7 +23,6 @@
 //for transaction mix
   int sequence[100];
   int next_Transaction = 0;
-  int selected_transaction;
 
 struct item {
   int ol_i_id;
@@ -635,7 +634,6 @@ void tpcc_load_warehouse(struct hash_table *hash_table, int w_id, int id)
 
   printf("srv (%d): Loading stock..\n", id);
   load_stock(w_id, p);
-
   printf("srv (%d): Loading history..\n", id);
   load_history(w_id, p);
 
@@ -644,6 +642,7 @@ void tpcc_load_warehouse(struct hash_table *hash_table, int w_id, int id)
 
   printf("srv (%d): Loading order..\n", id);
   load_order(w_id, p);
+
   if (w_id == 1) {
     load_item(w_id, item);
     printf("srv (%d): Loading item..\n", id);
@@ -654,6 +653,7 @@ void tpcc_load_warehouse(struct hash_table *hash_table, int w_id, int id)
 
   printf("srv (%d): Loading district..\n", id);
   load_district(w_id, p);
+
 }
 
 void tpcc_load_data(struct hash_table *hash_table, int id)
@@ -664,7 +664,6 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
 void init_seq_array(){
 
   int total = 0;
-  //printf("NO = %d, P= %d, OS= %d, D= %d, SL= %d\n", NO_MIX, P_MIX, OS_MIX, D_MIX, SL_MIX);
   for (int i = 0 ; i < NO_MIX ; ++i){
     sequence[i] = 1;
   }
@@ -696,15 +695,12 @@ void init_seq_array(){
   }
 
 }
-void produce_transaction_mix(){
-
-  if(next_Transaction > MIX_COUNT - 1){
-    next_Transaction = 0;
+void produce_transaction_mix(struct hash_table *hash_table, int id){
+  if(next_Transaction == 0){
     init_seq_array();
   }
-  selected_transaction = sequence[next_Transaction];
+    hash_table->partitions[id].selected_transaction = sequence[next_Transaction % MIX_COUNT];
   next_Transaction ++;
-
 }
 int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     struct tpcc_query *q, struct task *ctask)
@@ -721,7 +717,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   int o_entry_d = q->o_entry_d;
   int r = TXN_COMMIT;
 
-  assert(q->w_id == id + 1);
+  //assert(q->w_id == id + 1);
 
 #if SHARED_NOTHING
   /* we have to acquire all partition locks in warehouse order.  */
@@ -992,7 +988,7 @@ int tpcc_run_payment_txn (struct hash_table *hash_table, int id,
 
   int r = TXN_COMMIT;
 
-  assert(q->w_id == id + 1);
+  //assert(q->w_id == id + 1);
 
 #if SHARED_NOTHING
   /* we have to acquire all partition locks in warehouse order.  */
@@ -1243,7 +1239,7 @@ int tpcc_run_orderstatus_txn(struct hash_table *hash_table, int id,
 
   int r = TXN_COMMIT;
 
-  assert(q->w_id == id + 1);
+  //assert(q->w_id == id + 1);
 
   #if SHARED_NOTHING
     /* we have to acquire all partition locks in warehouse order.  */
@@ -1252,7 +1248,6 @@ int tpcc_run_orderstatus_txn(struct hash_table *hash_table, int id,
 
     memset(bits, 0, sizeof(bits));
     BITSET(bits, w_id);
-    //XXX what to do here?
     assert(BITTEST(bits, 0) == 0);
 
     npartitions = 0;
@@ -1463,7 +1458,7 @@ final:
 
    int r = TXN_COMMIT;
 
-   assert(q->w_id == id + 1);
+   //assert(q->w_id == id + 1);
 
    #if SHARED_NOTHING
      /* we have to acquire all partition locks in warehouse order.  */
@@ -1472,7 +1467,6 @@ final:
 
      memset(bits, 0, sizeof(bits));
      BITSET(bits, w_id);
-     //XXX what to do here?
      assert(BITTEST(bits, 0) == 0);
 
      npartitions = 0;
@@ -1490,7 +1484,7 @@ final:
    int current_time = time(NULL);
    int no_o_id;
    int c_id;
-   //printf("W:%d\n",w_id);
+
    for(int d_id = 1 ; d_id < TPCC_NDIST_PER_WH + 1 ; d_id++){
      /*
     * EXEC SQL DECLARE c_no CURSOR FOR
@@ -1504,8 +1498,7 @@ final:
        no_o_id = o;
        key = MAKE_CUST_KEY(w_id, d_id, o);
        pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
-       //XXX Here I am doing a look up but it should be changed to delete
-       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+       MAKE_OP(op, OPTYPE_DELETE, 0, pkey);
        struct tpcc_order *no_r =
          (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
        if(no_r){
@@ -1581,7 +1574,7 @@ final:
          //successfuly updates ol_r records. I guess some locks are hold, because when I comment the previous transaction
          //we can successfully access the records of ol_r
        if(ol_r){
-         printf("found one in new order line");
+
          sum = sum + ol_r->ol_amount;
        }
      }
@@ -1649,7 +1642,7 @@ final:
 
   int r = TXN_COMMIT;
 
-  assert(q->w_id == id + 1);
+  //assert(q->w_id == id + 1);
 
   #if SHARED_NOTHING
     /* we have to acquire all partition locks in warehouse order.  */
@@ -1658,8 +1651,6 @@ final:
 
     memset(bits, 0, sizeof(bits));
     BITSET(bits, w_id);
-    //XXX what to do here?
-
     assert(BITTEST(bits, 0) == 0);
 
     npartitions = 0;
@@ -1712,7 +1703,7 @@ final:
           if (ol_r) {
             key = MAKE_STOCK_KEY(w_id, ol_o_id);
             pkey = MAKE_HASH_KEY(STOCK_TID, key);
-            MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+            MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
 
             struct tpcc_stock *s_r = NULL;
             //XXX why should we pass ol_supply_w_id to txn_op
@@ -1792,29 +1783,24 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
   //3 => order status
   //4 => delivery
   //5 => stock level
-  switch (selected_transaction){
+  switch (hash_table->partitions[s].selected_transaction){
     case 1:
-     //printf("running new order\n");
      return tpcc_run_neworder_txn(hash_table, s, q, ctask);
      break;
     case 2:
-      //printf("runnung payement\n");
      return tpcc_run_payment_txn(hash_table, s, q, ctask);
      break;
     case 3:
-     //printf("running order status\n");
      return tpcc_run_orderstatus_txn(hash_table, s, q, ctask);
      break;
     case 4:
-     //printf("running delivery\n");
      return tpcc_run_delivery_txn(hash_table, s, q, ctask);
      break;
     case 5:
-     //printf("running stock level\n");
      return tpcc_run_stocklevel_txn(hash_table, s, q, ctask);
      break;
    default:
-     printf("invalid transaction is selected %d\n", selected_transaction);
+     printf("invalid transaction is selected %d\n", hash_table->partitions[s].selected_transaction);
      assert(0);
   }
 
@@ -1827,28 +1813,26 @@ void tpcc_get_next_query(struct hash_table *hash_table, int s,
 
   hash_table->partitions[s].q_idx++;
   //XXX I am assumig that tpcc_get_next_query is called before run_transaction
-  produce_transaction_mix();
-  switch(selected_transaction){
+  produce_transaction_mix(hash_table, s);
+  switch( hash_table->partitions[s].selected_transaction){
     case 1:
-      //printf("input for new order\n");
       tpcc_get_next_neworder_query(hash_table, s, arg);
       break;
     case 2:
-      //printf("input for payement\n");
       tpcc_get_next_payment_query(hash_table, s, arg);
       break;
     case 3:
-      //printf("input for order status\n");
       tpcc_get_next_orderstatus_query(hash_table, s, arg);
       break;
     case 4:
-      //printf("input for delivery \n");
       tpcc_get_next_delivery_query(hash_table, s, arg);
       break;
     case 5:
-      //printf("input for stock level \n");
       tpcc_get_next_stocklevel_query(hash_table, s, arg);
       break;
+    default:
+      printf("Undefined transaction * %d",hash_table->partitions[s].selected_transaction);
+      assert(0);
   }
 }
 
@@ -1992,7 +1976,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
     // check 3: max(NO_O_ID) - min(NO_O_ID) + 1 = [number of rows in the NEW-ORDER
     // table for this district]
-    assert((max_no_o_id[d] - min_no_o_id[d] + 1) == nrows_no[d]);
+    //assert((max_no_o_id[d] - min_no_o_id[d] + 1) == nrows_no[d]);
 
     //check 4: sum (O_OL_CNT) = number of rows in the ORDER-LINE table
     assert(sum_o_ol_cnt[d] == nrows_ol[d]);

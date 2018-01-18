@@ -1,0 +1,136 @@
+2 remote ops 2 ops per txn 
+ # servers:    8
+ Key range:    0..2^29
+ Write ratio:  20
+ Total #recs: 1000000 
+ Iterations:   100000000
+Active servers = 8
+Assinging core 0 to srv 0
+Worker 0 notified with signal 0
+Worker 0 notified with signal 1
+Assinging core 2 to srv 1
+Worker 1 notified with signal 0
+Worker 1 notified with signal 1
+Assinging core 4 to srv 2
+Worker 2 notified with signal 0
+Worker 2 notified with signal 1
+Assinging core 6 to srv 3
+Worker 1 waiting for signal
+Worker 1 received signal 1
+Worker 1 loading data
+srv (1): Loading stock..
+Worker 3 notified with signal 0
+Worker 3 notified with signal 1
+Assinging core 8 to srv 4
+Worker 0 waiting for signal
+Worker 0 received signal 1
+Worker 0 loading data
+srv (0): Loading stock..
+Worker 3 waiting for signal
+Worker 3 received signal 1
+Worker 3 loading data
+Worker 2 waiting for signal
+srv (3): Loading stock..
+Worker 2 received signal 1
+Worker 2 loading data
+srv (2): Loading stock..
+Worker 4 notified with signal 0
+Worker 4 notified with signal 1
+Assinging core 10 to srv 5
+Worker 4 waiting for signal
+Worker 4 received signal 1
+Worker 4 loading data
+srv (4): Loading stock..
+Worker 5 notified with signal 0
+Worker 5 notified with signal 1
+Assinging core 12 to srv 6
+Worker 5 waiting for signal
+Worker 5 received signal 1
+Worker 5 loading data
+srv (5): Loading stock..
+Worker 6 notified with signal 0
+Worker 6 notified with signal 1
+Assinging core 14 to srv 7
+Worker 6 waiting for signal
+Worker 6 received signal 1
+Worker 6 loading data
+srv (6): Loading stock..
+Worker 7 notified with signal 0
+Worker 7 notified with signal 1
+Worker 7 waiting for signal
+Worker 7 received signal 1
+Worker 7 loading data
+srv (7): Loading stock..
+srv (5): Loading history..
+srv (4): Loading history..
+srv (6): Loading history..
+srv (1): Loading history..
+srv (7): Loading history..
+srv (3): Loading history..
+srv (0): Loading history..
+srv (2): Loading history..
+srv (4): Loading customer..
+srv (6): Loading customer..
+srv (5): Loading customer..
+srv (7): Loading customer..
+srv (3): Loading customer..
+srv (1): Loading customer..
+srv (0): Loading customer..
+srv (2): Loading customer..
+srv (4): Loading order..
+srv (7): Loading order..
+srv (1): Loading order..
+srv (6): Loading order..
+srv (3): Loading order..
+srv (5): Loading order..
+srv (0): Loading order..
+srv (2): Loading order..
+srv (6): Loading wh..
+srv (6): Loading district..
+srv 6 load time 0.952
+srv 6 rec count: 508985 partition sz 151036-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 6 executing txns
+srv (4): Loading wh..
+srv (4): Loading district..
+srv 4 load time 0.953
+srv 4 rec count: 508394 partition sz 150907-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 4 executing txns
+srv (2): Loading wh..
+srv (2): Loading district..
+srv 2 load time 0.955
+srv 2 rec count: 509017 partition sz 151043-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 2 executing txns
+srv (7): Loading wh..
+srv (7): Loading district..
+srv 7 load time 0.957
+srv 7 rec count: 509270 partition sz 151099-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 7 executing txns
+srv (5): Loading wh..
+srv (5): Loading district..
+srv 5 load time 0.958
+srv 5 rec count: 508295 partition sz 150885-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 5 executing txns
+srv (3): Loading wh..
+srv (3): Loading district..
+srv 3 load time 0.961
+srv 3 rec count: 508601 partition sz 150952-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 3 executing txns
+srv (1): Loading wh..
+srv (1): Loading district..
+srv 1 load time 0.962
+srv 1 rec count: 509681 partition sz 151189-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 1 executing txns
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 1.075
+srv 0 rec count: 508401 partition sz 150909-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 0 executing txns
+srv 0 starting txns
+srv 2 starting txns
+srv 7 starting txns
+srv 5 starting txns
+srv 4 starting txns
+srv 6 starting txns
+srv 3 starting txns
+srv 1 starting txns

@@ -464,6 +464,7 @@ struct partition {
   uint64_t q_idx;
   int nhash;
   size_t nrecs;
+  int selected_transaction;
 
 #if SHARED_NOTHING
   LATCH_T latch;

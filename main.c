@@ -13,7 +13,7 @@ int query_shift     = 2;
 
 int QID[MAX_CLIENTS];
 
-int iters_per_client; 
+int iters_per_client;
 
 struct client_data {
     unsigned int seed;
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
                 break;
             case 's':
                 g_nservers = atoi(optarg);
-                assert(g_nservers < MAX_SERVERS);
+                assert(g_nservers < MAX_SERVERS && g_nservers <= NCORES);
                 break;
             case 't':
                 g_nrecs = atol(optarg);
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void run_benchmark() 
+void run_benchmark()
 {
     srand(19890811);
 
@@ -256,4 +256,3 @@ void run_benchmark()
 
     destroy_hash_table(hash_table);
 }
-

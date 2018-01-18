@@ -1,0 +1,72 @@
+2 remote ops 2 ops per txn 
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  20
+ Total #recs: 1000000 
+ Iterations:   100000000
+Active servers = 4
+Assinging core 0 to srv 0
+Worker 0 notified with signal 0
+Worker 0 notified with signal 1
+Assinging core 2 to srv 1
+Worker 1 notified with signal 0
+Worker 1 notified with signal 1
+Assinging core 4 to srv 2
+Worker 2 notified with signal 0
+Worker 2 notified with signal 1
+Assinging core 6 to srv 3
+Worker 3 notified with signal 0
+Worker 3 notified with signal 1
+Worker 0 waiting for signal
+Worker 0 received signal 1
+Worker 0 loading data
+srv (0): Loading stock..
+Worker 2 waiting for signal
+Worker 2 received signal 1
+Worker 2 loading data
+srv (2): Loading stock..
+Worker 3 waiting for signal
+Worker 3 received signal 1
+Worker 3 loading data
+srv (3): Loading stock..
+Worker 1 waiting for signal
+Worker 1 received signal 1
+Worker 1 loading data
+srv (1): Loading stock..
+srv (1): Loading history..
+srv (2): Loading history..
+srv (0): Loading history..
+srv (3): Loading history..
+srv (1): Loading customer..
+srv (0): Loading customer..
+srv (2): Loading customer..
+srv (3): Loading customer..
+srv (0): Loading order..
+srv (1): Loading order..
+srv (2): Loading order..
+srv (3): Loading order..
+srv (2): Loading wh..
+srv (2): Loading district..
+srv 2 load time 0.957
+srv 2 rec count: 508674 partition sz 150968-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 2 executing txns
+srv (1): Loading wh..
+srv (1): Loading district..
+srv 1 load time 0.957
+srv 1 rec count: 508477 partition sz 150925-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 1 executing txns
+srv (3): Loading wh..
+srv (3): Loading district..
+srv 3 load time 0.961
+srv 3 rec count: 508370 partition sz 150902-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 3 executing txns
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 1.075
+srv 0 rec count: 508536 partition sz 150938-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 0 executing txns
+srv 0 starting txns
+srv 2 starting txns
+srv 3 starting txns
+srv 1 starting txns

@@ -1,7 +1,7 @@
 #ifndef __HASHPROTOCOL_H_
 #define __HASHPROTOCOL_H_
 
-/********/
+/********************/
 /**
  * hash operations
  */
