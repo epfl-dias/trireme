@@ -8,8 +8,8 @@
 
 #define NO_MIX 45 //45
 #define P_MIX 43 //43
-#define OS_MIX 8 //4
-#define D_MIX 0 //4
+#define OS_MIX 4 //4
+#define D_MIX 4 //4
 #define SL_MIX 4 //4
 #define MIX_COUNT 100
 

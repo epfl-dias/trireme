@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 #endif
 
     // round down nrecs to a partition multiple
-    g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;
+    g_nrecs = (g_startup_servers*(89+10*95+30000*655+30000*24+300000*15*54+9000*8+100000*306)+100000*306) * g_startup_servers;
 
     assert(g_benchmark);
 
