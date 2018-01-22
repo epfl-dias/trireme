@@ -7,6 +7,16 @@
 #include "partition.h"
 #include "master.h"
 
+#define card_ware_house 1
+#define card_district 10
+#define card_customer 30000
+#define card_stock 100000
+#define card_item 100000
+#define card_order (30000 + 0)
+#define card_order_line (300000 + 0)
+#define card_new_order (9000 + 0)
+#define card_history (30000 + 0)
+
 int queries_per_txn = 1;
 int query_mask      = (1 << 29) - 1;
 int query_shift     = 2;
@@ -183,7 +193,7 @@ int main(int argc, char *argv[])
 #endif
 
     // round down nrecs to a partition multiple
-    g_nrecs = (g_startup_servers*(89+10*95+30000*655+30000*24+300000*15*54+9000*8+100000*306)+100000*306) * g_startup_servers;
+    g_nrecs = (g_startup_servers*( card_ware_house + card_district + card_customer + card_order + card_order_line + card_stock + card_new_order + card_history) + card_item) * g_startup_servers;
 
     assert(g_benchmark);
 

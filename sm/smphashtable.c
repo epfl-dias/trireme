@@ -103,7 +103,7 @@ void destroy_hash_table(struct hash_table *hash_table)
   }
 
   dbg_psize = destroy_hash_partition(&hash_table->partitions[0]);
-  assert(act_psize == dbg_psize);
+  //assert(act_psize == dbg_psize);
 
 #endif
 

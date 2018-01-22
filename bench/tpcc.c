@@ -21,7 +21,7 @@
     goto final; \
   }
 //for transaction mix
-  int sequence[100];
+  int sequence[MIX_COUNT];
   int next_Transaction = 0;
 
 struct item {
@@ -98,7 +98,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
   int ol_cnt, dup;
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  q->w_id = s + 1;
+  q->w_id = s + 1; //s + 1
   //q->w_id = URand(&p->seed, 1, g_nservers);
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
@@ -130,7 +130,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
 
     if (x > 1 || g_nservers == 1) {
     //if (1) {
-      i->ol_supply_w_id = s + 1;
+      i->ol_supply_w_id = s + 1; //s + 1
     } else {
       while ((i->ol_supply_w_id = URand(&p->seed, 1, g_nservers)) == q->w_id)
         ;
@@ -150,8 +150,8 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  q->w_id = s + 1;
-  q->d_w_id = s + 1;
+  q->w_id = s + 1; //s + 1
+  q->d_w_id = s + 1;//s + 1
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->h_amount = URand(&p->seed, 1, 5000);
   int x = URand(&p->seed, 1, 100);
@@ -160,17 +160,17 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   if(x <= 85 || g_dist_threshold == 100) {
     // home warehouse
     q->c_d_id = q->d_id;
-    q->c_w_id = s + 1;
+    q->c_w_id = s + 1; //s + 1
   } else {
     q->c_d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
 
     // remote warehouse if we have >1 wh
     if(g_nservers > 1) {
-      while((q->c_w_id = URand(&p->seed, 1, g_nservers)) == (s + 1))
+      while((q->c_w_id = URand(&p->seed, 1, g_nservers)) == (s + 1)) //s + 1
         ;
 
     } else {
-      q->c_w_id = s + 1;
+      q->c_w_id = s + 1; //s + 1
     }
   }
 
@@ -191,7 +191,7 @@ void tpcc_get_next_orderstatus_query(struct hash_table *hash_table, int s,
 
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
-  q->w_id = s + 1;
+  q->w_id = s + 1;//s + 1
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
 
   int y = URand(&p->seed, 1, 100);
@@ -212,7 +212,7 @@ void tpcc_get_next_delivery_query(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
-  q->w_id = s + 1;
+  q->w_id = s + 1;//s + 1
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->o_carrier_id = URand(&p->seed, 1, 10);
 
@@ -223,7 +223,7 @@ void tpcc_get_next_stocklevel_query(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
-  q->w_id = s + 1;
+  q->w_id = s + 1;//s + 1
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->threshold = URand(&p->seed, 10, 20);
 
@@ -1241,24 +1241,6 @@ int tpcc_run_orderstatus_txn(struct hash_table *hash_table, int id,
 
   //assert(q->w_id == id + 1);
 
-  #if SHARED_NOTHING
-    /* we have to acquire all partition locks in warehouse order.  */
-    char bits[BITNSLOTS(MAX_SERVERS)];
-    int i, alock_state, partitions[MAX_SERVERS], npartitions;
-
-    memset(bits, 0, sizeof(bits));
-    BITSET(bits, w_id);
-    assert(BITTEST(bits, 0) == 0);
-
-    npartitions = 0;
-    for (i = 1; i <= g_nservers; i++) {
-      if (BITTEST(bits, i)) {
-        partitions[npartitions++] = i;
-        LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
-      }
-    }
-  #endif
-
   struct tpcc_customer *c_r;
   if (q->by_last_name) {
 
@@ -1362,7 +1344,7 @@ else{
    int64_t o_id[TPCC_NCUST_PER_DIST];
    int64_t o_carrier_id[TPCC_NCUST_PER_DIST];
    int64_t entdate[TPCC_NCUST_PER_DIST];
-   for (int o = TPCC_NCUST_PER_DIST ; o > 0 ; o--){
+   for (int o = TPCC_NCUST_PER_DIST ; o > 0 ; o --){
      key = MAKE_CUST_KEY(w_id, d_id, o);
      pkey = MAKE_HASH_KEY(ORDER_TID, key);
      MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
@@ -1408,31 +1390,19 @@ else{
         ++counter2;
 
       }
+      /**/
+      else{
+        dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+        r = TXN_ABORT;
+        goto final;
+      }
+      /**/
    }
 
 }
 
 final:
-
-#if SHARED_NOTHING
-  /* in shared nothing case, there is now way a transaction will ever be
-   * aborted. We always get all partition locks before we start. So txn
-   * execution is completely serial. Likewise, there is no need to reset
-   * reference counts in records for logical locks as we don't need them.
-   *
-   * So just unlatch the partitions and be done
-   */
-
-  assert (r == TXN_COMMIT);
-  for (i = 0; i < npartitions; i++) {
-    int t = partitions[i];
-    assert (BITTEST(bits, t));
-    LATCH_RELEASE(&hash_table->partitions[t - 1].latch, &alock_state);
-  }
-
-#else
   txn_finish(ctask, hash_table, id, r, TXN_SINGLE, opids);
-#endif
 
   return r;
 
@@ -1454,31 +1424,10 @@ final:
    int d_id = q->d_id;
    struct txn_ctx *ctx = &ctask->txn_ctx;
    short opids[MAX_OPS_PER_QUERY];
-   short nopids = 0;
 
    int r = TXN_COMMIT;
 
    //assert(q->w_id == id + 1);
-
-   #if SHARED_NOTHING
-     /* we have to acquire all partition locks in warehouse order.  */
-     char bits[BITNSLOTS(MAX_SERVERS)];
-     int i, alock_state, partitions[MAX_SERVERS], npartitions;
-
-     memset(bits, 0, sizeof(bits));
-     BITSET(bits, w_id);
-     assert(BITTEST(bits, 0) == 0);
-
-     npartitions = 0;
-     for (i = 1; i <= g_nservers; i++) {
-       if (BITTEST(bits, i)) {
-         partitions[npartitions++] = i;
-         LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
-       }
-     }
-
-   #endif
-
    txn_start(hash_table, id, ctx);
 
    int current_time = time(NULL);
@@ -1498,29 +1447,25 @@ final:
        no_o_id = o;
        key = MAKE_CUST_KEY(w_id, d_id, o);
        pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
-       MAKE_OP(op, OPTYPE_DELETE, 0, pkey);
+       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
        struct tpcc_order *no_r =
          (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
        if(no_r){
-
          break;
          }
        }
+       //I have to first look up the record and then delete it
+       key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
+       pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
+       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+       struct tpcc_order *no_r =
+         (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
 
     /*
      * EXEC SQL SELECT o_c_id INTO :c_id FROM orders
      * 	WHERE o_id = :no_o_id AND o_d_id = :d_id AND
      *		o_w_id = :w_id;
      */
-    key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
-    pkey = MAKE_HASH_KEY(ORDER_TID, key);
-    MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-    struct tpcc_order *o_r =
-      (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-    if(o_r){
-
-      c_id = o_r->o_c_id;
-    }
 
     /*
     * EXEC SQL UPDATE orders SET o_carrier_id = :o_carrier_id
@@ -1530,13 +1475,17 @@ final:
     key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
     pkey = MAKE_HASH_KEY(ORDER_TID, key);
     MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
-    o_r =
+    struct tpcc_order *o_r_2 =
       (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
 
-    if(o_r){
-      o_r->o_carrier_id = q->o_carrier_id;
-    }
+    if(!o_r_2){
 
+        dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+        r = TXN_ABORT;
+        goto final;
+    }
+      o_r_2->o_carrier_id = q->o_carrier_id;
+      c_id = o_r_2->o_c_id;
     /*
     * EXEC SQL UPDATE order_line SET ol_delivery_d = :datetime
     *	WHERE ol_o_id = :no_o_id AND ol_d_id = :d_id AND
@@ -1570,11 +1519,7 @@ final:
        MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
        struct tpcc_order_line *ol_r =
          (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-         //There is a possible bug here, none of the ol_r are valid although the previous transaction
-         //successfuly updates ol_r records. I guess some locks are hold, because when I comment the previous transaction
-         //we can successfully access the records of ol_r
        if(ol_r){
-
          sum = sum + ol_r->ol_amount;
        }
      }
@@ -1595,30 +1540,9 @@ final:
          c_r->c_balance = c_r->c_balance + sum;
      }
 
-   //printf("D:%d,O:%d,time:%d\n",d_id,no_o_id,current_time);
-
  }
    final:
-
-   #if SHARED_NOTHING
-     /* in shared nothing case, there is now way a transaction will ever be
-      * aborted. We always get all partition locks before we start. So txn
-      * execution is completely serial. Likewise, there is no need to reset
-      * reference counts in records for logical locks as we don't need them.
-      *
-      * So just unlatch the partitions and be done
-      */
-
-     assert (r == TXN_COMMIT);
-     for (i = 0; i < npartitions; i++) {
-       int t = partitions[i];
-       assert (BITTEST(bits, t));
-       LATCH_RELEASE(&hash_table->partitions[t - 1].latch, &alock_state);
-     }
-
-   #else
      txn_finish(ctask, hash_table, id, r, TXN_SINGLE, opids);
-   #endif
 
      return r;
    }
@@ -1638,29 +1562,10 @@ final:
   int w_id = q->w_id;
   int d_id = q->d_id;
   short opids[MAX_OPS_PER_QUERY];
-  short nopids = 0;
 
   int r = TXN_COMMIT;
 
   //assert(q->w_id == id + 1);
-
-  #if SHARED_NOTHING
-    /* we have to acquire all partition locks in warehouse order.  */
-    char bits[BITNSLOTS(MAX_SERVERS)];
-    int i, alock_state, partitions[MAX_SERVERS], npartitions;
-
-    memset(bits, 0, sizeof(bits));
-    BITSET(bits, w_id);
-    assert(BITTEST(bits, 0) == 0);
-
-    npartitions = 0;
-    for (i = 1; i <= g_nservers; i++) {
-      if (BITTEST(bits, i)) {
-        partitions[npartitions++] = i;
-        LATCH_ACQUIRE(&hash_table->partitions[i - 1].latch, &alock_state);
-      }
-    }
-  #endif
 
     /*
      * EXEC SQL SELECT d_next_o_id INTO :o_id
@@ -1678,7 +1583,6 @@ final:
       goto final;
     }
      int64_t o_id = d_r->d_next_o_id;
-
 
      /*
      * EXEC SQL SELECT COUNT(DISTINCT (s_i_id)) INTO :stock_count
@@ -1700,48 +1604,26 @@ final:
         MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
         struct tpcc_order_line *ol_r =
           (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-          if (ol_r) {
             key = MAKE_STOCK_KEY(w_id, ol_o_id);
             pkey = MAKE_HASH_KEY(STOCK_TID, key);
             MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-
-            struct tpcc_stock *s_r = NULL;
-            //XXX why should we pass ol_supply_w_id to txn_op
-            s_r = (struct tpcc_stock *) txn_op(ctask, hash_table, id, &op, q->w_id - 1);
-            //I don't abort transaction here
-            if(s_r){
-              if(s_r->s_quantity < q->threshold){
-                //XXX Should I check for distinct members?
-                stock_count++;
-              }
+            struct tpcc_stock *s_r =
+              (struct tpcc_stock *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+            if(!s_r){
+              dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
+              r = TXN_ABORT;
+              goto final;
             }
-          }
+            if(s_r->s_quantity < q->threshold){
+                stock_count++;
+            }
           ol_number = ol_number + 1;
       }
       ol_o_id = ol_o_id + 1;
     }
 
   final:
-
-  #if SHARED_NOTHING
-    /* in shared nothing case, there is now way a transaction will ever be
-     * aborted. We always get all partition locks before we start. So txn
-     * execution is completely serial. Likewise, there is no need to reset
-     * reference counts in records for logical locks as we don't need them.
-     *
-     * So just unlatch the partitions and be done
-     */
-
-    assert (r == TXN_COMMIT);
-    for (i = 0; i < npartitions; i++) {
-      int t = partitions[i];
-      assert (BITTEST(bits, t));
-      LATCH_RELEASE(&hash_table->partitions[t - 1].latch, &alock_state);
-    }
-
-  #else
     txn_finish(ctask, hash_table, id, r, TXN_SINGLE, opids);
-  #endif
 
     return r;
    }
@@ -1972,7 +1854,7 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
     // check 2: D_NEXT_O_ID - 1 = max(O_ID) = max(NO_O_ID)
     assert((d_r->d_next_o_id - 1) == max_o_id[d]);
-    assert((d_r->d_next_o_id - 1) == max_no_o_id[d]);
+    //assert((d_r->d_next_o_id - 1) == max_no_o_id[d]);
 
     // check 3: max(NO_O_ID) - min(NO_O_ID) + 1 = [number of rows in the NEW-ORDER
     // table for this district]
