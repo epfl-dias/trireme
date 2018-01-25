@@ -6,13 +6,6 @@
 #include "plmalloc.h"
 #include "tpcc.h"
 
-#define NO_MIX 45 //45
-#define P_MIX 43 //43
-#define OS_MIX 4 //4
-#define D_MIX 4 //4
-#define SL_MIX 4 //4
-#define MIX_COUNT 100
-
 
 #define CHK_ABORT(val) \
   if (!(val)) {\
@@ -21,8 +14,8 @@
     goto final; \
   }
 //for transaction mix
-  int sequence[MIX_COUNT];
-  int next_Transaction = 0;
+  //int sequence[MIX_COUNT];
+  //int next_Transaction = 0;
 
 struct item {
   int ol_i_id;
@@ -67,7 +60,26 @@ static int batch_fetch_cust_records(struct hash_table *hash_table, int id,
     struct secondary_record *sr, struct tpcc_query *q,
     short *opids, short *nopids);
 
-void init_seq_array();
+//void init_seq_array();
+void count_transaction(struct hash_table *hash_table, int s, int tnx){
+  switch (tnx) {
+    case 1:
+      ++hash_table->partitions[s].new_order_counter;
+      break;
+    case 2:
+      ++hash_table->partitions[s].payment_counter;
+      break;
+    case 3:
+      ++hash_table->partitions[s].order_status_counter;
+      break;
+    case 4:
+      ++hash_table->partitions[s].delivery_counter;
+      break;
+    case 5:
+      ++hash_table->partitions[s].stock_level_counter;
+      break;
+  }
+}
 
 static int set_last_name(int num, char* name)
 {
@@ -88,7 +100,7 @@ static void tpcc_init()
     printf("Index latching not defined for TPCC!\n");
     exit(1);
 #endif
-init_seq_array();
+//init_seq_array();
 }
 
 void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
@@ -661,7 +673,7 @@ void tpcc_load_data(struct hash_table *hash_table, int id)
   tpcc_load_warehouse(hash_table, id + 1, id);
 }
 
-void init_seq_array(){
+/*void init_seq_array(){
 
   int total = 0;
   for (int i = 0 ; i < NO_MIX ; ++i){
@@ -695,13 +707,14 @@ void init_seq_array(){
   }
 
 }
-void produce_transaction_mix(struct hash_table *hash_table, int id){
+*/
+/*void produce_transaction_mix(struct hash_table *hash_table, int id){
   if(next_Transaction == 0){
     init_seq_array();
   }
     hash_table->partitions[id].selected_transaction = sequence[next_Transaction % MIX_COUNT];
   next_Transaction ++;
-}
+}*/
 int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     struct tpcc_query *q, struct task *ctask)
 {
@@ -1390,13 +1403,6 @@ else{
         ++counter2;
 
       }
-      /**/
-      else{
-        dprint("srv(%d): Aborting due to key %"PRId64"\n", id, pkey);
-        r = TXN_ABORT;
-        goto final;
-      }
-      /**/
    }
 
 }
@@ -1665,6 +1671,7 @@ int tpcc_run_txn(struct hash_table *hash_table, int s, void *arg,
   //3 => order status
   //4 => delivery
   //5 => stock level
+  count_transaction(hash_table, s, hash_table->partitions[s].selected_transaction);
   switch (hash_table->partitions[s].selected_transaction){
     case 1:
      return tpcc_run_neworder_txn(hash_table, s, q, ctask);
@@ -1694,8 +1701,6 @@ void tpcc_get_next_query(struct hash_table *hash_table, int s,
 {
 
   hash_table->partitions[s].q_idx++;
-  //XXX I am assumig that tpcc_get_next_query is called before run_transaction
-  produce_transaction_mix(hash_table, s);
   switch( hash_table->partitions[s].selected_transaction){
     case 1:
       tpcc_get_next_neworder_query(hash_table, s, arg);

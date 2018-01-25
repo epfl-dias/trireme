@@ -327,7 +327,7 @@ struct elem {
   } owners[NCORES] __attribute__((aligned (CACHELINE)));
 
   int waiters[NCORES];
-  
+
   struct
   {
       volatile uint32_t ticket;
@@ -338,7 +338,7 @@ struct elem {
 
   //volatile char owners[NCORES];
   //volatile char writer;
-  
+
   struct {
       volatile int spinlock;
       char pad[CACHELINE - 4];
@@ -465,6 +465,13 @@ struct partition {
   int nhash;
   size_t nrecs;
   int selected_transaction;
+  int new_order_counter;
+  int payment_counter;
+  int delivery_counter;
+  int order_status_counter;
+  int stock_level_counter;
+  int next_Transaction;
+
 
 #if SHARED_NOTHING
   LATCH_T latch;
@@ -575,4 +582,3 @@ struct hash_table {
 };
 
 #endif
-

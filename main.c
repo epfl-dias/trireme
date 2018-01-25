@@ -56,6 +56,38 @@ void help()
 
     exit(1);
 }
+void init_seq_array(){
+
+  int total = 0;
+  for (int i = 0 ; i < NO_MIX ; ++i){
+    sequence[i] = 1;
+  }
+  total = NO_MIX;
+  for(int i = 0 ; i < P_MIX ; ++i){
+    sequence[i + total] = 2;
+  }
+  total = total + P_MIX;
+  for(int i = 0 ; i < OS_MIX ; ++i){
+    sequence[i+total] = 3;
+  }
+  total = total + OS_MIX;
+  for( int i = 0 ; i < D_MIX ; ++i){
+    sequence[i + total] = 4;
+  }
+  total = total + D_MIX;
+  for(int i = 0 ; i < SL_MIX ; ++i){
+    sequence[ i + total ] = 5;
+  }
+  //shuffle elements of the sequence array
+  srand ( time(NULL) );
+  for (int i = MIX_COUNT-1 ; i > 0; i--)
+  {
+      int j = rand() % (i+1);
+      int temp = sequence[i];
+      sequence[i] = sequence[j];
+      sequence[j] = temp;
+  }
+}
 
 int main(int argc, char *argv[])
 {
@@ -205,6 +237,7 @@ int main(int argc, char *argv[])
 void run_benchmark()
 {
     srand(19890811);
+    init_seq_array();
 
     printf(" # servers:    %d\n", g_nservers);
     printf(" Key range:    0..2^%d\n", 31-query_shift);
@@ -220,13 +253,19 @@ void run_benchmark()
     dreadlock_init();
 #endif //ENABLE_DL_DETECT_CC
     hash_table = create_hash_table();
-
     start_hash_table_servers(hash_table);
 
     printf("== results ==\n");
     printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
     stats_get_naborts(hash_table);
     stats_get_ncommits(hash_table);
+    for (int s = 0; s < g_nservers; s++){
+      printf("server %d called new order %d times\n",s,hash_table->partitions[s].new_order_counter);
+      printf("server %d called payment %d times\n",s,hash_table->partitions[s].payment_counter);
+      printf("server %d called order status %d times\n",s,hash_table->partitions[s].order_status_counter);
+      printf("server %d called delivery %d times\n",s,hash_table->partitions[s].delivery_counter);
+      printf("server %d called stock level %d times\n",s,hash_table->partitions[s].stock_level_counter);
+    }
 
 #if GATHER_STATS
     //stats_get_task_stats(hash_table);

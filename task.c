@@ -126,7 +126,7 @@ void unblock_fn(int s, int tid)
 //    dprint("srv(%d): Unblock task looping again\n", s);
 
     // we're done if waiters and ready list is empty
-    if (p->q_idx == g_niters && TAILQ_EMPTY(&p->wait_list) && 
+    if (p->q_idx == g_niters && TAILQ_EMPTY(&p->wait_list) &&
         TAILQ_EMPTY(&p->ready_list)) {
       printf("srv(%d): Unblock task killing self\n", s);
       task_destroy(self, p);
@@ -316,10 +316,16 @@ void dl_detect_fn(int s)
   }
 }
 #endif // ENABLE_DL_DETECT_CC
+int next_transaction = 0;
+void produce_transaction_mix(struct hash_table *hash_table, int id){
 
-struct hash_query *get_next_query(struct hash_table *hash_table, int s, 
+    hash_table->partitions[id].selected_transaction = sequence[ next_transaction  % MIX_COUNT];
+    next_transaction ++;
+}
+struct hash_query *get_next_query(struct hash_table *hash_table, int s,
     struct task *ctask)
 {
+  //produce_transaction_mix(hash_table, s);
   short idx = ctask->qidx;
   struct partition *p = &hash_table->partitions[s];
   struct hash_query *target_query = NULL;
@@ -344,6 +350,7 @@ struct hash_query *get_next_query(struct hash_table *hash_table, int s,
       case HASH_QUERY_COMMITTED:
         if (p->q_idx < g_niters) {
           // we have txn left to run. get a fresh one and issue it
+          produce_transaction_mix(hash_table, s);
           g_benchmark->get_next_query(hash_table, s, next_query);
           target_query = next_query;
         } else {
@@ -351,7 +358,7 @@ struct hash_query *get_next_query(struct hash_table *hash_table, int s,
           assert(p->q_idx == g_niters);
         }
 
-        break;        
+        break;
       case HASH_QUERY_ABORTED:
         /* this query aborted previously and we must have cycled back
          * issue this
@@ -395,7 +402,7 @@ void child_fn(int s, int tid)
     s = self->s;
     p = &hash_table->partitions[s];
 #endif
-    
+
     if (r == TXN_ABORT) {
 #if GATHER_STATS
       self->naborts++;
@@ -408,9 +415,9 @@ void child_fn(int s, int tid)
 
 //#if !defined(ENABLE_ABORT_BACKOFF)
 //#if defined(SHARED_EVERYTHING) && !defined(MIGRATION) && !defined(ENABLE_SILO_CC)
-      /* back off by sleeping. This is similar to the penalty in dbx100. 
+      /* back off by sleeping. This is similar to the penalty in dbx100.
        * Backoff helps 2pl protocols a lot but not silo that much. So use only
-       * with 2pl. So add delay only for SE protocols. Also, adding penalty 
+       * with 2pl. So add delay only for SE protocols. Also, adding penalty
        * made things much worse for messaging. So use only for SE
        */
 //#define ENABLE_ABORT_BACKOFF 1
@@ -425,7 +432,7 @@ void child_fn(int s, int tid)
       dprint("srv(%d): task %d rerunning aborted txn\n", s, self->tid);
     } else {
 #if GATHER_STATS
-      self->ncommits++;  
+      self->ncommits++;
 #endif
       next_query->state = HASH_QUERY_COMMITTED;
     }
@@ -439,15 +446,15 @@ void child_fn(int s, int tid)
 #if PRINT_PROGRESS
     if (p->q_idx % 100000 == 0) {
       printf("srv(%d): task %d finished %s(%" PRId64 " of %d)"
-          " on key %" PRId64 "\n", 
-          s, 
-          self->tid, 
-          next_query->ops[0].optype == OPTYPE_LOOKUP ? "lookup":"update", 
+          " on key %" PRId64 "\n",
+          s,
+          self->tid,
+          next_query->ops[0].optype == OPTYPE_LOOKUP ? "lookup":"update",
           p->q_idx, g_niters,
           next_query->ops[0].key);
     }
 #endif
-    
+
 #if MIGRATION
     if (self->s != self->origin) {
         self->target = self->origin;
@@ -475,7 +482,7 @@ void root_fn(int s, int tid)
 
   // add unblock task to ready list
   TAILQ_INSERT_TAIL(&p->ready_list, &p->unblock_task, next);
-  
+
   for (i = 0; i < g_nfibers; i++) {
       r = task_create(p);
       assert(r == 1);
@@ -497,7 +504,7 @@ void init_task(struct task *t, int tid, void (*fn)(), ucontext_t *next_ctx,
   //t->ctx.uc_stack.ss_sp = malloc(TASK_STACK_SIZE);
   t->ctx.uc_stack.ss_sp = mmap(NULL, TASK_STACK_SIZE, PROT_READ | PROT_WRITE,
       MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN | MAP_STACK, -1, 0);
-  
+
   t->ctx.uc_stack.ss_size = TASK_STACK_SIZE;
   t->ctx.uc_link = next_ctx;
   t->s = s;
@@ -540,7 +547,7 @@ void task_libinit(int s)
   init_task(&p->root_task, ROOT_TASK_ID, root_fn, NULL, s);
   init_task(&p->unblock_task, UNBLOCK_TASK_ID, unblock_fn, NULL, s);
 
-  // tid starts from 2. HASHOP_TID_MASK permits 15. 
+  // tid starts from 2. HASHOP_TID_MASK permits 15.
   assert(NTASKS <= 16);
 
   for (i = 0; i < NTASKS; i++) {
@@ -575,7 +582,7 @@ void task_yield(struct partition *p, task_state state)
 {
   struct task *self = p->current_task;
 
-  dprint("srv(%d): task %d yielding state %d\n", self->s, self->tid, 
+  dprint("srv(%d): task %d yielding state %d\n", self->s, self->tid,
       state);
 
   if (state == TASK_STATE_WAITING) {
@@ -628,7 +635,7 @@ schedule:
 
   assert(t);
 
-  TAILQ_REMOVE(&p->ready_list, t, next); 
+  TAILQ_REMOVE(&p->ready_list, t, next);
   p->current_task = t;
 
   dprint("srv(%d): root scheduling task %d\n", s, t->tid);
@@ -646,7 +653,7 @@ schedule:
   t_st = t_en;
 #endif
 
-  if (p->current_task->state == TASK_STATE_READY || 
+  if (p->current_task->state == TASK_STATE_READY ||
     p->current_task->state == TASK_STATE_WAITING) {
     goto schedule;
   } else if (p->current_task->state == TASK_STATE_MIGRATE) {
@@ -657,7 +664,7 @@ schedule:
 
 scheduleend:
   TAILQ_INSERT_HEAD(&p->free_list, p->current_task, next);
-  
+
   return p->current_task->tid;
 }
 
@@ -673,12 +680,10 @@ void task_unblock(struct task *t)
   struct partition *p = &hash_table->partitions[t->s];
 
   assert(t->state == TASK_STATE_WAITING);
-  
-  TAILQ_REMOVE(&p->wait_list, t, next); 
+
+  TAILQ_REMOVE(&p->wait_list, t, next);
 
   t->state = TASK_STATE_READY;
 
   TAILQ_INSERT_TAIL(&p->ready_list, t, next);
 }
-
-
