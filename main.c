@@ -253,6 +253,12 @@ void run_benchmark()
     dreadlock_init();
 #endif //ENABLE_DL_DETECT_CC
     hash_table = create_hash_table();
+
+    for(int s = 0 ; s < g_nservers ; ++s){
+      
+      hash_table->partitions[s].next_Transaction = 0;
+    }
+
     start_hash_table_servers(hash_table);
 
     printf("== results ==\n");

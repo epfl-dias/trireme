@@ -316,11 +316,11 @@ void dl_detect_fn(int s)
   }
 }
 #endif // ENABLE_DL_DETECT_CC
-int next_transaction = 0;
 void produce_transaction_mix(struct hash_table *hash_table, int id){
 
-    hash_table->partitions[id].selected_transaction = sequence[ next_transaction  % MIX_COUNT];
-    next_transaction ++;
+    hash_table->partitions[id].selected_transaction = sequence[ hash_table->partitions[id].next_Transaction  % MIX_COUNT];
+    hash_table->partitions[id].next_Transaction ++;
+    //printf("%d ",hash_table->partitions[id].next_Transaction);
 }
 struct hash_query *get_next_query(struct hash_table *hash_table, int s,
     struct task *ctask)
