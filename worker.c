@@ -8,6 +8,7 @@
 #include "headers.h"
 #include "benchmark.h"
 #include "worker.h"
+#include "partition.h"
 
 #if DIASSRV8
 

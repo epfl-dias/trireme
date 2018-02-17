@@ -7,16 +7,6 @@
 #include "partition.h"
 #include "master.h"
 
-#define card_ware_house 1
-#define card_district 10
-#define card_customer 30000
-#define card_stock 100000
-#define card_item 100000
-#define card_order (30000 + 0)
-#define card_order_line (300000 + 0)
-#define card_new_order (9000 + 0)
-#define card_history (30000 + 0)
-
 int queries_per_txn = 1;
 int query_mask      = (1 << 29) - 1;
 int query_shift     = 2;
@@ -56,38 +46,6 @@ void help()
 
     exit(1);
 }
-void init_seq_array(){
-
-  int total = 0;
-  for (int i = 0 ; i < NO_MIX ; ++i){
-    sequence[i] = 1;
-  }
-  total = NO_MIX;
-  for(int i = 0 ; i < P_MIX ; ++i){
-    sequence[i + total] = 2;
-  }
-  total = total + P_MIX;
-  for(int i = 0 ; i < OS_MIX ; ++i){
-    sequence[i+total] = 3;
-  }
-  total = total + OS_MIX;
-  for( int i = 0 ; i < D_MIX ; ++i){
-    sequence[i + total] = 4;
-  }
-  total = total + D_MIX;
-  for(int i = 0 ; i < SL_MIX ; ++i){
-    sequence[ i + total ] = 5;
-  }
-  //shuffle elements of the sequence array
-  srand ( time(NULL) );
-  for (int i = MIX_COUNT-1 ; i > 0; i--)
-  {
-      int j = rand() % (i+1);
-      int temp = sequence[i];
-      sequence[i] = sequence[j];
-      sequence[j] = temp;
-  }
-}
 
 int main(int argc, char *argv[])
 {
@@ -109,6 +67,7 @@ int main(int argc, char *argv[])
     g_verbosity = 0;
     g_benchmark = &micro_bench;
 
+
     if (argc < 2)
         help();
 
@@ -125,6 +84,8 @@ int main(int argc, char *argv[])
                         break;
                     case 2:
                         g_benchmark = &tpcc_bench;
+                        init_tpcc_seq_array();
+                        tpcc_flag = 1;
                         break;
                 }
                 break;
@@ -225,7 +186,12 @@ int main(int argc, char *argv[])
 #endif
 
     // round down nrecs to a partition multiple
-    g_nrecs = (g_startup_servers*( card_ware_house + card_district + card_customer + card_order + card_order_line + card_stock + card_new_order + card_history) + card_item) * g_startup_servers;
+    if(tpcc_flag){
+      g_nrecs = (g_startup_servers*( card_ware_house + card_district + card_customer + card_order + card_order_line + card_stock + card_new_order + card_history) + card_item) * g_startup_servers;
+    }
+    else{
+      g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;
+    }
 
     assert(g_benchmark);
 
@@ -237,7 +203,7 @@ int main(int argc, char *argv[])
 void run_benchmark()
 {
     srand(19890811);
-    init_seq_array();
+    //init_seq_array();
 
     printf(" # servers:    %d\n", g_nservers);
     printf(" Key range:    0..2^%d\n", 31-query_shift);
@@ -255,7 +221,6 @@ void run_benchmark()
     hash_table = create_hash_table();
 
     for(int s = 0 ; s < g_nservers ; ++s){
-      
       hash_table->partitions[s].next_Transaction = 0;
     }
 
@@ -265,25 +230,26 @@ void run_benchmark()
     printf("Total tps: %0.9fM\n", stats_get_tps(hash_table));
     stats_get_naborts(hash_table);
     stats_get_ncommits(hash_table);
-    for (int s = 0; s < g_nservers; s++){
-      printf("server %d called new order %d times\n",s,hash_table->partitions[s].new_order_counter);
-      printf("server %d called payment %d times\n",s,hash_table->partitions[s].payment_counter);
-      printf("server %d called order status %d times\n",s,hash_table->partitions[s].order_status_counter);
-      printf("server %d called delivery %d times\n",s,hash_table->partitions[s].delivery_counter);
-      printf("server %d called stock level %d times\n",s,hash_table->partitions[s].stock_level_counter);
-    }
+
+
 
 #if GATHER_STATS
     //stats_get_task_stats(hash_table);
+    if(tpcc_flag){
+      print_tpcc_mix(g_nservers, hash_table);
+    }
+
     stats_get_nlookups(hash_table);
     stats_get_ninserts(hash_table);
     stats_get_nupdates(hash_table);
     stats_get_latency(hash_table);
-
+    printf("check point 0\n");
     if (g_verbosity == 1) {
+        printf("check point 1\n");
         struct elem *e = (struct elem *) malloc(sizeof(struct elem));
+        printf("check point 2\n");
         uint64_t *freqs = (uint64_t *) calloc(g_nrecs, sizeof(uint64_t));
-
+        printf("check point 3\n");
         for (int s = 0; s < g_nservers; s++) {
             printf("Logging srv %d\n", s);
             struct partition *p = &hash_table->partitions[s];
@@ -308,6 +274,6 @@ void run_benchmark()
     }
 
 #endif
-
+    
     destroy_hash_table(hash_table);
 }
