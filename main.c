@@ -274,6 +274,6 @@ void run_benchmark()
     }
 
 #endif
-    
+
     destroy_hash_table(hash_table);
 }
