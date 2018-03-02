@@ -19,7 +19,7 @@ extern struct benchmark tpcc_bench;
 extern struct benchmark micro_bench;
 extern struct benchmark ycsb_bench;
 #define NO_MIX 45 //45
-#define P_MIX 43 //43
+#define P_MIX  43//43
 #define OS_MIX 4 //4
 #define D_MIX 4 //4
 #define SL_MIX 4 //4
