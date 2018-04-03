@@ -473,7 +473,7 @@ struct partition {
   int next_Transaction;
 
 
-#if SHARED_NOTHING
+#if (SHARED_NOTHING || !defined(SHARED_EVERYTHING))
   LATCH_T latch;
 #endif
 

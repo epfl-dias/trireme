@@ -9,7 +9,7 @@
 #include "benchmark.h"
 #include "worker.h"
 #include "partition.h"
-
+#include "smphashtable.h"
 #if DIASSRV8
 
 static int coreids[] = {

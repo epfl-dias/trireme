@@ -390,7 +390,7 @@ void child_fn(int s, int tid)
 
   while ((next_query) && (!p->thread_termination_flag)) {
 
-    dprint("srv(%d): task %d issuing txn \n", s, self->tid);
+    //printf("srv(%d): task %d issuing txn \n", s, self->tid);
 
 #if ENABLE_OP_BATCHING
     r = run_batch_txn(hash_table, self->s, next_query, self);
@@ -537,6 +537,7 @@ void reset_task(struct task *t)
 
 void task_libinit(int s)
 {
+  printf("%d\n", s);
   int i;
   struct partition *p = &hash_table->partitions[s];
 

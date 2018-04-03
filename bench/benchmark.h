@@ -18,11 +18,11 @@ struct benchmark {
 extern struct benchmark tpcc_bench;
 extern struct benchmark micro_bench;
 extern struct benchmark ycsb_bench;
-#define NO_MIX 45 //45
+#define NO_MIX 45//45
 #define P_MIX  43//43
-#define OS_MIX 4 //4
-#define D_MIX 4 //4
-#define SL_MIX 4 //4
+#define OS_MIX 4//4
+#define D_MIX 4//4
+#define SL_MIX 4//4
 #define MIX_COUNT 100
 #define card_ware_house 1
 #define card_district 10

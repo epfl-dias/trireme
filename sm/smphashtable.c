@@ -296,6 +296,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
       //XXX I had to change this part for implementing the cursor
+      //printf("srv(%d): lookup key %"PRIu64"\n", s, op->key);
       if (!e) {
         //printf("srv(%d): lookup key %"PRIu64" failed\n", s, op->key);
         //assert(0);
@@ -360,9 +361,12 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
          * service other requests
          */
         assert(l);
+
 #if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
-		while ((!l->ready) && (!notification))
-          task_yield(p, TASK_STATE_READY);
+		while ((!l->ready) && (!notification)){
+      task_yield(p, TASK_STATE_READY);
+    }
+
 
 		if (l->ready == LOCK_ABORT_NXT) {
 			dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
@@ -458,6 +462,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 
   // if this is us, just call local procedure
   if (is_local) {
+
     //assert(op->key >= s * l_p->nrecs && op->key < (s * l_p->nrecs + l_p->nrecs));
 
     assert (l_p);
@@ -476,7 +481,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #endif
 
   } else {
-
+//printf("it is not local\n");
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
     assert(0);
 #endif
@@ -879,7 +884,10 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           // XXX: If we need to abort a remote insert, we need a new
           // HASHOP_DELETE that we don't support yet.
           // check if we need to do this
-          assert(0);
+
+              //assert(0);
+
+
           //mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
         }
 
@@ -1175,7 +1183,7 @@ void process_requests(struct hash_table *hash_table, int s)
 
           req->e = hash_lookup(p, key);
           if (!req->e) {
-            dprint("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
+            printf("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
                 OPTYPE_STR(optype), key);
           }
           assert(req->e);
