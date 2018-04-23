@@ -488,7 +488,8 @@ int add_dependencies(int s, struct partition *p,
 	// if a reader was inserted
 	if (inserted_waiter->optype == OPTYPE_LOOKUP) {
 		// find the next writer
-		while ((nxt != NULL) && (nxt->optype == OPTYPE_LOOKUP)) {
+		while ((nxt != NULL) && (nxt->optype == OPTYPE_LOOKUP)){
+
 			nxt = TAILQ_NEXT(nxt, next);
 		}
 		if (nxt != NULL) {
@@ -504,7 +505,9 @@ int add_dependencies(int s, struct partition *p,
 			struct lock_entry *owner;
 			int readers = 0;
 			TAILQ_FOREACH(owner, &e->owners, next) {
+        
 				if (owner->optype != OPTYPE_UPDATE) {
+					
 					assert(0);
 					break;
 				}
@@ -543,6 +546,7 @@ int add_dependencies(int s, struct partition *p,
 		}
 
 		while ((nxt != NULL) && (nxt->optype == OPTYPE_LOOKUP)) {
+
 			assert(not_two_readers_ww(inserted_waiter, nxt));
 			// add a dependency
 			dep_graph_nodes[node_id].neighbors[dep_graph_nodes[node_id].waiters_size].opid = nxt->op_id;

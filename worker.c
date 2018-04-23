@@ -106,7 +106,6 @@ void execute_txns(struct hash_table *hash_table, int s)
 
 	query = g_benchmark->alloc_query();
 	assert(query);
-
 	double tstart = now();
 
 #if ENABLE_ASYMMETRIC_MESSAGING

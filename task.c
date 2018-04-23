@@ -537,7 +537,7 @@ void reset_task(struct task *t)
 
 void task_libinit(int s)
 {
-  printf("%d\n", s);
+
   int i;
   struct partition *p = &hash_table->partitions[s];
 
@@ -559,8 +559,8 @@ void task_libinit(int s)
 
     TAILQ_INSERT_TAIL(&p->free_list, t, next);
   }
-
   lightweight_swapcontext(&p->main_ctx, &p->root_task.ctx);
+  //XXX return here?
 }
 
 int task_create(struct partition *p)

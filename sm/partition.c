@@ -14,7 +14,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
   p->nrecs = nrecs;
   p->size = 0;
 
-  /* XXX: For now, we set #buckets = #recs. This is done to reduce the shared 
+  /* XXX: For now, we set #buckets = #recs. This is done to reduce the shared
    * everything case's index latching overhead. Later, we need to implement a
    * proper hashtable.
    */
@@ -96,7 +96,7 @@ size_t destroy_hash_partition(struct partition *p)
 
 #if SHARED_EVERYTHING
   /* in shared everything config, every thread uses its own partition
-   * structure but all threads share the same bucket array. 
+   * structure but all threads share the same bucket array.
    * so size computed from the bucket here will not match size of just
    * one partition if we have > 1 server
    */
@@ -105,7 +105,7 @@ size_t destroy_hash_partition(struct partition *p)
 #endif
 
   free(p->table);
-  
+
   return dbg_p_size;
 }
 
@@ -153,7 +153,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   struct bucket *b = &p->table[h];
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_ACQUIRE(&b->latch, &alock_state); 
+  LATCH_ACQUIRE(&b->latch, &alock_state);
 #endif
 
   struct elist *eh = &b->chain;
@@ -168,15 +168,14 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   }
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_RELEASE(&b->latch, &alock_state); 
+  LATCH_RELEASE(&b->latch, &alock_state);
 #endif
-
   return e;
 }
 
-struct elem *hash_insert(struct partition *p, hash_key key, int size, 
+struct elem *hash_insert(struct partition *p, hash_key key, int size,
         release_value_f *release)
-{  
+{
   int h = hash_get_bucket(p, key);
 
 #if SHARED_EVERYTHING
@@ -202,7 +201,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 #endif
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_ACQUIRE(&b->latch, &alock_state); 
+  LATCH_ACQUIRE(&b->latch, &alock_state);
 #endif
 
   struct elist *eh = &b->chain;
@@ -283,7 +282,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   LIST_INSERT_HEAD(eh, e, chain);
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_RELEASE(&b->latch, &alock_state); 
+  LATCH_RELEASE(&b->latch, &alock_state);
 #endif
 
   return e;

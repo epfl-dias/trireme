@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
 void run_benchmark()
 {
     srand(19890811);
-    //init_seq_array();
+
 
     printf(" # servers:    %d\n", g_nservers);
     printf(" Key range:    0..2^%d\n", 31-query_shift);
@@ -243,13 +243,9 @@ void run_benchmark()
     stats_get_ninserts(hash_table);
     stats_get_nupdates(hash_table);
     stats_get_latency(hash_table);
-    printf("check point 0\n");
     if (g_verbosity == 1) {
-        printf("check point 1\n");
         struct elem *e = (struct elem *) malloc(sizeof(struct elem));
-        printf("check point 2\n");
         uint64_t *freqs = (uint64_t *) calloc(g_nrecs, sizeof(uint64_t));
-        printf("check point 3\n");
         for (int s = 0; s < g_nservers; s++) {
             printf("Logging srv %d\n", s);
             struct partition *p = &hash_table->partitions[s];

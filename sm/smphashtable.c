@@ -295,14 +295,14 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     case OPTYPE_LOOKUP:
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
+
+
       //XXX I had to change this part for implementing the cursor
       //printf("srv(%d): lookup key %"PRIu64"\n", s, op->key);
-      if (!e) {
-        //printf("srv(%d): lookup key %"PRIu64" failed\n", s, op->key);
+      if (e == NULL) {
         //assert(0);
         return NULL;
       }
-
       // if this is the ITEM TID, we are done
       if (p == hash_table->g_partition)
         break;
@@ -323,6 +323,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
           return NULL;
 #else
       if (!selock_acquire(p, e, t, ctx->ts)) {
+          //This is where value is set to 0
           return NULL;
       }
 #endif //ENABLE_MVTO
@@ -412,7 +413,6 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       assert(0);
       break;
   }
-
   return e;
 }
 
@@ -461,6 +461,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #endif
 
   // if this is us, just call local procedure
+
   if (is_local) {
 
     //assert(op->key >= s * l_p->nrecs && op->key < (s * l_p->nrecs + l_p->nrecs));
@@ -468,7 +469,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
     assert (l_p);
 
     e = local_txn_op(ctask, s, ctx, l_p, op);
-
 #if ENABLE_SILO_CC
     // we never lookup a non-existent record. so this should always succeed
     assert(e);
@@ -476,12 +476,16 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #else
     // it is possible for a local txn to fail as someone else might have
     // acquired a lock before us
-    if (e)
+    if (e){
       value = e->value;
+    }
+    else{
+      value = NULL;
+    }
+
 #endif
 
   } else {
-//printf("it is not local\n");
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
     assert(0);
 #endif
@@ -613,7 +617,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
           s, is_local ? "local":"remote",
           op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key, ctx->nops,
           value ? "ok" : "fail");
-
   return value;
 }
 
@@ -885,7 +888,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           // HASHOP_DELETE that we don't support yet.
           // check if we need to do this
 
-              //assert(0);
+              assert(0);
 
 
           //mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
@@ -1183,7 +1186,7 @@ void process_requests(struct hash_table *hash_table, int s)
 
           req->e = hash_lookup(p, key);
           if (!req->e) {
-            printf("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
+            dprintf("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
                 OPTYPE_STR(optype), key);
           }
           assert(req->e);
