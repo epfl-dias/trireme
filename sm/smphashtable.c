@@ -1186,7 +1186,7 @@ void process_requests(struct hash_table *hash_table, int s)
 
           req->e = hash_lookup(p, key);
           if (!req->e) {
-            dprintf("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
+            printf("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
                 OPTYPE_STR(optype), key);
           }
           assert(req->e);

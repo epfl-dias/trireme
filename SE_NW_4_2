@@ -1,0 +1,109 @@
+2 remote ops 2 ops per txn 
+ # servers:    4
+ Key range:    0..2^29
+ Write ratio:  20
+ Total #recs: 8912176 
+ Iterations:   100000000
+Active servers = 4
+Assinging core 0 to srv 0
+Worker 0 notified with signal 0
+Worker 0 notified with signal 1
+Assinging core 2 to srv 1
+Worker 1 notified with signal 0
+Worker 1 notified with signal 1
+Assinging core 4 to srv 2
+Worker 2 notified with signal 0
+Worker 2 notified with signal 1
+Assinging core 6 to srv 3
+Worker 0 waiting for signal
+Worker 0 received signal 1
+Worker 0 loading data
+Worker 1 waiting for signal
+Worker 1 received signal 1
+Worker 1 loading data
+Worker 3 notified with signal 0
+Worker 3 notified with signal 1
+srv (1): Loading stock..
+srv (0): Loading stock..
+Worker 2 waiting for signal
+Worker 2 received signal 1
+Worker 2 loading data
+srv (2): Loading stock..
+Worker 3 waiting for signal
+Worker 3 received signal 1
+Worker 3 loading data
+srv (3): Loading stock..
+srv (2): Loading history..
+srv (3): Loading history..
+srv (0): Loading history..
+srv (1): Loading history..
+srv (0): Loading customer..
+srv (2): Loading customer..
+srv (3): Loading customer..
+srv (1): Loading customer..
+srv (0): Loading order..
+srv (2): Loading order..
+srv (3): Loading order..
+srv (1): Loading order..
+srv (3): Loading wh..
+srv (3): Loading district..
+srv 3 load time 0.799
+srv 3 rec count: 508714 partition sz 150977-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 3 executing txns
+srv (1): Loading wh..
+srv (1): Loading district..
+srv 1 load time 0.799
+srv 1 rec count: 508826 partition sz 151002-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 1 executing txns
+srv (2): Loading wh..
+srv (2): Loading district..
+srv 2 load time 0.805
+srv 2 rec count: 508413 partition sz 150911-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 2 executing txns
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 0.896
+srv 0 rec count: 509282 partition sz 151101-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 0 executing txns
+srv 0 starting txns
+srv 2 starting txns
+srv 1 starting txns
+srv 3 starting txns
+srv 1 query time 5.000
+srv 1 total txns 469203 
+srv 1 commited txns 469203 aborted 19
+srv 3 query time 5.000
+srv 3 total txns 465703 
+srv 3 commited txns 465703 aborted 58
+srv 2 query time 5.000
+srv 2 total txns 463224 
+srv 2 commited txns 463224 aborted 529
+srv 0 query time 5.000
+srv 0 total txns 384315 
+srv 0 commited txns 384315 aborted 101
+srv 0 quitting 
+srv 3 quitting 
+srv 1 quitting 
+srv 2 quitting 
+Server 3 verifying consistency..
+Server 2 verifying consistency..
+Server 0 verifying consistency..
+Server 1 verifying consistency..
+srv 1 done quitting 
+srv 2 done quitting 
+srv 3 done quitting 
+srv 0 done quitting 
+Worker 0 stopping
+Worker 1 stopping
+Worker 2 stopping
+Worker 3 stopping
+== results ==
+Server 0: 0.076860665M TPS
+Server 1: 0.093838027M TPS
+Server 2: 0.092642353M TPS
+Server 3: 0.093138144M TPS
+Total tps: 0.356479189M
+Total aborts: 707, ronly aborts 656, wonly aborts 51
+total commits 1782445, ronly 1015999, wonly 766446
+validate success 0, failure 0

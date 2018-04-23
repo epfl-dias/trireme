@@ -1,0 +1,37 @@
+2 remote ops 2 ops per txn 
+ # servers:    1
+ Key range:    0..2^29
+ Write ratio:  20
+ Total #recs: 632011 
+ Iterations:   100000000
+Active servers = 1
+Assinging core 0 to srv 0
+Worker 0 notified with signal 0
+Worker 0 notified with signal 1
+Worker 0 waiting for signal
+Worker 0 received signal 1
+Worker 0 loading data
+srv (0): Loading stock..
+srv (0): Loading history..
+srv (0): Loading customer..
+srv (0): Loading order..
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 0.889
+srv 0 rec count: 509282 partition sz 151101-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 0 executing txns
+srv 0 starting txns
+srv 0 query time 5.000
+srv 0 total txns 315404 
+srv 0 commited txns 315404 aborted 0
+srv 0 quitting 
+Server 0 verifying consistency..
+srv 0 done quitting 
+Worker 0 stopping
+== results ==
+Server 0: 0.063078782M TPS
+Total tps: 0.063078782M
+Total aborts: 0, ronly aborts 0, wonly aborts 0
+total commits 315404, ronly 179780, wonly 135624
+validate success 0, failure 0

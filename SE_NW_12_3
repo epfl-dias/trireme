@@ -1,0 +1,301 @@
+2 remote ops 2 ops per txn 
+ # servers:    12
+ Key range:    0..2^29
+ Write ratio:  20
+ Total #recs: 77809584 
+ Iterations:   100000000
+Active servers = 12
+Assinging core 0 to srv 0
+Worker 0 notified with signal 0
+Worker 0 notified with signal 1
+Assinging core 2 to srv 1
+Worker 1 notified with signal 0
+Worker 1 notified with signal 1
+Assinging core 4 to srv 2
+Worker 2 notified with signal 0
+Worker 2 notified with signal 1
+Assinging core 6 to srv 3
+Worker 1 waiting for signal
+Worker 1 received signal 1
+Worker 1 loading data
+Worker 3 notified with signal 0
+Worker 3 notified with signal 1
+Assinging core 8 to srv 4
+srv (1): Loading stock..
+Worker 0 waiting for signal
+Worker 0 received signal 1
+Worker 0 loading data
+srv (0): Loading stock..
+Worker 3 waiting for signal
+Worker 3 received signal 1
+Worker 3 loading data
+srv (3): Loading stock..
+Worker 2 waiting for signal
+Worker 2 received signal 1
+Worker 2 loading data
+srv (2): Loading stock..
+Worker 4 notified with signal 0
+Worker 4 notified with signal 1
+Assinging core 10 to srv 5
+Worker 4 waiting for signal
+Worker 4 received signal 1
+Worker 4 loading data
+srv (4): Loading stock..
+Worker 5 notified with signal 0
+Worker 5 notified with signal 1
+Assinging core 12 to srv 6
+Worker 5 waiting for signal
+Worker 5 received signal 1
+Worker 5 loading data
+srv (5): Loading stock..
+Worker 6 notified with signal 0
+Worker 6 notified with signal 1
+Assinging core 14 to srv 7
+Worker 6 waiting for signal
+Worker 6 received signal 1
+Worker 6 loading data
+srv (6): Loading stock..
+Worker 7 notified with signal 0
+Worker 7 notified with signal 1
+Assinging core 16 to srv 8
+Worker 7 waiting for signal
+Worker 7 received signal 1
+Worker 7 loading data
+srv (7): Loading stock..
+Worker 8 notified with signal 0
+Worker 8 notified with signal 1
+Assinging core 18 to srv 9
+Worker 8 waiting for signal
+Worker 8 received signal 1
+Worker 8 loading data
+srv (8): Loading stock..
+Worker 9 notified with signal 0
+Worker 9 notified with signal 1
+Assinging core 20 to srv 10
+Worker 9 waiting for signal
+Worker 9 received signal 1
+Worker 9 loading data
+srv (9): Loading stock..
+Worker 10 notified with signal 0
+Worker 10 notified with signal 1
+Assinging core 22 to srv 11
+Worker 10 waiting for signal
+Worker 10 received signal 1
+Worker 10 loading data
+srv (10): Loading stock..
+Worker 11 notified with signal 0
+Worker 11 notified with signal 1
+Worker 11 waiting for signal
+Worker 11 received signal 1
+Worker 11 loading data
+srv (11): Loading stock..
+srv (2): Loading history..
+srv (0): Loading history..
+srv (3): Loading history..
+srv (6): Loading history..
+srv (4): Loading history..
+srv (7): Loading history..
+srv (1): Loading history..
+srv (10): Loading history..
+srv (5): Loading history..
+srv (11): Loading history..
+srv (8): Loading history..
+srv (9): Loading history..
+srv (2): Loading customer..
+srv (3): Loading customer..
+srv (10): Loading customer..
+srv (9): Loading customer..
+srv (11): Loading customer..
+srv (5): Loading customer..
+srv (7): Loading customer..
+srv (6): Loading customer..
+srv (1): Loading customer..
+srv (0): Loading customer..
+srv (4): Loading customer..
+srv (8): Loading customer..
+srv (1): Loading order..
+srv (7): Loading order..
+srv (0): Loading order..
+srv (5): Loading order..
+srv (3): Loading order..
+srv (6): Loading order..
+srv (11): Loading order..
+srv (2): Loading order..
+srv (9): Loading order..
+srv (4): Loading order..
+srv (10): Loading order..
+srv (8): Loading order..
+srv (3): Loading wh..
+srv (3): Loading district..
+srv 3 load time 0.838
+srv 3 rec count: 508714 partition sz 150977-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 3 executing txns
+srv (4): Loading wh..
+srv (4): Loading district..
+srv 4 load time 0.840
+srv 4 rec count: 508006 partition sz 150822-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 4 executing txns
+srv (5): Loading wh..
+srv (5): Loading district..
+srv 5 load time 0.840
+srv 5 rec count: 508119 partition sz 150847-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 5 executing txns
+srv (7): Loading wh..
+srv (7): Loading district..
+srv (9): Loading wh..
+srv (9): Loading district..
+srv 7 load time 0.838
+srv 7 rec count: 508768 partition sz 150989-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 7 executing txns
+srv 9 load time 0.836
+srv 9 rec count: 508955 partition sz 151030-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 9 executing txns
+srv (11): Loading wh..
+srv (11): Loading district..
+srv 11 load time 0.833
+srv 11 rec count: 507945 partition sz 150809-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 11 executing txns
+srv (6): Loading wh..
+srv (6): Loading district..
+srv 6 load time 0.840
+srv 6 rec count: 509499 partition sz 151149-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 6 executing txns
+srv (2): Loading wh..
+srv (2): Loading district..
+srv 2 load time 0.842
+srv 2 rec count: 508413 partition sz 150911-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 2 executing txns
+srv (1): Loading wh..
+srv (1): Loading district..
+srv 1 load time 0.842
+srv 1 rec count: 508826 partition sz 151002-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 1 executing txns
+srv (10): Loading wh..
+srv (10): Loading district..
+srv 10 load time 0.838
+srv 10 rec count: 508317 partition sz 150890-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 10 executing txns
+srv (8): Loading wh..
+srv (8): Loading district..
+srv 8 load time 0.842
+srv 8 rec count: 508607 partition sz 150954-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 8 executing txns
+srv (0): Loading item..
+srv (0): Loading wh..
+srv (0): Loading district..
+srv 0 load time 0.938
+srv 0 rec count: 509282 partition sz 151101-KB tx count: 100000000, per_txn_op cnt: 2
+Worker 0 executing txns
+srv 0 starting txns
+srv 2 starting txns
+srv 7 starting txns
+srv 11 starting txns
+srv 1 starting txns
+srv 6 starting txns
+srv 9 starting txns
+srv 3 starting txns
+srv 5 starting txns
+srv 10 starting txns
+srv 4 starting txns
+srv 8 starting txns
+srv 11 query time 5.000
+srv 11 total txns 508037 
+srv 11 commited txns 508037 aborted 539
+srv 5 query time 5.000
+srv 5 total txns 514530 
+srv 5 commited txns 514530 aborted 65
+srv 1 query time 5.000
+srv 1 total txns 514179 
+srv 1 commited txns 514179 aborted 68
+srv 3 query time 5.000
+srv 3 total txns 502622 
+srv 3 commited txns 502622 aborted 554
+srv 6 query time 5.000
+srv 6 total txns 517494 
+srv 6 commited txns 517494 aborted 29
+srv 8 query time 5.000
+srv 8 total txns 510985 
+srv 8 commited txns 510985 aborted 118
+srv 7 query time 5.000
+srv 7 total txns 513418 
+srv 7 commited txns 513418 aborted 62
+srv 9 query time 5.000
+srv 9 total txns 506334 
+srv 9 commited txns 506334 aborted 471
+srv 2 query time 5.000
+srv 2 total txns 497644 
+srv 2 commited txns 497644 aborted 965
+srv 10 query time 5.000
+srv 10 total txns 510060 
+srv 10 commited txns 510060 aborted 74
+srv 4 query time 5.000
+srv 4 total txns 511844 
+srv 4 commited txns 511844 aborted 27
+srv 0 query time 5.003
+srv 0 total txns 410015 
+srv 0 commited txns 410015 aborted 100
+srv 0 quitting 
+srv 5 quitting 
+srv 4 quitting 
+srv 1 quitting 
+srv 3 quitting 
+srv 8 quitting 
+Server 0 verifying consistency..
+srv 7 quitting 
+srv 6 quitting 
+srv 2 quitting 
+Server 5 verifying consistency..
+srv 9 quitting 
+Server 9 verifying consistency..
+Server 8 verifying consistency..
+srv 11 quitting 
+Server 6 verifying consistency..
+Server 4 verifying consistency..
+Server 7 verifying consistency..
+Server 2 verifying consistency..
+srv 10 quitting 
+Server 11 verifying consistency..
+Server 3 verifying consistency..
+Server 10 verifying consistency..
+Server 1 verifying consistency..
+srv 5 done quitting 
+srv 6 done quitting 
+srv 7 done quitting 
+srv 9 done quitting 
+srv 4 done quitting 
+srv 8 done quitting 
+srv 10 done quitting 
+srv 1 done quitting 
+srv 3 done quitting 
+srv 2 done quitting 
+srv 11 done quitting 
+srv 0 done quitting 
+Worker 0 stopping
+Worker 1 stopping
+Worker 2 stopping
+Worker 3 stopping
+Worker 4 stopping
+Worker 5 stopping
+Worker 6 stopping
+Worker 7 stopping
+Worker 8 stopping
+Worker 9 stopping
+Worker 10 stopping
+Worker 11 stopping
+== results ==
+Server 0: 0.081953468M TPS
+Server 1: 0.102834216M TPS
+Server 2: 0.099526911M TPS
+Server 3: 0.100523034M TPS
+Server 4: 0.102369005M TPS
+Server 5: 0.102905181M TPS
+Server 6: 0.103498761M TPS
+Server 7: 0.102683438M TPS
+Server 8: 0.102196942M TPS
+Server 9: 0.101264308M TPS
+Server 10: 0.102011105M TPS
+Server 11: 0.101605670M TPS
+Total tps: 1.203372039M
+Total aborts: 3072, ronly aborts 1750, wonly aborts 1322
+total commits 6017162, ronly 3429813, wonly 2587349
+validate success 0, failure 0

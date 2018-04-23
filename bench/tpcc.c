@@ -74,7 +74,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
   int ol_cnt, dup;
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  q->w_id = (0 + 1);
+  q->w_id = (s + 1);
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
   q->rbk = URand(&p->seed, 1, 100);
@@ -103,7 +103,7 @@ void tpcc_get_next_neworder_query(struct hash_table *hash_table, int s,
     int x = URand(&p->seed, 1, 100);
     if (x > 1 || g_nservers == 1) {
 
-      i->ol_supply_w_id =(0 + 1);
+      i->ol_supply_w_id =(s + 1);
     } else {
       while ((i->ol_supply_w_id = URand(&p->seed, 1, g_nservers)) == q->w_id)
         ;
@@ -124,8 +124,8 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
 
-  q->w_id = (0 + 1);
-  q->d_w_id = (0 + 1);
+  q->w_id = (s + 1);
+  q->d_w_id = (s + 1);
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->h_amount = URand(&p->seed, 1, 10);
   int x = URand(&p->seed, 1, 100);
@@ -133,16 +133,16 @@ void tpcc_get_next_payment_query(struct hash_table *hash_table, int s,
   if(x <= 85 ) {
     // home warehouse
     q->c_d_id = q->d_id;
-    q->c_w_id = (0 + 1);
+    q->c_w_id = (s + 1);
   } else {
     q->c_d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
     // remote warehouse if we have >1 wh
     if(g_nservers > 1) {
-      while((q->c_w_id = URand(&p->seed, 1, g_nservers)) == ( (0 + 1) ))
+      while((q->c_w_id = URand(&p->seed, 1, g_nservers)) == ( (s + 1) ))
         ;
 
     } else {
-      q->c_w_id = (0 + 1);
+      q->c_w_id = (s + 1);
     }
   }
 
@@ -164,7 +164,7 @@ void tpcc_get_next_orderstatus_query(struct hash_table *hash_table, int s,
 
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
-  q->w_id = (0 + 1);
+  q->w_id = (s + 1);
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
 
   int y = URand(&p->seed, 1, 100);
@@ -177,7 +177,7 @@ void tpcc_get_next_orderstatus_query(struct hash_table *hash_table, int s,
     q->by_last_name = FALSE;
     q->c_id = NURand(&p->seed, 1023, 1, TPCC_NCUST_PER_DIST);
   }
-  q->c_w_id = (0 + 1);
+  q->c_w_id = (s + 1);
 }
 
 void tpcc_get_next_delivery_query(struct hash_table *hash_table, int s,
@@ -185,7 +185,7 @@ void tpcc_get_next_delivery_query(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
-  q->w_id = (0 + 1);
+  q->w_id = (s + 1);
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->o_carrier_id = URand(&p->seed, 1, 10);
 
@@ -196,7 +196,7 @@ void tpcc_get_next_stocklevel_query(struct hash_table *hash_table, int s,
 {
   struct partition *p = &hash_table->partitions[s];
   struct tpcc_query *q = (struct tpcc_query *) arg;
-  q->w_id = (0 + 1);
+  q->w_id = (s + 1);
   q->d_id = URand(&p->seed, 1, TPCC_NDIST_PER_WH);
   q->threshold = URand(&p->seed, 10, 20);
 
