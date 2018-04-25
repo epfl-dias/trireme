@@ -9,7 +9,7 @@
 void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
 {
   int i;
-
+  assert(nrecs != 0);
   assert((unsigned long)p % CACHELINE == 0);
   p->nrecs = nrecs;
   p->size = 0;
@@ -114,6 +114,7 @@ size_t destroy_hash_partition(struct partition *p)
  */
 int hash_get_bucket(const struct partition *p, hash_key key)
 {
+  assert(p->nhash != 0);
   return key % p->nhash;
 }
 

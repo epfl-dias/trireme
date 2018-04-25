@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
     else{
       g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;
     }
-
+    assert(g_nrecs !=0);
     assert(g_benchmark);
 
     run_benchmark();

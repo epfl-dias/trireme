@@ -10,7 +10,7 @@
 //#if SHARED_EVERYTHING
 
 #if ENABLE_WAIT_DIE_CC
-int selock_wait_die_acquire(struct partition *p, struct elem *e, 
+int selock_wait_die_acquire(struct partition *p, struct elem *e,
     char optype, uint64_t req_ts)
 {
     struct lock_entry *target, *l;
@@ -63,7 +63,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
 
     /* if there are no conflicts, we reset refcount */
     if (!conflict) {
-        dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" granted w/o conflict\n", 
+        dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" granted w/o conflict\n",
                 s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
         if (optype == OPTYPE_LOOKUP) {
@@ -87,8 +87,8 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
 
     } else {
 
-        /* There was a conflict. In wait die case, we can wait if req_ts is < ts 
-         * of all owner txns 
+        /* There was a conflict. In wait die case, we can wait if req_ts is < ts
+         * of all owner txns
          */
         wait = 1;
         LIST_FOREACH(l, &e->owners, next) {
@@ -99,7 +99,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
         }
 
         if (wait) {
-            dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" put under wait\n", 
+            dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" put under wait\n",
                     s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
             // if we are allowed to wait, make a new lock entry and add it to
@@ -129,7 +129,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
                 }
             }
         } else {
-            dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" aborting\n", 
+            dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" aborting\n",
                     s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
         }
     }
@@ -142,7 +142,7 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
         /* now spin until another thread signals us that we have the lock */
         assert(target);
 
-        dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" spinning until ready\n", 
+        dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" spinning until ready\n",
                 s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
 #if defined(MIGRATION)
@@ -153,13 +153,13 @@ int selock_wait_die_acquire(struct partition *p, struct elem *e,
         while (!target->ready) ;
 #endif
 
-        dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" stopped spinning\n", 
+        dprint("srv(%d-%"PRIu64"): %s lock request for key %"PRIu64" stopped spinning\n",
                 s, req_ts, optype == OPTYPE_LOOKUP ? "lookup":"update", e->key);
 
         if (optype == OPTYPE_LOOKUP) {
             assert(e->ref_count > 1);
         } else {
-            assert((e->ref_count & DATA_READY_MASK) && 
+            assert((e->ref_count & DATA_READY_MASK) &&
                     ((e->ref_count & ~DATA_READY_MASK) == 2));
         }
 
@@ -213,16 +213,16 @@ void selock_wait_die_release(struct partition *p, struct op_ctx *octx)
     if (LIST_EMPTY(&e->owners))
         assert(e->ref_count == 1);
 
-    /* If lock_free is set, that means the new lock mode is decided by 
+    /* If lock_free is set, that means the new lock mode is decided by
      * the head of waiter list. If lock_free is not set, we still have
-     * some readers. So only pending readers can be allowed. Keep 
+     * some readers. So only pending readers can be allowed. Keep
      * popping items from wait list as long as we have readers.
      */
     lock_entry = LIST_FIRST(&e->waiters);
     while (lock_entry) {
         char conflict = 0;
 
-        dprint("srv(%d): release request for key %"PRIu64" found %d waiting\n", 
+        dprint("srv(%d): release request for key %"PRIu64" found %d waiting\n",
                 s, e->key, lock_entry->s);
 
         if (lock_entry->optype == OPTYPE_LOOKUP) {
@@ -238,7 +238,7 @@ void selock_wait_die_release(struct partition *p, struct op_ctx *octx)
             break;
 
         } else {
-            /* there's no conflict only if there is a shared lock and we're 
+            /* there's no conflict only if there is a shared lock and we're
              * requesting a shared lock, or if there's no lock
              */
             assert((e->ref_count & DATA_READY_MASK) == 0);
@@ -257,7 +257,7 @@ void selock_wait_die_release(struct partition *p, struct op_ctx *octx)
         LIST_INSERT_HEAD(&e->owners, lock_entry, next);
         lock_entry->ready = 1;
 
-        dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n", 
+        dprint("srv(%d): release lock request for key %"PRIu64" marking %d as ready\n",
                 s, e->key, lock_entry->s);
 
         // go to next element
@@ -307,7 +307,7 @@ int selock_nowait_with_ownerlist_acquire(struct partition *p, struct elem *e,
         // success. add to owner list
         struct lock_entry *target  = plmalloc_alloc(p, sizeof(struct lock_entry));
         assert(target);
-        target->s = p - hash_table->partitions; 
+        target->s = p - hash_table->partitions;
         target->task_id = p->current_task->g_tid;
         target->optype = optype;
         target->ready = 1;
@@ -353,7 +353,7 @@ void selock_nowait_with_ownerlist_release(struct partition *p, struct op_ctx *ct
 /*
  * NOWAIT implementation that does not maintain any lists explicitly
  */
-int selock_nowait_acquire(struct partition *p, struct elem *e, char optype, 
+int selock_nowait_acquire(struct partition *p, struct elem *e, char optype,
     uint64_t req_ts)
 {
     /* latch the record. check to see if it is a conflicting lock mode
@@ -466,7 +466,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		char optype, uint64_t req_ts)
 {
     dprint("DL_DETECT\n");
-
+    assert(optype == '\000' || optype == '\001' || optype == '\002');
     struct lock_entry *target, *l;
     int s = p - &hash_table->partitions[0];
     int g_tid = p->current_task->g_tid;
@@ -874,7 +874,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		char optype, uint64_t req_ts)
 {
     dprint("DL_DETECT\n");
-
+    assert(optype == OPTYPE_LOOKUP || optype == OPTYPE_INSERT || optype == OPTYPE_UPDATE);
     struct lock_entry *target, *l;
     int s = p - &hash_table->partitions[0];
     int g_tid = p->current_task->g_tid;
@@ -899,7 +899,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 	target->s = s;
 	target->task_id = g_tid;
 	target->optype = optype;
-
+  assert(target->optype == OPTYPE_LOOKUP || target->optype == OPTYPE_UPDATE || target->optype == OPTYPE_INSERT);
 #if SE_LATCH
     LATCH_ACQUIRE(&e->latch, &alock_state);
     char conflict = !is_value_ready(e);
@@ -936,6 +936,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
             e->ref_count++;
             r = 1;
         } else {
+            assert(optype == OPTYPE_INSERT || optype == OPTYPE_UPDATE);
             e->ref_count = DATA_READY_MASK | 2;
             r = 1;
         }
@@ -1029,6 +1030,8 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 		dprint("srv(%d-%"PRIu64"): DONE Preparing waiter list\n", s, req_ts);
     }
 
+    assert(e);
+    assert(optype == OPTYPE_LOOKUP || optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
     LATCH_RELEASE(&e->latch, &alock_state);
     dprint("srv(%d-%"PRIu64"): Released the latch and going to wait\n", s, req_ts);
     if (all_deps) {
@@ -1089,6 +1092,7 @@ int selock_dl_detect_acquire(struct partition *p, struct elem *e,
 			if (optype == OPTYPE_LOOKUP) {
 				assert(e->ref_count > 1);
 			} else {
+        assert(target->optype == OPTYPE_INSERT || target->optype == OPTYPE_UPDATE);
 				assert((e->ref_count & DATA_READY_MASK) &&
 						((e->ref_count & ~DATA_READY_MASK) == 2));
 			}
@@ -1223,9 +1227,10 @@ void selock_dl_detect_release(struct partition *p, struct op_ctx *octx)
 #endif // ENABLE_CYCLE_DETECTION
 #endif
 
-int selock_acquire(struct partition *p, struct elem *e, 
+int selock_acquire(struct partition *p, struct elem *e,
     char optype, uint64_t req_ts)
 {
+assert(optype == OPTYPE_LOOKUP || optype == OPTYPE_INSERT || optype == OPTYPE_UPDATE);
 #if ENABLE_WAIT_DIE_CC
     return selock_wait_die_acquire(p, e, optype, req_ts);
 #elif ENABLE_NOWAIT_OWNER_CC
@@ -1236,6 +1241,7 @@ int selock_acquire(struct partition *p, struct elem *e,
     // with silo, nothing to do
     return 1;
 #elif ENABLE_DL_DETECT_CC
+    assert(optype == OPTYPE_LOOKUP || optype == OPTYPE_UPDATE || optype == OPTYPE_INSERT);
     return selock_dl_detect_acquire(p, e, optype, req_ts);
 #endif
 }

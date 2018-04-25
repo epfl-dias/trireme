@@ -224,6 +224,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 {
   struct elem *e;
   uint32_t t = op->optype;
+  assert(t == OPTYPE_LOOKUP || t == OPTYPE_UPDATE || t == OPTYPE_INSERT);
   struct lock_entry *l = NULL;
 #if ENABLE_DL_DETECT_CC
   int notification = 0;
@@ -322,6 +323,7 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       if (!(e = mvdreadlock_acquire(p, e, t)))
           return NULL;
 #else
+      assert(t == OPTYPE_LOOKUP || t == OPTYPE_UPDATE || t == OPTYPE_INSERT);
       if (!selock_acquire(p, e, t, ctx->ts)) {
           //This is where value is set to 0
           return NULL;
@@ -424,6 +426,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   struct txn_ctx *ctx = &ctask->txn_ctx;
   struct partition *p = &hash_table->partitions[s];
   struct partition *l_p = NULL;
+  assert((op->optype == OPTYPE_LOOKUP) || (op->optype == OPTYPE_UPDATE) || (op->optype == OPTYPE_INSERT));
 
 #if MIGRATION && SHARED_EVERYTHING
   int is_local = (s == target);
