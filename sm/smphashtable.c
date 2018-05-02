@@ -224,7 +224,6 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 {
   struct elem *e;
   uint32_t t = op->optype;
-  assert(t == OPTYPE_LOOKUP || t == OPTYPE_UPDATE || t == OPTYPE_INSERT);
   struct lock_entry *l = NULL;
 #if ENABLE_DL_DETECT_CC
   int notification = 0;
@@ -426,7 +425,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   struct txn_ctx *ctx = &ctask->txn_ctx;
   struct partition *p = &hash_table->partitions[s];
   struct partition *l_p = NULL;
-  assert((op->optype == OPTYPE_LOOKUP) || (op->optype == OPTYPE_UPDATE) || (op->optype == OPTYPE_INSERT));
+  //assert((op->optype == OPTYPE_LOOKUP) || (op->optype == OPTYPE_UPDATE) || (op->optype == OPTYPE_INSERT));
 
 #if MIGRATION && SHARED_EVERYTHING
   int is_local = (s == target);
@@ -718,6 +717,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #endif
 
     switch (t) {
+
       case OPTYPE_LOOKUP:
 
 #if ENABLE_SILO_CC
@@ -768,6 +768,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         }
 
         break;
+
 
       case OPTYPE_UPDATE:
         // should never get updates to item table
@@ -846,7 +847,20 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         }
 
         break;
+        /*case OPTYPE_DELETE:
+        // should never get updates to item table
+        assert((octx->e->key & TID_MASK) != ITEM_TID);
+        // we should have not allocated a copy for delete
+        assert(octx->data_copy == NULL);
+        if (octx->target == s) {
+  #if SHARED_EVERYTHING
+            selock_release(p, octx);
+  #endif //SHARED_EVERYTHING
+        } else {
+            assert(0);
+        }
 
+        break;*/
       case OPTYPE_INSERT:
         // should never get inserts to item table
         assert((octx->e->key & TID_MASK) != ITEM_TID);
