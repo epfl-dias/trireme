@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
 
     // round down nrecs to a partition multiple
     if(tpcc_flag){
-      g_nrecs = (g_startup_servers*( card_ware_house + card_district + card_customer + card_order + card_order_line + card_stock + card_new_order + card_history) + card_item) * g_startup_servers;
+      g_nrecs = (g_startup_servers*( card_ware_house + card_district + card_customer + card_order + card_order_line + card_stock + card_new_order + card_history) + card_item);
     }
     else{
       g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;

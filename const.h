@@ -14,6 +14,13 @@
 #elif DIASCLD31
 #define NCORES 24
 #define NSOCKETS 2
+#elif DIASCLD34
+#define NSOCKETS 2
+#if HT_ENABLED
+#define NCORES 48
+#else
+#define NCORES 24
+#endif
 #else
 #define NCORES 4
 #define NSOCKETS 1
@@ -56,7 +63,7 @@
 
 #define MAX_TUPLE_TYPES 128
 
-#define RUN_TIME 5000000
+#define RUN_TIME 60000000
 #define HOTPLUG_WAIT_TIME 10000000
 
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
