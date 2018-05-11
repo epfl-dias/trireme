@@ -6,6 +6,13 @@
 #include "tpcc.h"
 #include "plmalloc.h"
 
+#define BUCKET_LOAD (2 * g_bench->get_avg_tuple_size())
+
+#define SE_PRIME_MAGIC 100663319
+#define SN_NMAGIC 8
+int sn_prime_magic[] = {100663319, 50331653, 25165843, 12582917, 6291469,
+    3145739, 1572869, 786433};
+
 void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
 {
   int i;
@@ -18,7 +25,25 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
    * everything case's index latching overhead. Later, we need to implement a
    * proper hashtable.
    */
-  p->nhash = nrecs;
+  if (g_benchmark == &ycsb_bench) {
+      p->nhash = nrecs;
+  } else {
+#if SHARED_EVERYTHING
+      p->nhash = SE_PRIME_MAGIC;
+#else
+      // size the HT buckets roughly halving size each time we cross a socket
+      // XXX: This is very rough to keep HT size more or less constatn. 
+      // Fix this later
+      int ncores_per_socket = NCORES / NSOCKETS;
+      int off = (g_nservers + ncores_per_socket -1) / ncores_per_socket  - 1;
+      assert(off < SN_NMAGIC);
+
+      p->nhash = sn_prime_magic[off];
+#endif
+  }
+
+  printf("Server %d allocating %d buckets of size %d for HT\n",
+          hash_table->partitions - p, p->nhash, sizeof(struct bucket));
 
   p->q_idx = 0;
   p->ninserts = 0;

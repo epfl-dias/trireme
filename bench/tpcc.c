@@ -1374,7 +1374,7 @@ else
    int r = TXN_COMMIT;
 
    //assert(q->w_id == id + 1);
-   #if SHARED_NOTHING
+#if SHARED_NOTHING
      /* we have to acquire all partition locks in warehouse order.  */
      char bits[BITNSLOTS(MAX_SERVERS)];
      int i, alock_state, partitions[MAX_SERVERS], npartitions;
@@ -1397,7 +1397,7 @@ else
        }
      }
 
-   #endif
+#endif
    txn_start(hash_table, id, ctx);
 
    int current_time = time(NULL);
@@ -1413,16 +1413,16 @@ else
     * WHERE no_d_id = :d_id AND no_w_id = :w_id
     * ORDER BY no_o_id ASC;
     */
-//each order is processed (delivered) in scope of a read/write database transaction
-     for (int o = 1; o <= TPCC_NCUST_PER_DIST; o++){
-       no_o_id = o;
-       key = MAKE_CUST_KEY(w_id, d_id, o);
-       pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
-       //the row in the new order table with matching no_w_id == w_id and no_d_id == d_id with the lowest no_o_id value is selected
-       if(hash_lookup(&hash_table->partitions[w_id - 1],op.key)){
-        break;
+       //each order is processed (delivered) in scope of a read/write database transaction
+       for (int o = 1; o <= TPCC_NCUST_PER_DIST; o++){
+           no_o_id = o;
+           key = MAKE_CUST_KEY(w_id, d_id, o);
+           pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
+           //the row in the new order table with matching no_w_id == w_id and no_d_id == d_id with the lowest no_o_id value is selected
+           if(hash_lookup(&hash_table->partitions[w_id - 1], pkey)){
+               break;
+           }
        }
-    }
        key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
        pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
        MAKE_OP(op, OPTYPE_DELETE, 0, pkey);
@@ -1473,11 +1473,11 @@ else
        MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
        assert(op.optype == 0x00000002);
        struct partition *l_p = NULL;
-       #if SHARED_NOTHING
+#if SHARED_NOTHING
          l_p = &hash_table->partitions[w_id - 1];
-       #else
+#else
          l_p = &hash_table->partitions[id];
-       #endif
+#endif
        if(hash_lookup(l_p,op.key)){
 
          struct tpcc_order_line *ol_r =
@@ -1502,11 +1502,11 @@ else
     MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
     assert(op.optype == 0x00000002);
     struct partition *l_p = NULL;
-    #if SHARED_NOTHING
+#if SHARED_NOTHING
       l_p = &hash_table->partitions[w_id - 1];
-    #else
+#else
       l_p = &hash_table->partitions[id];
-    #endif
+#endif
     if(hash_lookup(l_p,op.key)){
       struct tpcc_customer *c_r =
         (struct tpcc_customer *) txn_op(ctask, hash_table, id, &op, w_id - 1);
@@ -1990,7 +1990,6 @@ static int fetch_cust_records(struct hash_table *hash_table, int id,
 
   return nmatch;
 }
-
 
 struct benchmark tpcc_bench = {
   .init = tpcc_init,
