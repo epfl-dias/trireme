@@ -40,7 +40,9 @@ struct hash_table *create_hash_table()
 #else
   int nrecs_per_partition = g_nrecs / g_nservers;
 #endif
-  struct hash_table *hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
+  assert(!hash_table);
+
+  hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
 
   hash_table->keys = NULL;
   hash_table->partitions = memalign(CACHELINE, g_nservers * sizeof(struct partition));

@@ -25,25 +25,32 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
    * everything case's index latching overhead. Later, we need to implement a
    * proper hashtable.
    */
-  if (g_benchmark == &ycsb_bench) {
+  if (p == hash_table->g_partition) {
       p->nhash = nrecs;
+      printf("Allocating %d buckets of size %d for HT of global partition\n",
+              p->nhash, sizeof(struct bucket));
   } else {
+
+      if (g_benchmark == &ycsb_bench) {
+          p->nhash = nrecs;
+      } else {
 #if SHARED_EVERYTHING
-      p->nhash = SE_PRIME_MAGIC;
+          p->nhash = SE_PRIME_MAGIC;
 #else
-      // size the HT buckets roughly halving size each time we cross a socket
-      // XXX: This is very rough to keep HT size more or less constatn. 
-      // Fix this later
-      int ncores_per_socket = NCORES / NSOCKETS;
-      int off = (g_nservers + ncores_per_socket -1) / ncores_per_socket  - 1;
-      assert(off < SN_NMAGIC);
+          // size the HT buckets roughly halving size each time we cross a socket
+          // XXX: This is very rough to keep HT size more or less constatn. 
+          // Fix this later
+          int ncores_per_socket = NCORES / NSOCKETS;
+          int off = (g_nservers + ncores_per_socket -1) / ncores_per_socket  - 1;
+          assert(off < SN_NMAGIC);
 
-      p->nhash = sn_prime_magic[off];
+          p->nhash = sn_prime_magic[off];
 #endif
-  }
+      }
 
-  printf("Server %d allocating %d buckets of size %d for HT\n",
-          hash_table->partitions - p, p->nhash, sizeof(struct bucket));
+      printf("Server(%d): Allocating %d buckets of size %d for HT\n",
+              hash_table->partitions - p, p->nhash, sizeof(struct bucket));
+  }
 
   p->q_idx = 0;
   p->ninserts = 0;
