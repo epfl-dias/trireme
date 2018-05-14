@@ -29,9 +29,9 @@ extern struct benchmark ycsb_bench;
 #define card_customer 30000
 #define card_stock 100000
 #define card_item 100000
-#define card_order (30000 + 10000)
-#define card_order_line (300000 + 10000)
-#define card_new_order (9000 + 3000)
+#define card_order (10000000)
+#define card_order_line (10000000)
+#define card_new_order (10000000)
 #define card_history (30000 + 10000)
 int sequence[MIX_COUNT];
 int tpcc_flag;

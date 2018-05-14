@@ -759,7 +759,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
    * EXEC SQL INSERT IN TO NEW_ORDER (no_o_id , no_d_id , no_w _id )
    * VALUES (:o_id , :d _id , :w _id );
    */
-
+  key = MAKE_CUST_KEY(w_id, d_id, o_id);
   pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
   MAKE_OP(op, OPTYPE_INSERT, (sizeof(struct tpcc_new_order)), pkey);
   assert(op.optype == 0x00000001);
@@ -1418,42 +1418,42 @@ else
            no_o_id = o;
            key = MAKE_CUST_KEY(w_id, d_id, o);
            pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
-           //the row in the new order table with matching no_w_id == w_id and no_d_id == d_id with the lowest no_o_id value is selected
-           if(hash_lookup(&hash_table->partitions[w_id - 1], pkey)){
-               break;
-           }
+           MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
+           struct tpcc_order *no_r =
+            (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+          if(no_r){
+            break;
+          }
        }
+       /*
+       * EXEC SQL UPDATE orders SET o_carrier_id = :o_carrier_id
+       * 	WHERE o_id = :no_o_id AND o_d_id = :d_id AND
+       * 		o_w_id = :w_id;
+       */
+       /*
+        * EXEC SQL SELECT o_c_id INTO :c_id FROM orders
+        * 	WHERE o_id = :no_o_id AND o_d_id = :d_id AND
+        *		o_w_id = :w_id;
+        */
+        // I will first update the order table and then delete the row from new_order table
+       //the row in the ORDER table with matching O_W_ID == W_ID and O_D_ID == D_ID and O_ID == NO_O_ID is selected
+       key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
+       pkey = MAKE_HASH_KEY(ORDER_TID, key);
+       MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
+       assert(op.optype == OPTYPE_UPDATE);
+       struct tpcc_order * o_r =
+         (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+       CHK_ABORT(o_r);
+         assert(q->o_carrier_id);
+         o_r->o_carrier_id = q->o_carrier_id;
+         c_id = o_r->o_c_id;
+         //now that you have set the order carrier ID then delete the row in the new order table
        key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
        pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
        MAKE_OP(op, OPTYPE_DELETE, 0, pkey);
        struct tpcc_order *no_r =
          (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-
-    /*
-     * EXEC SQL SELECT o_c_id INTO :c_id FROM orders
-     * 	WHERE o_id = :no_o_id AND o_d_id = :d_id AND
-     *		o_w_id = :w_id;
-     */
-
-    /*
-    * EXEC SQL UPDATE orders SET o_carrier_id = :o_carrier_id
-    * 	WHERE o_id = :no_o_id AND o_d_id = :d_id AND
-    * 		o_w_id = :w_id;
-    */
-    //the row in the ORDER table with matching O_W_ID == W_ID and O_D_ID == D_ID and O_ID == NO_O_ID is selected
-    key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
-    pkey = MAKE_HASH_KEY(ORDER_TID, key);
-    MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
-    assert(op.optype == 0x00000002);
-    struct tpcc_order *o_r_2 =
-      (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-
-
-    CHK_ABORT(o_r_2);
-
-      o_r_2->o_carrier_id = q->o_carrier_id;
-      c_id = o_r_2->o_c_id;
-
+      /*printf("deleted w_id = %d , d_id = %d , no_o_id = %d \n",w_id, d_id, no_o_id);*/
     /*
     * EXEC SQL UPDATE order_line SET ol_delivery_d = :datetime
     *	WHERE ol_o_id = :no_o_id AND ol_d_id = :d_id AND
@@ -1500,7 +1500,6 @@ else
     key = MAKE_CUST_KEY(w_id, d_id, c_id);
     pkey = MAKE_HASH_KEY(CUSTOMER_TID, key);
     MAKE_OP(op, OPTYPE_UPDATE, 0, pkey);
-    assert(op.optype == 0x00000002);
     struct partition *l_p = NULL;
 #if SHARED_NOTHING
       l_p = &hash_table->partitions[w_id - 1];
@@ -1517,7 +1516,6 @@ else
     }
 
  }
-
    final:
    #if SHARED_NOTHING
      /* in shared nothing case, there is now way a transaction will ever be
