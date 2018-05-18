@@ -772,7 +772,6 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   no_r->no_o_id = o_id;
   no_r->no_d_id = d_id;
   no_r->no_w_id = w_id;
-
   for (int ol_number = 0; ol_number < ol_cnt; ol_number++) {
     uint64_t ol_i_id = q->item[ol_number].ol_i_id;
     uint64_t ol_supply_w_id = q->item[ol_number].ol_supply_w_id;
@@ -1317,20 +1316,17 @@ else{
       pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
       MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
       assert(op.optype == 0x00000000);
-      hash_lookup(&hash_table->partitions[w_id - 1],op.key);
-      if(hash_lookup(&hash_table->partitions[w_id - 1],op.key)){
-        struct tpcc_order_line *ol_r =
-          (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+      struct tpcc_order_line *ol_r =
+        (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+        if(ol_r){
           ol_i_id[counter2] = ol_r->ol_i_id;
           ol_supply_w_id[counter2] = ol_r->ol_supply_w_id;
           ol_quantity[counter2] = ol_r->ol_quantity;
           ol_amount[counter2] = ol_r->ol_amount;
           ol_delivery_d[counter2] = ol_r->ol_delivery_d;
           ++counter2;
-      }
-
+        }
    }
-
 }
 
 final:
@@ -1444,15 +1440,17 @@ else
        struct tpcc_order * o_r =
          (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
        CHK_ABORT(o_r);
-         assert(q->o_carrier_id);
-         o_r->o_carrier_id = q->o_carrier_id;
-         c_id = o_r->o_c_id;
          //now that you have set the order carrier ID then delete the row in the new order table
        key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
        pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
        MAKE_OP(op, OPTYPE_DELETE, 0, pkey);
        struct tpcc_order *no_r =
          (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
+      if(no_r){
+        assert(q->o_carrier_id);
+        o_r->o_carrier_id = q->o_carrier_id;
+        c_id = o_r->o_c_id;
+      }
       /*printf("deleted w_id = %d , d_id = %d , no_o_id = %d \n",w_id, d_id, no_o_id);*/
     /*
     * EXEC SQL UPDATE order_line SET ol_delivery_d = :datetime
@@ -1486,9 +1484,7 @@ else
              ol_r->ol_delivery_d = current_time;
              sum = sum + ol_r->ol_amount;
            }
-
        }
-
      }
 
    /*
@@ -1622,12 +1618,12 @@ else
         pkey = MAKE_HASH_KEY(ORDER_LINE_TID, key);
         MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
         assert(op.optype == 0x00000000);
-      //  if(hash_lookup(&hash_table->partitions[w_id - 1],op.key)){
+
           struct tpcc_order_line *ol_r =
             (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-            ol_i_id = ol_r->ol_i_id;
-        //}
-
+            if(ol_r){
+                ol_i_id = ol_r->ol_i_id;
+            }
             key = MAKE_STOCK_KEY(w_id, ol_o_id);
             pkey = MAKE_HASH_KEY(STOCK_TID, key);
             MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
@@ -1894,25 +1890,19 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
 
   for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
 
-    key = MAKE_DIST_KEY(w_id, d);
-    pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
-
-    struct elem *e = hash_lookup(p, pkey);
-    assert(e);
-
-    struct tpcc_district *d_r = (struct tpcc_district *)e->value;
-    assert(d_r);
 
     //sum(O_OL_CNT) = [number of rows in the ORDER-LINE table for this district]
 
     assert(sum_o_ol_cnt[d] == nrows_ol[d]);
-
+   /* if(sum_o_ol_cnt[d] != nrows_ol[d])
+      printf("%d %d %d %d \n",sum_o_ol_cnt[d] , nrows_ol[d] , w_id , d);
+      assert(sum_o_ol_cnt[d] == nrows_ol[d]);*/
     //for any row in the ORDER table, O_CARRIER_ID is set to a null value only and only if
     //there is a corresponding row in the NEW-ORDER table
 
     for(int o = 1 ; o <= TPCC_NCUST_PER_DIST ; ++o){
 
-      key = MAKE_O_KEY(w_id, d, o);
+      key = MAKE_CUST_KEY(w_id, d, o);
       pkey = MAKE_HASH_KEY(ORDER_TID, key);
       struct elem *e = hash_lookup(p, pkey);
       assert(e);
@@ -1920,9 +1910,11 @@ void tpcc_verify_txn(struct hash_table *hash_table, int id)
       assert(o_r);
       if(o_r->o_carrier_id == 0){
 
-        key = MAKE_NO_KEY(w_id,d,o);
         pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
         struct elem *e = hash_lookup(p, pkey);
+        /*if(!e){
+          printf("deleted = %d %d %d \n",w_id,d ,o);
+        }*/
         assert(e);
         struct tpcc_new_order *no_r = (struct tpcc_new_order *)e->value;
         assert(no_r->no_o_id == o_r->o_id);

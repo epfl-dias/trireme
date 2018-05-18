@@ -8,7 +8,7 @@
 
 #define BUCKET_LOAD (2 * g_bench->get_avg_tuple_size())
 
-#define SE_PRIME_MAGIC 100663319
+#define SE_PRIME_MAGIC 25165843
 #define SN_NMAGIC 8
 int sn_prime_magic[] = {100663319, 50331653, 25165843, 12582917, 6291469,
     3145739, 1572869, 786433};
