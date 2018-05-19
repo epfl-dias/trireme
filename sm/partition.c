@@ -198,6 +198,9 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
 
     e = LIST_NEXT(e, chain);
   }
+/*if(e == NULL){
+	printf("key is %"PRId64"\n",key);
+}*/
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
   LATCH_RELEASE(&b->latch, &alock_state);
