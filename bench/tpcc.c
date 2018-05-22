@@ -777,6 +777,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     (struct tpcc_new_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   if(!no_r){
     printf("no_r w_id = %d d_id = %d o_id = %d\n",w_id,d_id,o_id);
+    printf("srv(%d): inserted %"PRId64"\n", id, pkey);
   }
   assert(no_r);
 
@@ -1444,13 +1445,17 @@ else
        assert(q->o_carrier_id);
        o_r->o_carrier_id = q->o_carrier_id;
        c_id = o_r->o_c_id;
-      /*XXX*/
+      /*
        key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
        pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
        MAKE_OP(op, OPTYPE_DELETE, 0, pkey);
        struct tpcc_order *no_r =
          (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-         /*XXX*/
+      if(no_r){
+        printf("srv(%d): deleted %"PRId64"\n", id, pkey);
+        printf("w_id = %d d_id = %d o_id = %d\n",w_id,d_id,no_o_id);
+      }
+         */
     long sum = 0;
     for (int ol_number = 5 ; ol_number <= TPCC_MAX_OL_PER_ORDER ; ol_number++){
 
@@ -1863,182 +1868,11 @@ void tpcc_get_next_query(struct hash_table *hash_table, int s,
 
     // check 2: D_NEXT_O_ID - 1 = max(O_ID) = max(NO_O_ID)
     assert((d_r->d_next_o_id - 1) == max_o_id[d]);
-  //  assert((d_r->d_next_o_id - 1) == max_no_o_id[d]);
 
-    // check 3: max(NO_O_ID) - min(NO_O_ID) + 1 = [number of rows in the NEW-ORDER
-    // table for this district]
-    //assert((max_no_o_id[d] - min_no_o_id[d] + 1) == nrows_no[d]);
-
-    //check 4: sum (O_OL_CNT) = number of rows in the ORDER-LINE table
+    //check 4: sum (O_OL_CNT) = number of rows in the ORDER-LINE table*/
     assert(sum_o_ol_cnt[d] == nrows_ol[d]);
-
-    //check 5:
   }
 }/**/
-/*
-void tpcc_verify_txn(struct hash_table *hash_table, int id)
-{
-
-  hash_key key, pkey;
-#if SHARED_EVERYTHING
-  struct partition *p = &hash_table->partitions[0];
-#else
-  struct partition *p = &hash_table->partitions[id];
-#endif
-  struct elem *e;
-  int w_id = id + 1;
-
-  printf("Server %d verifying consistency..\n", id);
-
-  // W_YTD = sum (D_YTD)
-  pkey = MAKE_HASH_KEY(WAREHOUSE_TID, w_id);
-  e = hash_lookup(p, pkey);
-  assert(e);
-
-  struct tpcc_warehouse *w_r = (struct tpcc_warehouse *)e->value;
-  assert(w_r);
-
-  double d_ytd = 0;
-  for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
-    key = MAKE_DIST_KEY(w_id, d);
-    pkey = MAKE_HASH_KEY(DISTRICT_TID, key);
-
-    struct elem *e = hash_lookup(p, pkey);
-    assert(e);
-
-    struct tpcc_district *d_r = (struct tpcc_district *)e->value;
-    assert(d_r);
-
-    d_ytd += d_r->d_ytd;
-
-  }
-
-  assert(d_ytd == w_r->w_ytd);
-
-  // with one global sweep of hashtable, get all necessary values
-  int max_o_id[TPCC_NDIST_PER_WH + 1], max_no_o_id[TPCC_NDIST_PER_WH + 1];
-  int nrows_no[TPCC_NDIST_PER_WH + 1], min_no_o_id[TPCC_NDIST_PER_WH + 1];
-  int sum_o_ol_cnt[TPCC_NDIST_PER_WH + 1], nrows_ol[TPCC_NDIST_PER_WH + 1];
-  int nrows_ol_per_o[TPCC_NDIST_PER_WH + 1][30000];
-  int ol_delivery_d[TPCC_NDIST_PER_WH + 1], o_carrier_id[TPCC_NDIST_PER_WH + 1];
-
-  for (int i = 0; i <= TPCC_NDIST_PER_WH; i++) {
-    nrows_no[i] = max_o_id[i] = max_no_o_id[i] = 0;
-    min_no_o_id[i] = INT_MAX - 1;
-    sum_o_ol_cnt[i] = nrows_ol[i] = 0;
-    for(int o = 1 ; o <= 30000 ; ++o){
-      nrows_ol_per_o[i][o] = 0;
-    }
-  }
-
-
-  for (int i = 0; i < p->nhash; i++) {
-    struct elist *eh = &(p->table[i].chain);
-    struct elem *e = LIST_FIRST(eh);
-
-    while (e != NULL) {
-      hash_key key = e->key;
-      uint64_t tid = GET_TID(key);
-      if (tid == ORDER_TID) {
-        struct tpcc_order *o_r = (struct tpcc_order *)e->value;
-        assert(o_r);
-
-#ifndef SHARED_EVERYTHING
-        assert (o_r->o_w_id == w_id);
-#else
-        // shared everything config
-        if (o_r->o_w_id != w_id) {
-          e = LIST_NEXT(e, chain);
-          continue;
-        }
-#endif
-
-        if (max_o_id[o_r->o_d_id] < o_r->o_id)
-          max_o_id[o_r->o_d_id] = o_r->o_id;
-
-        sum_o_ol_cnt[o_r->o_d_id] += o_r->o_ol_cnt;
-
-        o_carrier_id[o_r->o_d_id] = o_r->o_carrier_id;
-
-      } else if (tid == NEW_ORDER_TID) {
-        struct tpcc_new_order *no_r = (struct tpcc_new_order *)e->value;
-        assert(no_r);
-
-#ifndef SHARED_EVERYTHING
-        assert (no_r->no_w_id == w_id);
-#else
-        // shared everything config
-        if (no_r->no_w_id != w_id) {
-          e = LIST_NEXT(e, chain);
-          continue;
-        }
-#endif
-
-        nrows_no[no_r->no_d_id]++;
-
-        if (max_no_o_id[no_r->no_d_id] < no_r->no_o_id)
-          max_no_o_id[no_r->no_d_id] = no_r->no_o_id;
-
-        if (min_no_o_id[no_r->no_d_id] > no_r->no_o_id)
-          min_no_o_id[no_r->no_d_id] = no_r->no_o_id;
-
-     } else if (tid == ORDER_LINE_TID) {
-        struct tpcc_order_line *ol_r = (struct tpcc_order_line *)e->value;
-        assert(ol_r);
-
-#ifndef SHARED_EVERYTHING
-        assert (ol_r->ol_w_id == w_id);
-#else
-        // shared everything config
-        if (ol_r->ol_w_id != w_id) {
-          e = LIST_NEXT(e, chain);
-          continue;
-        }
-#endif
-
-        nrows_ol[ol_r->ol_d_id]++;
-        ol_delivery_d[ol_r->ol_d_id] = ol_r->ol_delivery_d;
-        nrows_ol_per_o[ol_r->ol_d_id][ol_r->ol_o_id]++;
-      }
-
-      e = LIST_NEXT(e, chain);
-    }
-  }
-
-  for (int d = 1; d <= TPCC_NDIST_PER_WH; d++) {
-
-
-    //sum(O_OL_CNT) = [number of rows in the ORDER-LINE table for this district]
-    assert(sum_o_ol_cnt[d] == nrows_ol[d]);
-
-     //for any row in the ORDER table, O_CARRIER_ID is set to a null value only and only if
-    //there is a corresponding row in the NEW-ORDER table
-
-    for(int o = 1 ; o <= TPCC_NCUST_PER_DIST ; ++o){
-
-      key = MAKE_CUST_KEY(w_id, d, o);
-      pkey = MAKE_HASH_KEY(ORDER_TID, key);
-      struct elem *e = hash_lookup(p, pkey);
-      assert(e);
-      if(e){
-        struct tpcc_order *o_r = (struct tpcc_order *)e->value;
-        assert(o_r);
-        if(o_r->o_carrier_id == 0){
-
-          pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
-          struct elem *e = hash_lookup(p, pkey);
-          assert(e);
-          struct tpcc_new_order *no_r = (struct tpcc_new_order *)e->value;
-          assert(no_r->no_o_id == o_r->o_id);
-          assert(no_r->no_d_id == o_r->o_d_id);
-          assert(no_r->no_w_id == o_r->o_w_id);
-        }
-      }
-
-    }
-  }
-}
-*/
 
 static int fetch_cust_records(struct hash_table *hash_table, int id,
     struct task *ctask, struct tpcc_customer **c_recs,
