@@ -208,7 +208,7 @@ void run_benchmark()
     printf(" # servers:    %d\n", g_nservers);
     printf(" Key range:    0..2^%d\n", 31-query_shift);
     printf(" Write ratio:  %d\n", g_write_threshold);
-    printf(" Total #recs: %ld \n", g_nrecs);
+    printf(" Total #recs: %d \n", g_nrecs);
     printf(" Iterations:   %d\n", g_niters);
 
     if (g_benchmark->init)
