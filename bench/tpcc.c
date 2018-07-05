@@ -1445,16 +1445,12 @@ else
        assert(q->o_carrier_id);
        o_r->o_carrier_id = q->o_carrier_id;
        c_id = o_r->o_c_id;
-      /*
-       key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
+      
+       /*key = MAKE_CUST_KEY(w_id, d_id, no_o_id);
        pkey = MAKE_HASH_KEY(NEW_ORDER_TID, key);
        MAKE_OP(op, OPTYPE_DELETE, 0, pkey);
        struct tpcc_order *no_r =
          (struct tpcc_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-      if(no_r){
-        printf("srv(%d): deleted %"PRId64"\n", id, pkey);
-        printf("w_id = %d d_id = %d o_id = %d\n",w_id,d_id,no_o_id);
-      }
          */
     long sum = 0;
     for (int ol_number = 5 ; ol_number <= TPCC_MAX_OL_PER_ORDER ; ol_number++){
@@ -1565,8 +1561,8 @@ else
      assert(op.optype == 0x00000000);
      struct tpcc_district *d_r =
        (struct tpcc_district *) txn_op(ctask, hash_table, id, &op, w_id - 1);
-
-    CHK_ABORT(d_r);
+	
+     CHK_ABORT(d_r);
 
      int64_t o_id = d_r->d_next_o_id;
 
@@ -1596,10 +1592,10 @@ else
             if(ol_r){
                 ol_i_id = ol_r->ol_i_id;
             }
-            key = MAKE_STOCK_KEY(w_id, ol_o_id);
+            key = MAKE_STOCK_KEY(w_id, ol_i_id);
             pkey = MAKE_HASH_KEY(STOCK_TID, key);
             MAKE_OP(op, OPTYPE_LOOKUP, 0, pkey);
-            if(op.key > STOCK_TID_DEC + (w_id + 1) * TPCC_MAX_ITEMS){
+            
               struct tpcc_stock *s_r =
                 (struct tpcc_stock *) txn_op(ctask, hash_table, id, &op, w_id - 1);
               CHK_ABORT(s_r);
@@ -1607,7 +1603,7 @@ else
               if(s_r->s_quantity < q->threshold){
                   stock_count++;
               }
-            }
+            
 
           ol_number = ol_number + 1;
       }

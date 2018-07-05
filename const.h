@@ -12,7 +12,7 @@
 #define NCORES 72
 #endif
 #elif DIASCLD31
-#define NCORES 24
+#define NCORES 48
 #define NSOCKETS 2
 #elif DIASCLD34
 #define NSOCKETS 2
