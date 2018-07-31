@@ -776,7 +776,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
   struct tpcc_new_order *no_r =
     (struct tpcc_new_order *) txn_op(ctask, hash_table, id, &op, w_id - 1);
   if(!no_r){
-    printf("no_r w_id = %d d_id = %d o_id = %d\n",w_id,d_id,o_id);
+    printf("no_r w_id = %d d_id = %d o_id = %"PRId64"\n",w_id,d_id,o_id);
     printf("srv(%d): inserted %"PRId64"\n", id, pkey);
   }
   assert(no_r);
@@ -870,7 +870,7 @@ int tpcc_run_neworder_txn(struct hash_table *hash_table, int id,
     struct tpcc_order_line *ol_r =
       (struct tpcc_order_line *) txn_op(ctask, hash_table, id, &op, w_id - 1);
       if(!ol_r){
-        printf("no_r w_id = %d d_id = %d o_id = %d\n",w_id,d_id,o_id);
+        printf("no_r w_id = %d d_id = %d o_id = %"PRId64"\n",w_id,d_id,o_id);
       }
     assert(ol_r);
     dprint("srv(%d): inserted %"PRId64"\n", id, pkey);
