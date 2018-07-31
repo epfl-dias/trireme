@@ -3,21 +3,26 @@ USER		?= $(shell id -un)
 JOBS		?= $$(( $$(grep processor /proc/cpuinfo|tail -1|cut -d: -f2) + 1))
 VERBOSE		?= 0
 
-#SRC_DIR		?= ${PROJECT_DIR}/src
+SRC_DIR		?= ${PROJECT_DIR}/src
+EXTERNAL_DIR	?= ${PROJECT_DIR}/external
+BSD_DIR		?= ${EXTERNAL_DIR}/bsd
 INSTALL_DIR	?= ${PROJECT_DIR}/opt
 BUILD_DIR	?= ${PROJECT_DIR}/build
-
-LLVM_CHECKOUT	?= "git clone https://github.com/llvm-mirror/"
-LLVM_REVISION	?= "-b release_60"
 
 CMAKE		?= cmake
 
 PLATFORM = $(shell uname -n | tr a-z A-Z)
-CC	?= ${INSTALL_DIR}/bin/clang
+CC	:= ${INSTALL_DIR}/bin/clang
 
 .SUFFIXES: .o .c .h
 
-SRC_DIRS = src src/txm src/sm src/bench src/lib/liblatch src/lib/libmsg
+SRC_DIRS = \
+	${SRC_DIR} \
+	${SRC_DIR}/txm \
+	${SRC_DIR}/sm \
+	${SRC_DIR}/bench \
+	${SRC_DIR}/lib/liblatch \
+	${SRC_DIR}/lib/libmsg
 
 CFLAGS += -std=c99
 CFLAGS += -Werror
@@ -42,16 +47,17 @@ trireme: ${OBJS}
 %.o: %.c ${DEPS}
 	${CC} -c ${CFLAGS} ${CPPFLAGS} -o $@ $<
 
-.PHONY: clean
-clean:
-	-rm -f trireme ${OBJS}
-
 #######################################################################
 # top-level targets, checks if a call to make is required before
 # calling it.
 #######################################################################
+
 .PHONY: llvm
 llvm: .llvm.install_done
+
+#######################################################################
+# Install targets
+#######################################################################
 
 #######################################################################
 # Build targets
@@ -73,9 +79,15 @@ COMMON_ENV := \
 # LLVM_ENABLE_EH: required for throwing exceptions
 # LLVM_ENABLE_RTTI: required for dynamic_cast
 # LLVM_REQUIRE_RTTI: required for dynamic_cast
+LLVM_TARGETS_TO_BUILD:= \
+$$(case $$(uname -m) in \
+	x86|x86_64) echo "X86;NVPTX";; \
+	ppc64le) echo "PowerPC;NVPTX";; \
+esac)
+
 do-conf-llvm: .llvm.checkout_done
 	[ -d ${BUILD_DIR}/llvm ] || mkdir -p ${BUILD_DIR}/llvm
-	cd ${BUILD_DIR}/llvm && $(CMAKE) ${PROJECT_DIR}/external/bsd/llvm \
+	cd ${BUILD_DIR}/llvm && $(CMAKE) ${BSD_DIR}/llvm \
 		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 		-DLLVM_ENABLE_CXX11=ON \
@@ -87,26 +99,34 @@ do-conf-llvm: .llvm.checkout_done
 		-DBUILD_SHARED_LIBS=ON \
 		-DLLVM_USE_INTEL_JITEVENTS:BOOL=ON \
 		-DLLVM_TARGETS_TO_BUILD="X86;NVPTX" \
-		-Wno-dev 
+		-Wno-dev
 
 #######################################################################
 # Checkout sources as needed
 #######################################################################
 
-.PRECIOUS: external/bsd/llvm
-external/bsd/llvm:
-	eval ${LLVM_CHECKOUT}/llvm ${LLVM_REVISION} external/bsd/llvm
-	eval ${LLVM_CHECKOUT}/clang ${LLVM_REVISION} external/bsd/llvm/tools/clang
-	eval ${LLVM_CHECKOUT}/compiler-rt ${LLVM_REVISION} external/bsd/llvm/projects/compiler-rt
-	eval ${LLVM_CHECKOUT}/libcxx ${LLVM_REVISION} external/bsd/llvm/projects/libcxx
-	eval ${LLVM_CHECKOUT}/libcxxabi ${LLVM_REVISION} external/bsd/llvm/projects/libcxxabi
-	eval ${LLVM_CHECKOUT}/libunwind ${LLVM_REVISION} external/bsd/llvm/projects/libunwind
+.PRECIOUS: ${BSD_DIR}/clang
+.PRECIOUS: ${BSD_DIR}/compiler-rt
+.PRECIOUS: ${BSD_DIR}/libcxx
+.PRECIOUS: ${BSD_DIR}/libcxxabi
+.PRECIOUS: ${BSD_DIR}/libunwind
+.PRECIOUS: ${BSD_DIR}/llvm
+
+do-checkout-llvm:
+	# No way of adding from a top level submodules within sub-
+	# modules, so stickying to this method.
+	git submodule update --init --recursive ${BSD_DIR}/llvm ${BSD_DIR}/clang ${BSD_DIR}/compiler-rt ${BSD_DIR}/libcxx ${BSD_DIR}/libcxxabi ${BSD_DIR}/libunwind
+	ln -sf ../../clang ${BSD_DIR}/llvm/tools/clang
+	ln -sf ../../compiler-rt ${BSD_DIR}/llvm/projects/compiler-rt
+	ln -sf ../../libcxx ${BSD_DIR}/llvm/projects/libcxx
+	ln -sf ../../libcxxabi ${BSD_DIR}/llvm/projects/libcxxabi
+	ln -sf ../../libunwind ${BSD_DIR}/llvm/projects/libunwind
 	# for CUDA 9.1+ support on LLVM 6:
 	#   git cherry-pick ccacb5ddbcbb10d9b3a4b7e2780875d1e5537063
-	cd external/bsd/llvm/tools/clang && git cherry-pick ccacb5ddbcbb10d9b3a4b7e2780875d1e5537063
+	cd ${BSD_DIR}/llvm/tools/clang && git cherry-pick ccacb5ddbcbb10d9b3a4b7e2780875d1e5537063
 	# for CUDA 9.2 support on LLVM 6:
 	#   git cherry-pick 5f76154960a51843d2e49c9ae3481378e09e61ef
-	cd external/bsd/llvm/tools/clang && git cherry-pick 5f76154960a51843d2e49c9ae3481378e09e61ef
+	cd ${BSD_DIR}/llvm/tools/clang && git cherry-pick 5f76154960a51843d2e49c9ae3481378e09e61ef
 
 #######################################################################
 # Makefile utils / Generic targets
@@ -116,33 +136,57 @@ ifeq (${VERBOSE},0)
 .SILENT:
 endif
 
+.PHONY: help
+help:
+	@echo "-----------------------------------------------------------------------"
+	@echo "The general commands are available:"
+	@echo " * show-config		Display configuration variables such as paths,"
+	@echo " 			number of jobs and other tunable options."
+	@echo " * clean 		Remove trireme object files and binaries."
+	@echo " * dist-clean		Cleans the repository to a pristine state,"
+	@echo " 			just like after a new clone of the sources."
+	@echo "-----------------------------------------------------------------------"
+	@echo " In the following targets, '%' can be replaced by one of the external"
+	@echo " project among the following list: llvm"
+	@echo ""
+	@echo " * clean-%		Removes the object files of '%'"
+	@echo " * dist-clean-%		Removes everything from project '%', forcing a"
+	@echo " 			build from scratch of '%'."
+	@echo "-----------------------------------------------------------------------"
+
 .PHONY: show-config
 show-config:
 	@echo "-----------------------------------------------------------------------"
 	@echo "Configuration:"
 	@echo "-----------------------------------------------------------------------"
 	@echo "PROJECT_DIR		:= ${PROJECT_DIR}"
-#	@echo "SRC_DIR			:= ${SRC_DIR}"
+	@echo "SRC_DIR			:= ${SRC_DIR}"
+	@echo "EXTERNAL_DIR		:= ${EXTERNAL_DIR}"
+	@echo "BSD_DIR			:= ${BSD_DIR}"
 	@echo "BUILD_DIR		:= ${BUILD_DIR}"
 	@echo "INSTALL_DIR		:= ${INSTALL_DIR}"
 	@echo "JOBS			:= ${JOBS}"
 	@echo "USER			:= ${USER}"
 	@echo "VERBOSE			:= ${VERBOSE}"
+	@echo "-----------------------------------------------------------------------"
 
-.PHONY: show-versions
-show-versions:
-	@echo "-----------------------------------------------------------------------"
-	@echo "Projects:"
-	@echo "-----------------------------------------------------------------------"
-	@echo "LLVM_REVISION		:= ${LLVM_REVISION}"
-	@echo "LLVM_CHECKOUT		:= ${LLVM_CHECKOUT}"
+.PHONY: dist-clean
+dist-clean:
+	-rm -rf ${EXTERNAL_DIR}
+	-git clean -dxf .
 
-.PHONY: showvars
-showvars:
-	@make --no-print-directory show-config
-	@echo
-	@make --no-print-directory show-versions
-	@echo "-----------------------------------------------------------------------"
+.PHONY: clean
+clean:
+	-rm -f trireme ${OBJS}
+
+PHONY: dist-clean-%
+dist-clean-%: clean-%
+	-rm -rf  ${EXTERNAL_DIR}/*/$$(echo $@ | sed -e 's,dist-clean-,,')
+
+.PHONY: clean-%
+clean-%:
+	-rm .$$(echo $@ | sed -e 's,clean-,,').*_done
+	-rm -rf  ${BUILD_DIR}/$$(echo $@ | sed -e 's,clean-,,')
 
 %: .%.install_done
 
@@ -158,39 +202,39 @@ do-build-%: .%.configure_done
 		make -j ${JOBS}
 
 .PHONY: do-conf-%
-do-conf-%: .%.checkout_done
 
-.PHONY: do-clean-%
-do-clean-%:
-	-rm .*.install_done .*.build_done .*.configure_done
-	-rm -rf  ${BUILD_DIR}/$$(echo $@ | sed -e 's,do-clean-,,')
+.PHONY: do-checkout-%
+do-checkout-%:
+	git submodule update --init --recursive src/$$(echo $@ | sed -e 's,do-checkout-,,')
 
-.PRECIOUS: %.install_done
-%.install_done: %.build_done
+.PRECIOUS: .%.install_done
+.%.install_done: .%.build_done
 	@echo "-----------------------------------------------------------------------"
 	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,')..."
 	make do-install-$$(echo $@ | sed -e 's,^[.],,' -e 's,.install_done,,')
 	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,') done."
 	touch $@
 
-.PRECIOUS: %.build_done
-%.build_done: %.configure_done
+.PRECIOUS: .%.build_done
+.%.build_done: .%.configure_done
 	@echo "-----------------------------------------------------------------------"
 	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,')..."
 	make do-build-$$(echo $@ | sed -e 's,^[.],,' -e 's,.build_done,,')
 	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,') done."
 	touch $@
 
-.PRECIOUS: %.configure_done
-%.configure_done: %.checkout_done
+.PRECIOUS: .%.configure_done
+.%.configure_done: .%.checkout_done
 	@echo "-----------------------------------------------------------------------"
 	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,')..."
 	make do-conf-$$(echo $@ | sed -e 's,^[.],,' -e 's,.configure_done,,')
 	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,') done."
 	touch $@
 
-.PRECIOUS: %.checkout_done
-.%.checkout_done: external/bsd/%
+.PRECIOUS: .%.checkout_done
+.%.checkout_done:
 	@echo "-----------------------------------------------------------------------"
+	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,')..."
+	make do-checkout-$$(echo $@ | sed -e 's,^[.],,' -e 's,.checkout_done,,')
 	@echo "-- $$(echo $@ | sed -e 's,^[.],,' -e 's,_done,,') done."
 	touch $@

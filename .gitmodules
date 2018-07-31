@@ -1,0 +1,24 @@
+[submodule "external/bsd/clang"]
+	path = external/bsd/clang
+	url = https://github.com/llvm-mirror/clang
+	branch = release_60
+[submodule "external/bsd/compiler-rt"]
+	path = external/bsd/compiler-rt
+	url = https://github.com/llvm-mirror/compiler-rt
+	branch = release_60
+[submodule "external/bsd/libcxx"]
+	path = external/bsd/libcxx
+	url = https://github.com/llvm-mirror/libcxx
+	branch = release_60
+[submodule "external/bsd/libcxxabi"]
+	path = external/bsd/libcxxabi
+	url = https://github.com/llvm-mirror/libcxxabi
+	branch = release_60
+[submodule "external/bsd/libunwind"]
+	path = external/bsd/libunwind
+	url = https://github.com/llvm-mirror/libunwind
+	branch = release_60
+[submodule "external/bsd/llvm"]
+	path = external/bsd/llvm
+	url = https://github.com/llvm-mirror/llvm
+	branch = release_60

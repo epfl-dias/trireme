@@ -1,9 +1,11 @@
+.??*
+!.gitignore
+opt
+build
 .cproject
 .project
 .settings/
 nbproject/
 *.o
-.*
-ycsb
 trireme
-!.gitignore
+ycsb
