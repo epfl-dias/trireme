@@ -12,6 +12,7 @@ void alock_init(alock_t *al, int nthread)
 
 void alock_acquire(alock_t *lock, int *extra)
 {
+printf("in alock acquire procedure\n");
   int me = __sync_fetch_and_add(&lock->next_slot, 1);
   if(me > 0 && (me % lock->nthread) == 0)
     __sync_fetch_and_add(&lock->next_slot, -lock->nthread);
@@ -25,6 +26,7 @@ void alock_acquire(alock_t *lock, int *extra)
 
 void alock_release(alock_t *lock, int *extra)
 {
+  printf("in alock release procedure\n");
   int me = *extra;
   lock->has_lock[(me + 1) % lock->nthread].x = 1;
 }

@@ -10,7 +10,6 @@
 #include "worker.h"
 #include "partition.h"
 #include "smphashtable.h"
-
 #if DIASSRV8
 
 static int coreids[] = {
@@ -49,6 +48,22 @@ static int coreids[] = {
     0,2,4,6,8,10,12,14,16,18,20,22,
     1,3,5,7,9,11,13,15,17,19,21,23
 };
+#elif DIASCLD34
+#if HT_ENABLED
+
+static int coreids[] = {
+    0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,
+    1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47
+};
+
+#else
+
+static int coreids[] = {
+    0,2,4,6,8,10,12,14,16,18,20,22,
+    1,3,5,7,9,11,13,15,17,19,21,23
+};
+
+#endif
 
 #else
 // for now, in default case, set it to 4 cores
@@ -107,7 +122,6 @@ void execute_txns(struct hash_table *hash_table, int s)
 
 	query = g_benchmark->alloc_query();
 	assert(query);
-
 	double tstart = now();
 
 #if ENABLE_ASYMMETRIC_MESSAGING
@@ -301,5 +315,4 @@ void notify_worker(int id, int action, struct hash_table *hash_table)
 	pthread_mutex_unlock(&p->cv_mtx);
 	printf("Worker %d notified with signal %d\n", id, action);
 }
-
 

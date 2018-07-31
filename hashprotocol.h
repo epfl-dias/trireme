@@ -1,6 +1,7 @@
 #ifndef __HASHPROTOCOL_H_
 #define __HASHPROTOCOL_H_
 
+/********************/
 /**
  * hash operations
  */
@@ -11,6 +12,7 @@ enum optype {
   OPTYPE_PLOCK_ACQUIRE = 3,
   OPTYPE_PLOCK_RELEASE = 4,
   OPTYPE_CERTIFY = 5,
+  OPTYPE_DELETE = 6,
 };
 
 /**
@@ -44,8 +46,8 @@ struct hash_query {
 };
 
 enum query_state {
-  HASH_QUERY_EMPTY, 
-  HASH_QUERY_COMMITTED, 
+  HASH_QUERY_EMPTY,
+  HASH_QUERY_COMMITTED,
   HASH_QUERY_ABORTED
 };
 

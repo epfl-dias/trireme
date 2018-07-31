@@ -20,3 +20,4 @@ void stop_worker(int id, struct hash_table *hash_table);
 void notify_worker(int id, int action, struct hash_table *hash_table);
 
 #endif /* WORKER_H_ */
+

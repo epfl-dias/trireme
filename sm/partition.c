@@ -6,19 +6,47 @@
 #include "tpcc.h"
 #include "plmalloc.h"
 
+#define BUCKET_LOAD (2 * g_bench->get_avg_tuple_size())
+
+#define SE_PRIME_MAGIC 25165843
+#define SN_NMAGIC 8
+int sn_prime_magic[] = {100663319, 50331653, 25165843, 12582917, 6291469,
+    3145739, 1572869, 786433};
+
 void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
 {
   int i;
-
+  assert(nrecs != 0);
   assert((unsigned long)p % CACHELINE == 0);
   p->nrecs = nrecs;
   p->size = 0;
 
-  /* XXX: For now, we set #buckets = #recs. This is done to reduce the shared 
+  /* XXX: For now, we set #buckets = #recs. This is done to reduce the shared
    * everything case's index latching overhead. Later, we need to implement a
    * proper hashtable.
    */
-  p->nhash = nrecs;
+  if (p == hash_table->g_partition) {
+      p->nhash = nrecs;
+      printf("Allocating %d buckets of size %d for HT of global partition\n",
+              p->nhash, sizeof(struct bucket));
+  } else {
+      if (g_benchmark == &ycsb_bench) {
+          p->nhash = nrecs;
+      } else {
+#if SHARED_EVERYTHING
+          p->nhash = SE_PRIME_MAGIC;
+#else
+          // size the HT buckets roughly halving size each time we cross a socket
+          // XXX: This is very rough to keep HT size more or less constatn. 
+          // Fix this later
+          int ncores_per_socket = NCORES / NSOCKETS;
+          int off = (g_nservers + ncores_per_socket -1) / ncores_per_socket  - 1;
+          assert(off < SN_NMAGIC);
+
+          p->nhash = sn_prime_magic[off];
+#endif
+      }
+  }
 
   p->q_idx = 0;
   p->ninserts = 0;
@@ -58,6 +86,9 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
 #endif
 
   if (alloc) {
+    printf("Server(%d): Allocating %d buckets of size %d for HT\n",
+            p - hash_table->partitions , p->nhash, sizeof(struct bucket));
+
     p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));
     assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
     for (i = 0; i < p->nhash; i++) {
@@ -96,7 +127,7 @@ size_t destroy_hash_partition(struct partition *p)
 
 #if SHARED_EVERYTHING
   /* in shared everything config, every thread uses its own partition
-   * structure but all threads share the same bucket array. 
+   * structure but all threads share the same bucket array.
    * so size computed from the bucket here will not match size of just
    * one partition if we have > 1 server
    */
@@ -105,7 +136,7 @@ size_t destroy_hash_partition(struct partition *p)
 #endif
 
   free(p->table);
-  
+
   return dbg_p_size;
 }
 
@@ -114,6 +145,7 @@ size_t destroy_hash_partition(struct partition *p)
  */
 int hash_get_bucket(const struct partition *p, hash_key key)
 {
+  assert(p->nhash != 0);
   return key % p->nhash;
 }
 
@@ -153,7 +185,7 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
   struct bucket *b = &p->table[h];
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_ACQUIRE(&b->latch, &alock_state); 
+  LATCH_ACQUIRE(&b->latch, &alock_state);
 #endif
 
   struct elist *eh = &b->chain;
@@ -166,17 +198,19 @@ struct elem * hash_lookup(struct partition *p, hash_key key)
 
     e = LIST_NEXT(e, chain);
   }
+/*if(e == NULL){
+	printf("key is %"PRId64"\n",key);
+}*/
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_RELEASE(&b->latch, &alock_state); 
+  LATCH_RELEASE(&b->latch, &alock_state);
 #endif
-
   return e;
 }
 
-struct elem *hash_insert(struct partition *p, hash_key key, int size, 
+struct elem *hash_insert(struct partition *p, hash_key key, int size,
         release_value_f *release)
-{  
+{
   int h = hash_get_bucket(p, key);
 
 #if SHARED_EVERYTHING
@@ -202,7 +236,7 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
 #endif
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_ACQUIRE(&b->latch, &alock_state); 
+  LATCH_ACQUIRE(&b->latch, &alock_state);
 #endif
 
   struct elist *eh = &b->chain;
@@ -283,9 +317,8 @@ struct elem *hash_insert(struct partition *p, hash_key key, int size,
   LIST_INSERT_HEAD(eh, e, chain);
 
 #if defined(SE_LATCH) && defined(SE_INDEX_LATCH)
-  LATCH_RELEASE(&b->latch, &alock_state); 
+  LATCH_RELEASE(&b->latch, &alock_state);
 #endif
 
   return e;
 }
-

@@ -39,7 +39,9 @@ struct hash_table *create_hash_table()
 #else
   int nrecs_per_partition = g_nrecs / g_nservers;
 #endif
-  struct hash_table *hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
+  assert(!hash_table);
+
+  hash_table = (struct hash_table *)malloc(sizeof(struct hash_table));
 
   hash_table->keys = NULL;
   hash_table->partitions = memalign(CACHELINE, g_nservers * sizeof(struct partition));
@@ -102,7 +104,7 @@ void destroy_hash_table(struct hash_table *hash_table)
   }
 
   dbg_psize = destroy_hash_partition(&hash_table->partitions[0]);
-  assert(act_psize == dbg_psize);
+  //assert(act_psize == dbg_psize);
 
 #endif
 
@@ -294,11 +296,14 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     case OPTYPE_LOOKUP:
     case OPTYPE_UPDATE:
       e = hash_lookup(p, op->key);
-      if (!e) {
-        printf("srv(%d): lookup key %"PRIu64" failed\n", s, op->key);
-        assert(0);
-      }
 
+
+      //XXX I had to change this part for implementing the cursor
+      //printf("srv(%d): lookup key %"PRIu64"\n", s, op->key);
+      if (e == NULL) {
+        //assert(0);
+        return NULL;
+      }
       // if this is the ITEM TID, we are done
       if (p == hash_table->g_partition)
         break;
@@ -318,7 +323,9 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
       if (!(e = mvdreadlock_acquire(p, e, t)))
           return NULL;
 #else
+      assert(t == OPTYPE_LOOKUP || t == OPTYPE_UPDATE || t == OPTYPE_INSERT);
       if (!selock_acquire(p, e, t, ctx->ts)) {
+          //This is where value is set to 0
           return NULL;
       }
 #endif //ENABLE_MVTO
@@ -357,9 +364,12 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
          * service other requests
          */
         assert(l);
+
 #if (!defined(SHARED_EVERYTHING) && defined(ENABLE_DL_DETECT_CC))
-		while ((!l->ready) && (!notification))
-          task_yield(p, TASK_STATE_READY);
+		while ((!l->ready) && (!notification)){
+      task_yield(p, TASK_STATE_READY);
+    }
+
 
 		if (l->ready == LOCK_ABORT_NXT) {
 			dl_detect_release(s, p, s, ctask->tid, ctx->nops, e, 0);
@@ -392,11 +402,19 @@ struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
 
       break;
 
+    case OPTYPE_DELETE:
+      e = hash_lookup(p, op->key);
+      if (!e) {
+        return NULL;
+      }
+      hash_remove(p, e);
+      break;
+      //XXX I have not add any support for share_everything and share_nothing
+
     default:
       assert(0);
       break;
   }
-
   return e;
 }
 
@@ -408,6 +426,7 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
   struct txn_ctx *ctx = &ctask->txn_ctx;
   struct partition *p = &hash_table->partitions[s];
   struct partition *l_p = NULL;
+  //assert((op->optype == OPTYPE_LOOKUP) || (op->optype == OPTYPE_UPDATE) || (op->optype == OPTYPE_INSERT));
 
 #if MIGRATION && SHARED_EVERYTHING
   int is_local = (s == target);
@@ -445,13 +464,14 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #endif
 
   // if this is us, just call local procedure
+
   if (is_local) {
+
     //assert(op->key >= s * l_p->nrecs && op->key < (s * l_p->nrecs + l_p->nrecs));
 
     assert (l_p);
 
     e = local_txn_op(ctask, s, ctx, l_p, op);
-
 #if ENABLE_SILO_CC
     // we never lookup a non-existent record. so this should always succeed
     assert(e);
@@ -459,12 +479,16 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
 #else
     // it is possible for a local txn to fail as someone else might have
     // acquired a lock before us
-    if (e)
+    if (e){
       value = e->value;
+    }
+    else{
+      value = NULL;
+    }
+
 #endif
 
   } else {
-
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
     assert(0);
 #endif
@@ -596,7 +620,6 @@ void *txn_op(struct task *ctask, struct hash_table *hash_table, int s,
           s, is_local ? "local":"remote",
           op->optype == OPTYPE_LOOKUP ? "lookup":"update", op->key, ctx->nops,
           value ? "ok" : "fail");
-
   return value;
 }
 
@@ -695,6 +718,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 #endif
 
     switch (t) {
+
       case OPTYPE_LOOKUP:
 
 #if ENABLE_SILO_CC
@@ -720,7 +744,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops]: 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid,
@@ -734,7 +758,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #else
 
@@ -745,6 +769,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         }
 
         break;
+
 
       case OPTYPE_UPDATE:
         // should never get updates to item table
@@ -759,7 +784,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         // In 2pl case, the txn would have updated "live" record and not the
         // copy. So we need to abort by reverting the update.
         if (status == TXN_ABORT) {
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC)|| defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
             ;
 #else
             memcpy(octx->e->value, octx->data_copy->value, size);
@@ -799,7 +824,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
               opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC)|| defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #elif defined(ENABLE_DL_DETECT_CC)
           dl_detect_release(s, p, s, ctask->tid,
@@ -813,7 +838,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
             assert(0);
 #endif
 
-#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#if defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_FSVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #else
           // not silo. send out release messages
@@ -823,7 +848,20 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
         }
 
         break;
+        /*case OPTYPE_DELETE:
+        // should never get updates to item table
+        assert((octx->e->key & TID_MASK) != ITEM_TID);
+        // we should have not allocated a copy for delete
+        assert(octx->data_copy == NULL);
+        if (octx->target == s) {
+  #if SHARED_EVERYTHING
+            selock_release(p, octx);
+  #endif //SHARED_EVERYTHING
+        } else {
+            assert(0);
+        }
 
+        break;*/
       case OPTYPE_INSERT:
         // should never get inserts to item table
         assert((octx->e->key & TID_MASK) != ITEM_TID);
@@ -844,7 +882,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           bwait_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e);
 #elif ENABLE_NOWAIT_CC
           no_wait_release(p, octx->e);
-#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK) 
+#elif defined(ENABLE_SILO_CC) || defined(ENABLE_MV2PL) || defined(ENABLE_SVDREADLOCK_CC) || defined(ENABLE_MVDREADLOCK_CC) || defined(ENABLE_MV2PL_DRWLOCK)
           ; // do nothing. everything is done by validate function
 #elif ENABLE_DL_DETECT_CC
           dl_detect_release(s, p, s, ctask->tid, opids ? opids[nops] : 0, octx->e, release_notify);
@@ -867,7 +905,10 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
           // XXX: If we need to abort a remote insert, we need a new
           // HASHOP_DELETE that we don't support yet.
           // check if we need to do this
-          assert(0);
+
+              assert(0);
+
+
           //mp_mark_ready(hash_table, s, octx->target, ctask->tid, 0, octx->e);
         }
 
@@ -1163,7 +1204,7 @@ void process_requests(struct hash_table *hash_table, int s)
 
           req->e = hash_lookup(p, key);
           if (!req->e) {
-            dprint("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
+            printf("srv (%d): cl %d %s %" PRIu64 " failed\n", s, i,
                 OPTYPE_STR(optype), key);
           }
           assert(req->e);
@@ -1955,7 +1996,7 @@ int stats_get_latency(struct hash_table *hash_table)
             min_latency = p->min_txn_latency;
 
         if (max_latency < p->max_txn_latency)
-            max_latency = p->max_txn_latency;        
+            max_latency = p->max_txn_latency;
 
         ntxns += p->q_idx;
     }
@@ -2094,4 +2135,3 @@ double stats_get_tps(struct hash_table *hash_table)
 
   return tps;
 }
-

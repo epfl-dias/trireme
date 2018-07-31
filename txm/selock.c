@@ -1173,7 +1173,7 @@ void selock_dl_detect_release(struct partition *p, struct op_ctx *octx)
         if (lock_entry->optype == OPTYPE_LOOKUP) {
             conflict = !is_value_ready(e);
         } else {
-            assert(lock_entry->optype == OPTYPE_UPDATE);
+            assert(lock_entry->optype == OPTYPE_UPDATE || lock_entry->optype == OPTYPE_DELETE);
             conflict = (!is_value_ready(e)) || ((e->ref_count & ~DATA_READY_MASK) > 1);
         }
 

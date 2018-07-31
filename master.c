@@ -1,3 +1,4 @@
+
 /*
  * master.c
  *
@@ -9,6 +10,7 @@
 #include "benchmark.h"
 #include "worker.h"
 #include "smphashtable.h"
+#include "se_dl_detect_graph.h"
 #include "partition.h"
 
 void *hash_table_server(void* args)
@@ -239,7 +241,3 @@ void start_hash_table_servers(struct hash_table *hash_table)
 //		assert(r == 0);
 	}
 }
-
-
-
-

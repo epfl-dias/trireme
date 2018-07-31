@@ -13,7 +13,7 @@ int query_shift     = 2;
 
 int QID[MAX_CLIENTS];
 
-int iters_per_client; 
+int iters_per_client;
 
 struct client_data {
     unsigned int seed;
@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
     g_verbosity = 0;
     g_benchmark = &micro_bench;
 
+
     if (argc < 2)
         help();
 
@@ -83,6 +84,8 @@ int main(int argc, char *argv[])
                         break;
                     case 2:
                         g_benchmark = &tpcc_bench;
+                        init_tpcc_seq_array();
+                        tpcc_flag = 1;
                         break;
                 }
                 break;
@@ -183,8 +186,13 @@ int main(int argc, char *argv[])
 #endif
 
     // round down nrecs to a partition multiple
-    g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;
-
+    if(tpcc_flag){
+      g_nrecs = (g_startup_servers*( card_ware_house + card_district + card_customer + card_order + card_order_line + card_stock + card_new_order + card_history) + card_item);
+    }
+    else{
+      g_nrecs = (g_nrecs / g_startup_servers) * g_startup_servers;
+    }
+    assert(g_nrecs !=0);
     assert(g_benchmark);
 
     run_benchmark();
@@ -192,9 +200,10 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void run_benchmark() 
+void run_benchmark()
 {
     srand(19890811);
+
 
     printf(" # servers:    %d\n", g_nservers);
     printf(" Key range:    0..2^%d\n", 31-query_shift);
@@ -211,6 +220,10 @@ void run_benchmark()
 #endif //ENABLE_DL_DETECT_CC
     hash_table = create_hash_table();
 
+    for(int s = 0 ; s < g_nservers ; ++s){
+      hash_table->partitions[s].next_Transaction = 0;
+    }
+
     start_hash_table_servers(hash_table);
 
     printf("== results ==\n");
@@ -218,17 +231,21 @@ void run_benchmark()
     stats_get_naborts(hash_table);
     stats_get_ncommits(hash_table);
 
+
+
 #if GATHER_STATS
     //stats_get_task_stats(hash_table);
+    if(tpcc_flag){
+      print_tpcc_mix(g_nservers, hash_table);
+    }
+
     stats_get_nlookups(hash_table);
     stats_get_ninserts(hash_table);
     stats_get_nupdates(hash_table);
     stats_get_latency(hash_table);
-
     if (g_verbosity == 1) {
         struct elem *e = (struct elem *) malloc(sizeof(struct elem));
         uint64_t *freqs = (uint64_t *) calloc(g_nrecs, sizeof(uint64_t));
-
         for (int s = 0; s < g_nservers; s++) {
             printf("Logging srv %d\n", s);
             struct partition *p = &hash_table->partitions[s];
@@ -256,4 +273,3 @@ void run_benchmark()
 
     destroy_hash_table(hash_table);
 }
-

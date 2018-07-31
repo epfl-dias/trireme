@@ -9,6 +9,8 @@
 #define MAKE_DIST_KEY(w,d) (w * TPCC_NDIST_PER_WH + d)
 #define MAKE_CUST_KEY(w,d,c) (MAKE_DIST_KEY(w,d) * TPCC_NCUST_PER_DIST + c)
 #define MAKE_OL_KEY(w,d,o,ol) (MAKE_CUST_KEY(w,d,o) * TPCC_MAX_OL_PER_ORDER + ol)
+#define MAKE_O_KEY(w,d,o) (MAKE_CUST_KEY(w,d,o))
+#define MAKE_NO_KEY(w,d,o) (MAKE_CUST_KEY(w,d,o))
 
 #define TPCC_MAX_ITEMS 100000
 #define TPCC_NDIST_PER_WH 10
@@ -18,6 +20,9 @@
 #define FIRST_NAME_MIN_LEN 8
 #define FIRST_NAME_LEN 16
 #define LAST_NAME_LEN 16
+
+#define STOCK_TID_DEC 158329674399744
+
 
 #define WAREHOUSE_TID 0x0000100000000000
 
