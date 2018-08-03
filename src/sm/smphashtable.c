@@ -1983,7 +1983,7 @@ int stats_get_task_stats(struct hash_table *hash_table) {
 }
 #endif
 
-int stats_get_latency(struct hash_table *hash_table)
+void stats_get_latency(struct hash_table *hash_table)
 {
 
     double total_latency = 0, min_latency = UINT64_MAX, max_latency = 0;
@@ -2005,7 +2005,6 @@ int stats_get_latency(struct hash_table *hash_table)
             "min latency %f us, max_latency %f us\n", total_latency, ntxns,
             total_latency * 1000000 / ntxns, min_latency * 1000000,
             max_latency * 1000000);
-
 }
 
 int stats_get_nlookups(struct hash_table *hash_table)
