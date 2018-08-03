@@ -39,7 +39,7 @@ double now();
 
 static inline void* swap_pointer(volatile void* ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"
-            :"=r" ((unsigned long long) x)
+            :"=r" (x)
             :"m" (*(volatile long long *)ptr), "0" ((unsigned long long) x)
             :"memory");
 
@@ -61,7 +61,7 @@ static inline int min(int a, int b)
 static inline unsigned xchg_32(void *ptr, unsigned x)
 {
   __asm__ __volatile__("xchgl %0,%1"
-        :"=r" ((unsigned) x)
+        :"=r" (x)
         :"m" (*(volatile unsigned *)ptr), "0" (x)
         :"memory");
 
