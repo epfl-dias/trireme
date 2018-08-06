@@ -370,7 +370,7 @@ struct hash_query *get_next_query(struct hash_table *hash_table, int s,
         assert(0);
     }
 
-    idx = (++idx) % NQUERIES_PER_TASK;
+    idx = (idx + 1) % NQUERIES_PER_TASK;
 
   } while (idx != ctask->qidx && target_query == NULL);
 
