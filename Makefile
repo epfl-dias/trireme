@@ -40,11 +40,15 @@ OBJS = $(SRCS:.c=.o)
 DEPS = $(wildcard *.h)
 
 all: llvm | trireme
+	@echo "-----------------------------------------------------------------------"
+	@echo ""
 
 trireme: ${OBJS}
+	@echo "[LD] $(subst ${SRC_DIR}/,,$@)"
 	${CC} -o $@ $^ ${LDFLAGS}
 
 %.o: %.c ${DEPS}
+	@echo "[CC] $(subst ${SRC_DIR}/,,$@)"
 	${CC} -c ${CFLAGS} ${CPPFLAGS} -o $@ $<
 
 #######################################################################
@@ -129,6 +133,16 @@ do-checkout-llvm:
 	cd ${BSD_DIR}/llvm/tools/clang && git cherry-pick 5f76154960a51843d2e49c9ae3481378e09e61ef
 
 #######################################################################
+# Clean targets
+#######################################################################
+
+clean-trireme:
+	-rm -f trireme ${OBJS}
+	# LSC: FIXME, objects should be moved to BUILD_DIR/trireme
+	#-rm .$$(echo $@ | sed -e 's,clean-,,').*_done
+	#-rm -rf  ${BUILD_DIR}/$$(echo $@ | sed -e 's,clean-,,')
+
+#######################################################################
 # Makefile utils / Generic targets
 #######################################################################
 ifeq (${VERBOSE},0)
@@ -176,8 +190,7 @@ dist-clean:
 	-git clean -dxf .
 
 .PHONY: clean
-clean:
-	-rm -f trireme ${OBJS}
+clean: clean-trireme
 
 PHONY: dist-clean-%
 dist-clean-%: clean-%
@@ -205,7 +218,8 @@ do-build-%: .%.configure_done
 
 .PHONY: do-checkout-%
 do-checkout-%:
-	git submodule update --init --recursive src/$$(echo $@ | sed -e 's,do-checkout-,,')
+	git submodule update --init --recursive \
+		$$(git submodule status | grep $$(echo $@ | sed -e 's,do-checkout-,,') | cut -d ' ' -f 3)
 
 .PRECIOUS: .%.install_done
 .%.install_done: .%.build_done
