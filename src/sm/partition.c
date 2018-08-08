@@ -86,8 +86,14 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
 #endif
 
   if (alloc) {
-    printf("Server(%ld): Allocating %d buckets of size %zd for HT\n",
-            p - hash_table->partitions , p->nhash, sizeof(struct bucket));
+    if (p == hash_table->g_partition) {
+      printf("Global HT: Allocating %d buckets of size %zd\n",
+            p->nhash, sizeof(struct bucket));
+
+    } else {
+      printf("Server %ld: Allocating %d buckets of size %zd for HT\n",
+              p - hash_table->partitions, p->nhash, sizeof(struct bucket));
+    }
 
     p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));
     assert((unsigned long) &(p->table[0]) % CACHELINE == 0);
