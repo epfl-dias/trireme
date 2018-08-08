@@ -66,6 +66,12 @@
 #define RUN_TIME 60000000
 #define HOTPLUG_WAIT_TIME 10000000
 
+/* The custom code is currently broken, so do not use it by
+ * default. We might think about removing it altogether if that research
+ * line is not to be pursued.
+ */
+#define NO_CUSTOM_SWAP_CONTEXT 1
+
 #if defined(SHARED_EVERYTHING) || defined(SHARED_NOTHING)
 // by default, disable socket local for shared everything/nothing
 #else
