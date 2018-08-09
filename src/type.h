@@ -539,20 +539,8 @@ struct partition {
 /**
  * Server/Client Message Passing Data Structures
  */
-struct onewaybuffer {
-  volatile uint64_t data[ONEWAY_BUFFER_SIZE];
-  volatile unsigned long rd_index;
-  volatile char padding0[CACHELINE - sizeof(long)];
-  volatile unsigned long wr_index;
-  volatile char padding1[CACHELINE - sizeof(long)];
-  volatile unsigned long tmp_wr_index;
-  volatile char padding2[CACHELINE - sizeof(long)];
-} __attribute__ ((aligned (CACHELINE)));
 
-struct box {
-  struct onewaybuffer in;
-  struct onewaybuffer out;
-}  __attribute__ ((aligned (CACHELINE)));
+struct box; /* Forward declaration */
 
 struct box_array {
   struct box *boxes;

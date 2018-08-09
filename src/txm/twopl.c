@@ -3,7 +3,6 @@
 #include "plmalloc.h"
 
 #if ENABLE_DL_DETECT_CC
-#include "onewaybuffer.h"
 #include "se_dl_detect_graph.h"
 #include "glo.h"
 #endif
@@ -912,7 +911,7 @@ void update_dependencies(int s, struct partition *p, struct lock_entry *to_remov
 		memcpy(&deps_msg[deps_msg_cnt], de->msg, 2 * sizeof(uint64_t));
 		deps_msg_cnt += 2;
 	}
-	buffer_write_all(&boxes[g_nservers - 1].boxes[s].out, deps_msg_cnt, deps_msg, 1);
+	ring_buffer_write_all(&boxes[g_nservers - 1].boxes[s].out, deps_msg_cnt, deps_msg, 1);
 
 	de = LIST_FIRST(&clr_dependencies);
 	while (de != NULL) {

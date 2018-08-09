@@ -47,11 +47,11 @@
 #define MAX_SERVERS 128 // must be power of 2
 #endif
 
-/* commn. buffer constants */
+/* comm. buffer constants */
 #if ENABLE_DL_DETECT_CC
-#define ONEWAY_BUFFER_SIZE  (1024 * (CACHELINE >> 3))
+#define RING_BUFFER_SIZE  (1024 * (CACHELINE >> 3))
 #else
-#define ONEWAY_BUFFER_SIZE  (32 * (CACHELINE >> 3))
+#define RING_BUFFER_SIZE  (32 * (CACHELINE >> 3))
 #endif // ENABLE_DL_DETECT_CC
 
 #define BUFFER_FLUSH_COUNT  8
