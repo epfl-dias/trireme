@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include <emmintrin.h> /* For __mm_pause */
+#include <emmintrin.h> /* For _mm_pause */
 
 #include "const.h"
 #include "ring_buffer.h"
 
 /* Public functions */
-void ring_buffer_write(struct ring_buffer* buffer, uint64_t data)
+void
+ring_buffer_write(struct ring_buffer* buffer, uint64_t data)
 {
   // wait till there is space in buffer
   assert (buffer->tmp_wr_index < buffer->rd_index + RING_BUFFER_SIZE);
@@ -20,7 +21,8 @@ void ring_buffer_write(struct ring_buffer* buffer, uint64_t data)
   }
 }
 
-void ring_buffer_write_all(struct ring_buffer* buffer, int write_count, const uint64_t* data, int force_flush) 
+void
+ring_buffer_write_all(struct ring_buffer* buffer, int32_t write_count, const uint64_t* data, int32_t force_flush) 
 {
   assert(write_count <= RING_BUFFER_SIZE);
 
@@ -30,7 +32,7 @@ void ring_buffer_write_all(struct ring_buffer* buffer, int write_count, const ui
   */
   assert (buffer->tmp_wr_index + write_count - 1 < buffer->rd_index + RING_BUFFER_SIZE); 
 
-  for (int i = 0; i < write_count; i++) {
+  for (int32_t i = 0; i < write_count; i++) {
     buffer->data[(buffer->tmp_wr_index + i) & (RING_BUFFER_SIZE - 1)] = data[i];
   }
   buffer->tmp_wr_index += write_count;
@@ -39,7 +41,8 @@ void ring_buffer_write_all(struct ring_buffer* buffer, int write_count, const ui
   }
 }
 
-void ring_buffer_flush(struct ring_buffer* buffer)
+void
+ring_buffer_flush(struct ring_buffer* buffer)
 {
 
   if (buffer->wr_index == buffer->tmp_wr_index)
@@ -51,9 +54,10 @@ void ring_buffer_flush(struct ring_buffer* buffer)
   buffer->wr_index = buffer->tmp_wr_index;
 }
 
-int ring_buffer_read_all(struct ring_buffer* buffer, int max_read_count, uint64_t* data, int blocking)
+int32_t
+ring_buffer_read_all(struct ring_buffer* buffer, int32_t max_read_count, uint64_t* data, int32_t blocking)
 {
-  int count = buffer->wr_index - buffer->rd_index;
+  int32_t count = buffer->wr_index - buffer->rd_index;
   if (count == 0 && !blocking)
     return 0;
 
@@ -63,7 +67,7 @@ int ring_buffer_read_all(struct ring_buffer* buffer, int max_read_count, uint64_
 
   if (max_read_count < count) count = max_read_count;
 
-  for (int i = 0; i < count; i++) {
+  for (int32_t i = 0; i < count; i++) {
     data[i] = buffer->data[(buffer->rd_index + i) & (RING_BUFFER_SIZE - 1)];
   }
   buffer->rd_index += count;
@@ -71,23 +75,25 @@ int ring_buffer_read_all(struct ring_buffer* buffer, int max_read_count, uint64_
 }
 
 
-int ring_buffer_peek(struct ring_buffer* buffer, int max_read_count, uint64_t* data)
+int32_t
+ring_buffer_peek(struct ring_buffer* buffer, int32_t max_read_count, uint64_t* data)
 {
-  int count = buffer->wr_index - buffer->rd_index;
+  int32_t count = buffer->wr_index - buffer->rd_index;
 
   if (!count)
     return 0;
 
   if (max_read_count < count) count = max_read_count;
 
-  for (int i = 0; i < count; i++) {
+  for (int32_t i = 0; i < count; i++) {
     data[i] = buffer->data[(buffer->rd_index + i) & (RING_BUFFER_SIZE - 1)];
   }
 
   return count;
 }
 
-void ring_buffer_seek(struct ring_buffer *buffer, int count)
+void
+ring_buffer_seek(struct ring_buffer *buffer, int32_t count)
 {
   buffer->rd_index += count;
 }
