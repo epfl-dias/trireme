@@ -48,11 +48,11 @@
 #endif
 
 /* comm. buffer constants */
-#if ENABLE_DL_DETECT_CC
+#if defined(ENABLE_DL_DETECT_CC)
 #define RING_BUFFER_SIZE  (1024 * (CACHELINE >> 3))
 #else
 #define RING_BUFFER_SIZE  (32 * (CACHELINE >> 3))
-#endif // ENABLE_DL_DETECT_CC
+#endif /* defined(ENABLE_DL_DETECT_CC) */
 
 #define BUFFER_FLUSH_COUNT  8
 

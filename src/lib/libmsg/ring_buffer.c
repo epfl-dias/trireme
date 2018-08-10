@@ -1,13 +1,45 @@
 #include <assert.h>
+#include <malloc.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <emmintrin.h> /* For _mm_pause */
 
 #include "const.h"
 #include "ring_buffer.h"
 
+struct ring_buffer {
+  volatile uint64_t data[RING_BUFFER_SIZE];
+  volatile uint32_t rd_index;
+  volatile uint8_t padding0[CACHELINE - sizeof(uint32_t)];
+  volatile uint32_t wr_index;
+  volatile uint8_t padding1[CACHELINE - sizeof(uint32_t)];
+  volatile uint32_t tmp_wr_index;
+  volatile uint8_t padding2[CACHELINE - sizeof(uint32_t)];
+} __attribute__ ((aligned (CACHELINE)));
+
 /* Public functions */
+void
+ring_buffer_alloc(struct ring_buffer** buffer)
+{
+  assert(NULL != buffer);
+
+  *buffer = memalign(CACHELINE, sizeof(struct ring_buffer));
+  assert(0 == ((uintptr_t) *buffer % CACHELINE));
+
+  memset(*buffer, 0, sizeof(struct ring_buffer));
+}
+
+void
+ring_buffer_free(struct ring_buffer** buffer)
+{
+  assert(NULL != buffer);
+  assert(NULL != *buffer);
+
+  free(*buffer);
+}
+
 void
 ring_buffer_write(struct ring_buffer* buffer, uint64_t data)
 {
@@ -58,7 +90,7 @@ int32_t
 ring_buffer_read_all(struct ring_buffer* buffer, int32_t max_read_count, uint64_t* data, int32_t blocking)
 {
   int32_t count = buffer->wr_index - buffer->rd_index;
-  if (count == 0 && !blocking)
+  if (0 == count && !blocking)
     return 0;
 
   while (!(count = buffer->wr_index - buffer->rd_index)) {
@@ -80,7 +112,7 @@ ring_buffer_peek(struct ring_buffer* buffer, int32_t max_read_count, uint64_t* d
 {
   int32_t count = buffer->wr_index - buffer->rd_index;
 
-  if (!count)
+  if (0 == count)
     return 0;
 
   if (max_read_count < count) count = max_read_count;
