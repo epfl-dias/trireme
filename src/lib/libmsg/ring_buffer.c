@@ -7,6 +7,7 @@
 #include <emmintrin.h> /* For _mm_pause */
 
 #include "const.h"
+#define MESSAGES_H_	/* We are in libmsg. */
 #include "ring_buffer.h"
 
 struct ring_buffer {

@@ -540,11 +540,7 @@ struct partition {
  * Server/Client Message Passing Data Structures
  */
 
-struct box; /* Forward declaration */
-
-struct box_array {
-  struct box *boxes;
-} __attribute__ ((aligned (CACHELINE)));
+struct box_array;
 
 struct thread_args {
   int id;

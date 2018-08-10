@@ -33,7 +33,7 @@ CPPFLAGS ?=
 CPPFLAGS += -D_GNU_SOURCE -D${PLATFORM}
 CPPFLAGS += $(foreach dir, $(SRC_DIRS), -I$(dir)/)
 
-LDFLAGS = -lpthread -lm -lrt -lnuma
+LDFLAGS += -lpthread -lm -lrt -lnuma
 
 SRCS = $(foreach dir, $(SRC_DIRS), $(wildcard $(dir)/*.c))
 OBJS = $(SRCS:.c=.o)

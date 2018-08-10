@@ -12,6 +12,8 @@
 #include "glo.h"
 #endif
 
+#include "messages.h"
+
 extern int write_threshold;
 
 #if defined(ENABLE_WAIT_DIE_CC) || defined(ENABLE_BWAIT_CC) || defined(ENABLE_SILO_CC)
@@ -589,7 +591,6 @@ void update_dependencies(int s, struct partition *p, struct lock_entry *to_remov
 	int added_dependencies = 0;
 	int cleared_dependencies = 0;
 
-	struct box_array *boxes = hash_table->boxes;
 	// if we remove a reader
 	if (to_remove->optype == OPTYPE_LOOKUP) {
 		// find the first writer before the element to remove
@@ -916,7 +917,7 @@ void update_dependencies(int s, struct partition *p, struct lock_entry *to_remov
 		memcpy(&deps_msg[deps_msg_cnt], de->msg, 2 * sizeof(uint64_t));
 		deps_msg_cnt += 2;
 	}
-	ring_buffer_write_all(&boxes[g_nservers - 1].boxes[s].out, deps_msg_cnt, deps_msg, 1);
+	msg_send(hash_table->boxes, g_nservers - 1, s, MSG_OUT | MSG_FLUSH, deps_msg_cnt, deps_msg);
 
 	de = LIST_FIRST(&clr_dependencies);
 	while (de != NULL) {

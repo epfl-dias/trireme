@@ -1,7 +1,7 @@
 #include <sys/sysinfo.h>
 
 #include "headers.h"
-#include "ring_buffer.h"
+#include "messages.h"
 #include "partition.h"
 #include "smphashtable.h"
 #include "benchmark.h"
@@ -46,7 +46,8 @@ struct hash_table *create_hash_table()
   hash_table->keys = NULL;
   hash_table->partitions = memalign(CACHELINE, g_nservers * sizeof(struct partition));
   hash_table->g_partition = memalign(CACHELINE, sizeof(struct partition));
-  hash_table->boxes = memalign(CACHELINE, MAX_CLIENTS * sizeof(struct box_array));
+
+  msg_alloc(&hash_table->boxes, MAX_CLIENTS, g_nservers);
 
   pthread_mutex_init(&hash_table->create_client_lock, NULL);
 
@@ -72,8 +73,6 @@ struct hash_table *create_hash_table()
 
   hash_table->threads = (pthread_t *)malloc(g_nservers * sizeof(pthread_t));
   hash_table->thread_data = (struct thread_args *)malloc(g_nservers * sizeof(struct thread_args));
-
-  create_hash_table_client(hash_table);
 
   /*
   if (g_alpha != 0) {
@@ -114,15 +113,7 @@ void destroy_hash_table(struct hash_table *hash_table)
   free(hash_table->partitions);
   free(hash_table->g_partition);
 
-  for (int i = 0; i < g_nservers; i++) {
-    for (int j = 0; j < g_nservers; j++) {
-      ring_buffer_free(&hash_table->boxes[i].boxes[j].in);
-      ring_buffer_free(&hash_table->boxes[i].boxes[j].out);
-    }
-    free(hash_table->boxes[i].boxes);
-  }
-
-  free(hash_table->boxes);
+  msg_free(&hash_table->boxes);
 
   free(hash_table->threads);
   free(hash_table->thread_data);
@@ -210,20 +201,6 @@ void start_hash_table_servers_hotplug(struct hash_table *hash_table, int hotplug
 	}
 }
 #endif //0
-
-void create_hash_table_client(struct hash_table *hash_table)
-{
-  for (int i = 0; i < g_nservers; i++) {
-    hash_table->boxes[i].boxes = memalign(CACHELINE, g_nservers * sizeof(struct box));
-    assert((unsigned long) &hash_table->boxes[i] % CACHELINE == 0);
-
-    for (int j = 0; j < g_nservers; j++) {
-      memset((void*)&hash_table->boxes[i].boxes[j], 0, sizeof(struct box));
-      ring_buffer_alloc(&hash_table->boxes[i].boxes[j].in);
-      ring_buffer_alloc(&hash_table->boxes[i].boxes[j].out);
-    }
-  }
-}
 
 struct elem *local_txn_op(struct task *ctask, int s, struct txn_ctx *ctx,
     struct partition *p, struct hash_op *op)
@@ -691,8 +668,7 @@ int txn_finish(struct task *ctask, struct hash_table *hash_table, int s,
 //  	  msg[0] = MAKE_HASH_MSG(ctask->tid - 2, ctask->s, (unsigned long) s, DL_DETECT_CLR_DEP);
 //  	  msg[1] = ctx->ts;
 //  	  dprint("srv (%d): clearing dependencies for srv %d\n", s, ctask->s);
-//  	  struct box_array *boxes = hash_table->boxes;
-//  	  ring_buffer_write_all(boxes[g_nservers - 1].boxes[s].out, 2, msg, 1);
+//  	  msg_send(hash_table->boxes, g_nservers - 1, s, MSG_OUT | MSG_FLUSH, 2, msg);
 //    }
 #endif
 
@@ -977,7 +953,6 @@ int txn_commit(struct task *ctask, struct hash_table *hash_table, int s, int mod
 
 void process_requests(struct hash_table *hash_table, int s)
 {
-  struct box_array *boxes = hash_table->boxes;
   uint64_t inbuf[RING_BUFFER_SIZE];
   struct partition *p = &hash_table->partitions[s];
   int s_coreid = hash_table->thread_data[s].core;
@@ -1054,9 +1029,10 @@ void process_requests(struct hash_table *hash_table, int s)
     int abt_srv = -1;
 #endif
 
+    size_t count = RING_BUFFER_SIZE;
 
-    struct ring_buffer *b = boxes[i].boxes[s].in;
-    int count = ring_buffer_peek(b, RING_BUFFER_SIZE, inbuf);
+    msg_receive(hash_table->boxes, i, s, MSG_IN, &count, inbuf);
+
     if (count == 0)
       continue;
 
@@ -1073,7 +1049,6 @@ void process_requests(struct hash_table *hash_table, int s)
      * 2) if success, send back data to caller
      * 3) if wait, don't do anything. data will be sent back later
      */
-    ring_buffer_seek(b, count);
     assert(count);
 
     dprint("srv(%d): read %zu messages from client %d\n", s, count, i);
@@ -1179,7 +1154,7 @@ void process_requests(struct hash_table *hash_table, int s)
 
           // reply back
           uint64_t out_msg = MAKE_HASH_MSG(tid, opid, (unsigned long)e, 0);
-          ring_buffer_write_all(boxes[i].boxes[s].out, 1, &out_msg, 0);
+          msg_send(hash_table->boxes, i, s, MSG_OUT, 1, &out_msg);
 
           j += INSERT_MSG_LENGTH;
 
@@ -1446,7 +1421,7 @@ void process_requests(struct hash_table *hash_table, int s)
          */
         if (s != req->s) {
         	dl_detect_release(s, p, req->s, req->tid, req->opid, req->e, 0);
-        	ring_buffer_write_all(boxes[req->s].boxes[s].out, 1, &out_msg, 1);
+        	msg_send(hash_table->boxes, req->s, s, MSG_OUT | MSG_FLUSH, 1, &out_msg);
 			dprint("SRV %d sent LOCK ABORT to SRV %d FIB %d KEY %"PRIu64"; msg = %ld\n", s, req->s, req->tid, req->e->key, out_msg);
         } else {
         	struct lock_entry *le;
@@ -1464,17 +1439,17 @@ void process_requests(struct hash_table *hash_table, int s)
         	dprint("SRV %d ABORTING local txn for FIB %d KEY %"PRIu64"; msg = %ld\n", s, req->tid, req->e->key, out_msg);
         }
 #else
-        ring_buffer_write_all(boxes[i].boxes[s].out, 1, &out_msg, 0);
+        msg_send(hash_table->boxes, i, s, MSG_OUT, 1, &out_msg);
 #endif
       } else if (r == LOCK_SUCCESS) {
         out_msg = MAKE_HASH_MSG(req->tid, req->opid, (unsigned long)req->e, 0);
-        ring_buffer_write_all(boxes[i].boxes[s].out, 1, &out_msg, 0);
+        msg_send(hash_table->boxes, i, s, MSG_OUT, 1, &out_msg);
       } else {
         assert (r == LOCK_WAIT);
       }
     }
 
-    ring_buffer_flush(boxes[i].boxes[s].out);
+    msg_flush(hash_table->boxes, i, s, MSG_OUT);
 #if ENABLE_DL_DETECT_CC
     all_reqs += nreqs;
 #endif
@@ -1641,9 +1616,9 @@ int smp_hash_lookup(struct task *ctask, struct hash_table *hash_table,
 #if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         // send timestamp as a payload in case of wait die cc
   msg_data[1] = ctask->txn_ctx.ts;
-  ring_buffer_write_all(hash_table->boxes[client_id].boxes[server].in, 2, msg_data, 0);
+  msg_send(hash_table->boxes, client_id, server, MSG_IN, 2, msg_data);
 #else
-  ring_buffer_write_all(hash_table->boxes[client_id].boxes[server].in, 1, msg_data, 0);
+  msg_send(hash_table->boxes, client_id, server, MSG_IN, 1, msg_data);
 #endif
 
   return 1;
@@ -1660,7 +1635,7 @@ int smp_hash_insert(struct hash_table *hash_table, int client_id, hash_key key, 
 
   dprint("srv(%d): sending insert for key %"PRIu64" to srv %d\n", client_id, key, s);
 
-  ring_buffer_write_all(hash_table->boxes[client_id].boxes[s].in, INSERT_MSG_LENGTH, msg_data, 0);
+  msg_send(hash_table->boxes, client_id, s, MSG_IN, INSERT_MSG_LENGTH, msg_data);
 
   return 1;
 }
@@ -1681,9 +1656,9 @@ int smp_hash_update(struct task *ctask, struct hash_table *hash_table,
 #if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         // send timestamp as a payload in case of wait die cc
   msg_data[1] = ctask->txn_ctx.ts;
-  ring_buffer_write_all(hash_table->boxes[client_id].boxes[server].in, 2, msg_data, 0);
+  msg_send(hash_table->boxes, client_id, server, MSG_IN, 2, msg_data);
 #else
-  ring_buffer_write_all(hash_table->boxes[client_id].boxes[server].in, 1, msg_data, 0);
+  msg_send(hash_table->boxes, client_id, server, MSG_IN, 1, msg_data);
 #endif
 
   return 1;
@@ -1696,7 +1671,6 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
   int r, i;
   uint64_t val;
 
-  struct box_array *boxes = hash_table->boxes;
   uint64_t msg_data[3];
 
   for(int i = 0; i < nqueries; i++) {
@@ -1719,9 +1693,9 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 #if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         // send timestamp as a payload in case of wait die cc
         msg_data[1] = ctask->txn_ctx.ts;
-        ring_buffer_write_all(boxes[client_id].boxes[s].in, 2, msg_data, 0);
+        msg_send(hash_table->boxes, client_id, s, MSG_IN, 2, msg_data);
 #else
-        ring_buffer_write_all(boxes[client_id].boxes[s].in, 1, msg_data, 0);
+        msg_send(hash_table->boxes, client_id, s, MSG_IN, 1, msg_data);
 #endif
 
 #if GATHER_STATS
@@ -1739,9 +1713,9 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 
 #if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         msg_data[1] = ctask->txn_ctx.ts;
-        ring_buffer_write_all(boxes[client_id].boxes[s].in, 2, msg_data, 0);
+        msg_send(hash_table->boxes, client_id, s, MSG_IN, 2, msg_data);
 #else
-        ring_buffer_write_all(boxes[client_id].boxes[s].in, 1, msg_data, 0);
+        msg_send(hash_table->boxes, client_id, s, MSG_IN, 1, msg_data);
 #endif
 
 #if GATHER_STATS
@@ -1757,7 +1731,7 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
         msg_data[0] = MAKE_HASH_MSG(ctask->tid, opid, queries[i]->key,
             HASHOP_CERTIFY);
 
-        ring_buffer_write_all(boxes[client_id].boxes[s].in, 1, msg_data, 0);
+        msg_send(hash_table->boxes, client_id, s, MSG_IN, 1, msg_data);
 
         break;
 
@@ -1774,9 +1748,9 @@ void smp_hash_doall(struct task *ctask, struct hash_table *hash_table,
 
 #if ENABLE_WAIT_DIE_CC || ENABLE_DL_DETECT_CC
         msg_data[2] = ctask->txn_ctx.ts;
-        ring_buffer_write_all(boxes[client_id].boxes[s].in, 3, msg_data, 0);
+        msg_send(hash_table->boxes, client_id, s, MSG_IN, 3, msg_data);
 #else
-        ring_buffer_write_all(boxes[client_id].boxes[s].in, 2, msg_data, 0);
+        msg_send(hash_table->boxes, client_id, s, MSG_IN, 2, msg_data);
 #endif
 
 #if GATHER_STATS
@@ -1833,7 +1807,7 @@ void smp_flush_all(struct hash_table *hash_table, int client_id)
         hash_table->boxes[client_id].boxes[i].in.tmp_wr_index);
     */
 
-    ring_buffer_flush(hash_table->boxes[client_id].boxes[i].in);
+    msg_flush(hash_table->boxes, client_id, i, MSG_IN);
   }
 }
 
@@ -1878,8 +1852,8 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id,
   dprint("srv(%d): sending release msg %"PRIu64" for key %"PRIu64
       " rc %"PRIu64" to %d\n", client_id, msg_data, e->key, e->ref_count, s);
 
-  ring_buffer_write_all(hash_table->boxes[client_id].boxes[s].in, 1, &msg_data,
-          force_flush);
+  uint32_t flush = (force_flush != 0 ? MSG_FLUSH : 0);
+  msg_send(hash_table->boxes, client_id, s, MSG_IN | flush, 1, &msg_data);
 
   /* printf("srv(%d): buffer %d post release rd count %d wcount %d twcount %d\n",
       client_id, s, hash_table->boxes[client_id].boxes[s].in.rd_index,
@@ -1914,7 +1888,7 @@ void mp_release_plock(int s, int c)
 {
   uint64_t msg_data = HASHOP_PLOCK_RELEASE;
 
-  ring_buffer_write_all(hash_table->boxes[s].boxes[c].in, 1, &msg_data, 1);
+  msg_send(hash_table->boxes, s, c, MSG_IN | MSG_FLUSH, 1, &msg_data);
 }
 
 void mp_send_reply(int s, int c, short task_id, short op_id, struct elem *e)
@@ -1924,7 +1898,7 @@ void mp_send_reply(int s, int c, short task_id, short op_id, struct elem *e)
 
   uint64_t msg_data = MAKE_HASH_MSG(task_id, op_id, (unsigned long)e, 0);
 
-  ring_buffer_write_all(hash_table->boxes[c].boxes[s].out, 1, &msg_data, 1);
+  msg_send(hash_table->boxes, c, s, MSG_OUT | MSG_FLUSH, 1, &msg_data);
 }
 
 /**

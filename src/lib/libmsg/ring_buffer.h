@@ -1,16 +1,15 @@
 #if !defined(RING_BUFFER_H_)
 #define RING_BUFFER_H_
 
+#if !defined(MESSAGES_H_)
+#error ring_buffer.h is a private header of libmsg
+#endif /* !defined(MESSAGES_H_) */
+
 #if ((RING_BUFFER_SIZE % CACHELINE) != 0)
 #error RING_BUFFER_SIZE must be aligned to CACHELINE
 #endif
 
 struct ring_buffer; /* Forward declaration */
-
-struct box {
-  struct ring_buffer * in;
-  struct ring_buffer * out;
-} __attribute__ ((aligned (CACHELINE)));
 
 /* Allocate a ring buffer of size RING_BUFFER_SIZE.
  * buffer: OUT parameter. */

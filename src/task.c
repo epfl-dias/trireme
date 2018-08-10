@@ -1,6 +1,6 @@
 #include "headers.h"
 #include "smphashtable.h"
-#include "ring_buffer.h"
+#include "messages.h"
 #include "benchmark.h"
 #include <sys/mman.h>
 #if ENABLE_DL_DETECT_CC
@@ -118,7 +118,6 @@ void unblock_fn(int s, int tid)
 {
   struct partition *p = &hash_table->partitions[s];
   struct task *self = &p->unblock_task;
-  struct box_array *boxes = hash_table->boxes;
   struct task *t;
 
   while (1) {
@@ -151,13 +150,12 @@ void unblock_fn(int s, int tid)
     //smp_flush_all(hash_table, s);
 #if !defined(MIGRATION)
     for (int i = 0; i < g_nservers; i++) {
-      struct ring_buffer *b = boxes[s].boxes[i].out;
       uint64_t data[RING_BUFFER_SIZE];
+      size_t count = RING_BUFFER_SIZE;
 
-      int count = ring_buffer_peek(b, RING_BUFFER_SIZE, data);
+      msg_receive(hash_table->boxes, s, i, MSG_OUT, &count, data);
 
       if (count) {
-        ring_buffer_seek(b, count);
         dprint("srv(%d): got %zu msges from %d\n", s, count, i);
 
         for (int j = 0; j < count; j++) {
@@ -189,7 +187,6 @@ void dl_detect_fn(int s)
 {
   struct partition *p = &hash_table->partitions[s];
   struct task *self = &p->unblock_task;
-  struct box_array *boxes = hash_table->boxes;
   struct task *t;
 
   int detect_cycle = 0;
@@ -210,14 +207,14 @@ void dl_detect_fn(int s)
 
     // read the adjacency lists from the other servers
     for (int i = 0; i < (g_nservers - 1); i ++) {
-    	struct ring_buffer *b = boxes[s].boxes[i].out;
-    	uint64_t data[RING_BUFFER_SIZE];
-    	int count = ring_buffer_peek(b, RING_BUFFER_SIZE, data);
+      uint64_t data[RING_BUFFER_SIZE];
+      size_t count = RING_BUFFER_SIZE;
+
+      msg_receive(hash_table->boxes, s, i, MSG_OUT, &count, data);
     	if (count) {
-		ring_buffer_seek(b, count);
     		dprint("DL_DETECT SRV(%d): got %zu messages from %d\n", s, count, i);
 
-			int j = 0;
+    		int j = 0;
     		while (j < count) {
     			uint64_t op = data[j] & HASHOP_MASK;
 
@@ -231,7 +228,7 @@ void dl_detect_fn(int s)
 								uint64_t msg[2];
 								msg[0] = MAKE_HASH_MSG(deadlock_node.fib, deadlock_node.srv, (unsigned long) deadlock_node.e, DL_DETECT_ABT_TXN);
 								msg[1] = MAKE_TS_MSG(deadlock_node.opid, deadlock_node.ts);
-								ring_buffer_write_all(boxes[g_nservers - 1].boxes[deadlock_node.sender_srv].in, 2, msg, 1);
+								msg_send(hash_table->boxes, g_nservers - 1, deadlock_node.sender_srv, MSG_IN | MSG_FLUSH, 2, msg);
 								dprint("DL_DETECT SRV(%d): Sent ABORT message to srv %d for srv %d fib %d key %ld opid %d\n",
 										s, deadlock_node.sender_srv, deadlock_node.srv, deadlock_node.fib, deadlock_node.e->key, deadlock_node.opid);
 								mp_dl_detect_clear_dependencies(&src);
@@ -299,7 +296,7 @@ void dl_detect_fn(int s)
 						uint64_t msg[2];
 						msg[0] = MAKE_HASH_MSG(deadlock_node.fib, deadlock_node.srv, (unsigned long) deadlock_node.e, DL_DETECT_ABT_TXN);
 						msg[1] = MAKE_TS_MSG(deadlock_node.opid, deadlock_node.ts);
-						ring_buffer_write_all(boxes[g_nservers - 1].boxes[deadlock_node.sender_srv].in, 2, msg, 1);
+						msg_send(hash_table->boxes, g_nservers - 1, deadlock_node.sender_srv, MSG_IN | MSG_FLUSH, 2, msg);
 						dprint("DL_DETECT SRV(%d): Sent ABORT message to srv %d for srv %d fib %d key %ld opid %d\n",
 										s, deadlock_node.sender_srv, deadlock_node.srv, deadlock_node.fib, deadlock_node.e->key, deadlock_node.opid);
 						mp_dl_detect_clear_dependencies(&src);
@@ -602,7 +599,7 @@ void task_yield(struct partition *p, task_state state)
 void send_migration(struct task *ctask, int target) {
     uint64_t msg;
     msg = MAKE_HASH_MSG(0, 0, (long unsigned int)ctask, HASHOP_MIGRATE);
-    ring_buffer_write_all(hash_table->boxes[ctask->s].boxes[target].in, 1, &msg, 1);
+    msg_send(hash_table->boxes, ctask->s, target, MSG_IN | MSG_FLUSH, 1, &msg);
 }
 
 void task_resume_migration(struct task *ctask, struct partition *p) {
