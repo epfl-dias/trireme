@@ -150,22 +150,57 @@ ifeq (${VERBOSE},0)
 .SILENT:
 endif
 
+ifeq (${COVERAGE},1)
+# Compile with code coverage options
+CFLAGS	+= -fprofile-instr-generate -fcoverage-mapping
+LDFLAGS	+= -fprofile-instr-generate
+
+default.merge:
+	${INSTALL_DIR}/bin/llvm-profdata merge -output=default.merge -instr default.profraw
+
+.PHONY: cov-merge
+cov-merge: default.merge
+
+.PHONY: cov-show
+cov-show: default.merge
+	${INSTALL_DIR}/bin/llvm-cov show trireme -instr-profile=default.merge
+
+.PHONY: cov-report
+cov-report: default.merge
+	${INSTALL_DIR}/bin/llvm-cov report trireme -instr-profile=default.merge
+
+.PHONY: cov
+cov: default.merge
+	${INSTALL_DIR}/bin/llvm-cov cov trireme -instr-profile=default.merge
+endif
+
 .PHONY: help
 help:
 	@echo "-----------------------------------------------------------------------"
 	@echo "The general commands are available:"
 	@echo " * show-config		Display configuration variables such as paths,"
-	@echo " 			number of jobs and other tunable options."
+	@echo " 			  number of jobs and other tunable options."
 	@echo " * clean 		Remove trireme object files and binaries."
 	@echo " * dist-clean		Cleans the repository to a pristine state,"
-	@echo " 			just like after a new clone of the sources."
+	@echo " 			  just like after a new clone of the sources."
+	@echo "-----------------------------------------------------------------------"
+	@echo "If the COVERAGE variable is set to '1' while building, the following "
+	@echo "target can be used as well while COVERAGE=1 is set: "
+	@echo " * cov-merge		After running the program, use this to prepare"
+	@echo " 			  the profile data for reporting."
+	@echo " 			  This is called automatically when needed"
+	@echo " 			  from the two following targets."
+	@echo " * cov-show		Show each line of code and the number of"
+	@echo " 			  execution of that line."
+	@echo " * cov-report		Show a table with filename and the percentage "
+	@echo " 			  of line executed in that file."
 	@echo "-----------------------------------------------------------------------"
 	@echo " In the following targets, '%' can be replaced by one of the external"
 	@echo " project among the following list: llvm"
 	@echo ""
 	@echo " * clean-%		Removes the object files of '%'"
 	@echo " * dist-clean-%		Removes everything from project '%', forcing a"
-	@echo " 			build from scratch of '%'."
+	@echo " 			  build from scratch of '%'."
 	@echo "-----------------------------------------------------------------------"
 
 .PHONY: show-config
