@@ -6,6 +6,8 @@
 #include <limits.h>
 
 #ifdef DEBUG
+#include "stdio.h"
+
 #define dprint(...) \
 {\
   printf(__VA_ARGS__); \

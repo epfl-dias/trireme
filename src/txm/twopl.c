@@ -1,6 +1,11 @@
-#include "headers.h"
-#include "smphashtable.h"
+#include <assert.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+#include "type.h"
 #include "plmalloc.h"
+#include "smphashtable.h"
+#include "util.h"
 
 #if ENABLE_DL_DETECT_CC
 #include "se_dl_detect_graph.h"
@@ -1027,9 +1032,9 @@ void dl_detect_release(int s, struct partition *p, int c, int task_id,
     int op_id, struct elem *e, int notify)
 {
 	if (notify) {
-		dprint("srv(%d): In DL-DETECT Release for srv %d tid %d key %d\n", s, c, task_id, e->key);
+		dprint("srv(%d): In DL-DETECT Release for srv %d tid %d key %"PRIu64"\n", s, c, task_id, e->key);
 	} else {
-		dprint("srv(%d): DL-DETECT Release for srv %d tid %d key %d called after DEADLOCK\n", s, c, task_id, e->key);
+		dprint("srv(%d): DL-DETECT Release for srv %d tid %d key %"PRIu64" called after DEADLOCK\n", s, c, task_id, e->key);
 	}
 
 

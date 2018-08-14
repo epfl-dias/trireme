@@ -112,9 +112,9 @@ int se_dl_detect_add_dependency(struct se_dl_detect_graph_node *src) {
 	}
 
 #if DEBUG
-	dprint("DL DETECT[ADD] --- Added deps from node (%d,%ld) after a request by server %d key %ld\n", src->srvfib, src->ts, src->sender_srv, src->e->key);
+	dprint("DL DETECT[ADD] --- Added deps from node (%"PRIu64",%ld) after a request by server %d key %ld\n", src->srvfib, src->ts, src->sender_srv, src->e->key);
 	for (int i = 0; i < cur->waiters_size; i ++) {
-		dprint("DL DETECT[ADD] --- Now have dependency: (%d,%ld) ---> (%d,%ld)\n",
+		dprint("DL DETECT[ADD] --- Now have dependency: (%"PRIu64",%ld) ---> (%"PRIu64",%ld)\n",
 				cur->srvfib, cur->ts,
 				cur->neighbors[i].srvfib, cur->neighbors[i].ts);
 	}
@@ -142,7 +142,7 @@ int se_iterative_cycle_check(int thd, struct se_dl_detect_graph_node *src) {
 		idx = se_cycle_remaining_nodes[thd][cycle_remaining_nodes_r_idx];
 		ts = se_cycle_remaining_nodes_ts[thd][cycle_remaining_nodes_r_idx++];
 
-		dprint("DL DETECT[CYCLE-(%d,%ld)] --- Checking node (%d,%ld)\n", src->srvfib, src->ts, idx, ts);
+		dprint("DL DETECT[CYCLE-(%"PRIu64",%ld)] --- Checking node (%d,%ld)\n", src->srvfib, src->ts, idx, ts);
 		if (!se_cycle_visited_nodes[thd][idx]) {
 			se_cycle_visited_nodes[thd][idx] = 1;
 
@@ -176,11 +176,11 @@ int se_iterative_cycle_check(int thd, struct se_dl_detect_graph_node *src) {
 						se_graph_nodes_copy[thd][waiter_index].ts = se_graph_nodes[waiter_index].ts;
 
 						pthread_mutex_unlock(&mtx[waiter_index]);
-						dprint("DL DETECT[CYCLE-(%d,%ld)] --- Trying waiter (%ld,%ld)\n", src->srvfib, src->ts,
+						dprint("DL DETECT[CYCLE-(%"PRIu64",%ld)] --- Trying waiter (%ld,%ld)\n", src->srvfib, src->ts,
 								se_graph_nodes_copy[thd][waiter_index].srvfib,
 								se_graph_nodes_copy[thd][waiter_index].ts);
 						if (se_graph_nodes_copy[thd][waiter_index].ts == se_graph_nodes_copy[thd][idx].neighbors[i].ts) {
-							dprint("DL DETECT[CYCLE-(%d,%ld)] --- Waiter found\n", src->srvfib, src->ts)
+							dprint("DL DETECT[CYCLE-(%"PRIu64",%ld)] --- Waiter found\n", src->srvfib, src->ts)
 							if (waiter_index == src_idx) {
 								return 1;
 							}
@@ -255,7 +255,7 @@ int se_dl_detect_detect_cycle(int thd, struct se_dl_detect_graph_node *src) {
 	int idx = src->srvfib;
 	assert(se_graph_nodes[idx].ts == src->ts);
 	int deadlock = 0;
-	dprint("DL DETECT[CYCLE] --- Start cycle check for node (%d,%ld) from thread %d\n", src->srvfib, src->ts, thd);
+	dprint("DL DETECT[CYCLE] --- Start cycle check for node (%"PRIu64",%ld) from thread %d\n", src->srvfib, src->ts, thd);
 #if RECURSIVE_CYCLE_CHECK
 	int ret = next_node(&graph_nodes[idx], deadlock_node, &deadlock);
 #else
@@ -266,7 +266,7 @@ int se_dl_detect_detect_cycle(int thd, struct se_dl_detect_graph_node *src) {
 	if (!deadlock) {
 		dprint("DL DETECT[CYCLE] --- No DEADLOCK\n");
 	} else {
-		dprint("DL DETECT[CYCLE] --- DEADLOCK NODE (%d,%ld) KEY %ld\n",
+		dprint("DL DETECT[CYCLE] --- DEADLOCK NODE (%"PRIu64",%ld) KEY %ld\n",
 					src->srvfib, src->ts, src->e->key);
 	}
 #endif

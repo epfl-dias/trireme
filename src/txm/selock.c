@@ -1115,7 +1115,7 @@ void selock_dl_detect_release(struct partition *p, struct op_ctx *octx)
     struct elem *e = octx->e;
 
     //	printf("Releasing the lock\n");
-    dprint("srv(%d): Releasing lock on key %d\n", s, e->key);
+    dprint("srv(%d): Releasing lock on key %"PRIu64"\n", s, e->key);
 
 #if SE_LATCH
     LATCH_ACQUIRE(&e->latch, &alock_state);
@@ -1218,7 +1218,7 @@ void selock_dl_detect_release(struct partition *p, struct op_ctx *octx)
     /* WAIT DIE */
 
 
-    dprint("srv(%d): Released lock on key %d\n", s, e->key);
+    dprint("srv(%d): Released lock on key %"PRIu64"\n", s, e->key);
 }
 #endif // ENABLE_CYCLE_DETECTION
 #endif

@@ -52,10 +52,10 @@ DL_detect_add_dep_ts(struct partition *p, DL_detect *ptr, int srv_fib_id,
 		list_entry->entry = txnids[i];
 		LIST_INSERT_HEAD(&ptr->dependency[thd1].adj, list_entry, next);
 		ptr->dependency[thd1].adj_size ++;
-		dprint("--> Added dependency %d to thread %d\n", txnids[i], thd1);
+		dprint("--> Added dependency %"PRIu64" to thread %d\n", txnids[i], thd1);
 
 	}
-	dprint("List size of thd %d now is %d\n", thd1, ptr->dependency[thd1].adj_size);
+	dprint("List size of thd %d now is %zu\n", thd1, ptr->dependency[thd1].adj_size);
 	pthread_mutex_unlock( &ptr->dependency[thd1].lock );
 	return 0;
 }
@@ -76,11 +76,11 @@ DL_detect_add_dep(struct partition *p, DL_detect *ptr, uint64_t txnid1,
 		list_entry->entry = txnids[i];
 		LIST_INSERT_HEAD(&ptr->dependency[thd1].adj, list_entry, next);
 		ptr->dependency[thd1].adj_size ++;
-		dprint("--> Added dependency %d to thread %d\n", txnids[i], thd1);
+		dprint("--> Added dependency %"PRIu64" to thread %d\n", txnids[i], thd1);
 
 	}
 
-	dprint("List size of thd %d now is %d\n", thd1, ptr->dependency[thd1].adj_size);
+	dprint("List size of thd %d now is %zu\n", thd1, ptr->dependency[thd1].adj_size);
 	pthread_mutex_unlock( &ptr->dependency[thd1].lock );
 	return 0;
 }
@@ -95,8 +95,8 @@ DL_detect_remove_dep(DL_detect *ptr, uint64_t to_remove) {
 			if (cur->entry == to_remove) {
 				LIST_REMOVE(cur, next);
 				ptr->dependency[thd].adj_size--;
-				dprint("[DL_DETECT] Removed txn %d from the list of %d\n", to_remove, thd);
-				dprint("[DL_DETECT] Now thd %d has %d dependencies \n", thd, ptr->dependency[thd].adj_size);
+				dprint("[DL_DETECT] Removed txn %"PRIu64" from the list of %d\n", to_remove, thd);
+				dprint("[DL_DETECT] Now thd %d has %zu dependencies \n", thd, ptr->dependency[thd].adj_size);
 			}
 			cur = LIST_NEXT(cur, next);
 		}
@@ -129,7 +129,7 @@ DL_detect_nextNode(DL_detect *ptr, uint64_t txnid, DetectData * detect_data) {
 	int cnt = 0;
 	LIST_FOREACH(entry_it, &ptr->dependency[thd].adj, next) {
 		txnids[n++] = entry_it->entry;
-		dprint("Added element %d\n", entry_it->entry);
+		dprint("Added element %"PRIu64"\n", entry_it->entry);
 	}
 	
 	pthread_mutex_unlock( &ptr->dependency[thd].lock );
@@ -213,7 +213,7 @@ DL_detect_detect_cycle(struct partition *p, DL_detect *ptr, uint64_t txnid) {
 void DL_detect_clear_dep(struct partition *p, DL_detect *ptr, uint64_t txnid) {
 	int thd = get_thdid_from_txnid(txnid);
 	pthread_mutex_lock( &ptr->dependency[thd].lock );
-	dprint("Clearing dependency for thread %d with txnid = %d\n", thd, txnid);
+	dprint("Clearing dependency for thread %d with txnid = %"PRIu64"\n", thd, txnid);
 	if (ptr == NULL) {
 		dprint("NULL pointer\n");
 	}

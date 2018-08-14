@@ -158,7 +158,7 @@ void unblock_fn(int s, int tid)
 
       if (count) {
         ring_buffer_seek(b, count);
-        dprint("srv(%d): got %d msges from %d\n", s, count, i);
+        dprint("srv(%d): got %zu msges from %d\n", s, count, i);
 
         for (int j = 0; j < count; j++) {
           int tid = HASHOP_GET_TID(data[j]);
@@ -215,7 +215,7 @@ void dl_detect_fn(int s)
     	int count = ring_buffer_peek(b, RING_BUFFER_SIZE, data);
     	if (count) {
 		ring_buffer_seek(b, count);
-    		dprint("DL_DETECT SRV(%d): got %d messages from %d\n", s, count, i);
+    		dprint("DL_DETECT SRV(%d): got %zu messages from %d\n", s, count, i);
 
 			int j = 0;
     		while (j < count) {
@@ -630,7 +630,7 @@ schedule:
   t->s = s;
 
   if (!t)
-    dprint("srv(%d): EMPTY READYLIST??%d\n", s);
+    dprint("srv(%d): EMPTY READYLIST??\n", s);
 
   assert(t);
 

@@ -1076,7 +1076,7 @@ void process_requests(struct hash_table *hash_table, int s)
     ring_buffer_seek(b, count);
     assert(count);
 
-    dprint("srv(%d): read %d messages from client %d\n", s, count, i);
+    dprint("srv(%d): read %zu messages from client %d\n", s, count, i);
 
     // get all elems
     int j = 0;
@@ -1140,7 +1140,7 @@ void process_requests(struct hash_table *hash_table, int s)
           short opid = HASHOP_GET_OPID(inbuf[j]);
           size_t sz = inbuf[j + 1];
 
-          dprint("srv(%d): cl %d inserting key %"PRIu64" sz %d\n",
+          dprint("srv(%d): cl %d inserting key %"PRIu64" sz %zu\n",
               s, i, key, sz);
 
           struct elem *e = hash_insert(p, key, sz, NULL);
@@ -1240,6 +1240,7 @@ void process_requests(struct hash_table *hash_table, int s)
         {
           printf("cl %d invalid message type %lx\n", i, optype);
           printf("Received msg with optype %ld\n", optype);
+          printf("Received msg from server %d\n", s);
           fflush(stdout);
           assert(0);
           break;
@@ -1874,8 +1875,8 @@ void mp_send_release_msg_(struct hash_table *hash_table, int client_id,
   uint64_t msg_data = MAKE_HASH_MSG(task_id, op_id, (uint64_t)e, hashop);
   assert(((struct elem *)HASHOP_GET_VAL(msg_data)) == e);
 
-  dprint("srv(%ld): sending release msg %"PRIu64" for key %" PRIu64
-      " rc %" PRIu64 " to %d\n", client_id, msg_data, e->key, e->ref_count, s);
+  dprint("srv(%d): sending release msg %"PRIu64" for key %"PRIu64
+      " rc %"PRIu64" to %d\n", client_id, msg_data, e->key, e->ref_count, s);
 
   ring_buffer_write_all(hash_table->boxes[client_id].boxes[s].in, 1, &msg_data,
           force_flush);
