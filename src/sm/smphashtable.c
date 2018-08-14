@@ -1029,9 +1029,8 @@ void process_requests(struct hash_table *hash_table, int s)
     int abt_srv = -1;
 #endif
 
-    size_t count = RING_BUFFER_SIZE;
-
-    msg_receive(hash_table->boxes, i, s, MSG_IN, &count, inbuf);
+    size_t count;
+    msg_pending(hash_table->boxes, i, s, MSG_IN, &count);
 
     if (count == 0)
       continue;
@@ -1049,6 +1048,8 @@ void process_requests(struct hash_table *hash_table, int s)
      * 2) if success, send back data to caller
      * 3) if wait, don't do anything. data will be sent back later
      */
+
+    msg_receive(hash_table->boxes, i, s, MSG_IN, &count, inbuf);
     assert(count);
 
     dprint("srv(%d): read %zu messages from client %d\n", s, count, i);

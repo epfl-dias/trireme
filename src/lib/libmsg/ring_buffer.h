@@ -37,11 +37,8 @@ void ring_buffer_flush(struct ring_buffer* buffer);
 int32_t ring_buffer_read_all(struct ring_buffer* buffer,
 	int32_t max_read_count, uint64_t* data, int32_t blocking);
 
-/* Read up to 'max_read_count' messages in the 'data' array, but unlike 
- * ring_buffer_read_all(), it will never block, nor will it advance the
- * number of messages read from the buffer. */
-int32_t ring_buffer_peek(struct ring_buffer* buffer, int32_t max_read_count,
-	uint64_t* data);
+/* Return the number of messages currently available in the buffer. */
+int32_t ring_buffer_pending(struct ring_buffer* buffer);
 
 /* Seek the current read position to the current position plus 'count'. */
 void ring_buffer_seek(struct ring_buffer *buffer, int32_t count);

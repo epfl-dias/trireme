@@ -108,21 +108,10 @@ ring_buffer_read_all(struct ring_buffer* buffer, int32_t max_read_count, uint64_
 }
 
 
-int32_t
-ring_buffer_peek(struct ring_buffer* buffer, int32_t max_read_count, uint64_t* data)
+inline int32_t
+ring_buffer_pending(struct ring_buffer* buffer)
 {
-  int32_t count = buffer->wr_index - buffer->rd_index;
-
-  if (0 == count)
-    return 0;
-
-  if (max_read_count < count) count = max_read_count;
-
-  for (int32_t i = 0; i < count; i++) {
-    data[i] = buffer->data[(buffer->rd_index + i) & (RING_BUFFER_SIZE - 1)];
-  }
-
-  return count;
+  return buffer->wr_index - buffer->rd_index;
 }
 
 void

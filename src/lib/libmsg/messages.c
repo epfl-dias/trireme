@@ -12,14 +12,15 @@
 
 #define EXTRA_ASSERTS 0
 
+#define MSG_QUEUES_MASK (MSG_MAX_QUEUES - 1U)
+
 struct box {
-  struct ring_buffer * in;
-  struct ring_buffer * out;
-}  __attribute__ ((aligned (CACHELINE)));
+  struct ring_buffer * queues[MSG_MAX_QUEUES];
+};
 
 struct box_array {
   struct box *boxes;
-} __attribute__ ((aligned (CACHELINE)));
+};
 
 static size_t clients;
 static size_t servers;
@@ -35,19 +36,19 @@ msg_alloc(struct box_array ** boxes, const size_t max_clients,
   assert(0 < servers);
   assert(NULL != boxes);
 
-  *boxes = memalign(CACHELINE, clients * sizeof(struct box_array));
-  assert(0 == ((uintptr_t) *boxes % CACHELINE));
+  *boxes = malloc(clients * sizeof(struct box_array));
 
   for (size_t i = 0; i < clients; i++) {
-    (*boxes)[i].boxes = memalign(CACHELINE, servers * sizeof(struct box));
-    assert(0 == ((uintptr_t) (*boxes)[i].boxes % CACHELINE));
+    (*boxes)[i].boxes = malloc(servers * sizeof(struct box));
 
     for (size_t j = 0; j < servers; j++) {
       memset(&(*boxes)[i].boxes[j], 0, sizeof(struct box));
-      ring_buffer_alloc(&(*boxes)[i].boxes[j].in);
-      ring_buffer_alloc(&(*boxes)[i].boxes[j].out);
+      for (size_t q = 0; q < MSG_MAX_QUEUES; q++) {
+        ring_buffer_alloc(&(*boxes)[i].boxes[j].queues[q]);
+      }
     }
   }
+
   return 0;
 }
 
@@ -59,10 +60,12 @@ msg_free(struct box_array ** boxes)
   assert(NULL != boxes);
   assert(NULL != *boxes);
 
+
   for (int i = 0; i < clients; i++) {
     for (int j = 0; j < servers; j++) {
-      ring_buffer_free(&(*boxes)[i].boxes[j].in);
-      ring_buffer_free(&(*boxes)[i].boxes[j].out);
+      for (size_t q = 0; q < MSG_MAX_QUEUES; q++) {
+        ring_buffer_free(&(*boxes)[i].boxes[j].queues[q]);
+      }
     }
     free((*boxes)[i].boxes);
   }
@@ -86,13 +89,10 @@ msg_flush(struct box_array * boxes, const size_t client,
   assert(servers > server);
 #endif
 
-  if (MSG_IN == (flags & MSG_IN)) {
-    ring_buffer_flush(boxes[client].boxes[server].in);
-  }
+  struct ring_buffer * b =
+      boxes[client].boxes[server].queues[flags & MSG_QUEUES_MASK];
 
-  if (MSG_OUT == (flags & MSG_OUT)) {
-    ring_buffer_flush(boxes[client].boxes[server].out);
-  }
+  ring_buffer_flush(b);
 
   return 0;
 }
@@ -108,20 +108,17 @@ msg_send(struct box_array * boxes, const size_t client,
   assert(clients > client);
   assert(0 <= server);
   assert(servers > server);
-  assert((MSG_IN | MSG_OUT) != (flags & (MSG_IN | MSG_OUT)));
 #endif
 
   uint32_t flush = (MSG_FLUSH == (flags & MSG_FLUSH));
 
-  if (MSG_IN == (flags & MSG_IN)) {
-    ring_buffer_write_all(boxes[client].boxes[server].in, count, data, flush);
-  }
+  struct ring_buffer * b =
+      boxes[client].boxes[server].queues[flags & MSG_QUEUES_MASK];
 
-  if (MSG_OUT == (flags & MSG_OUT)) {
-    ring_buffer_write_all(boxes[client].boxes[server].out, count, data, flush);
-  }
-  dprint("SENDING from client %zu, srv %zu, MSG_%s, %zu messages\n", client, server,
-  	(MSG_OUT == (flags & MSG_OUT))? "OUT" : "IN", count);
+  ring_buffer_write_all(b, count, data, flush);
+
+  dprint("SENDING from client %zu, srv %zu, MSG_%s, %zu messages\n", client,
+  	server, (MSG_OUT == (flags & MSG_OUT))? "OUT" : "IN", count);
 
   return 0;
 }
@@ -138,22 +135,39 @@ msg_receive(struct box_array * boxes, const size_t client,
   assert(0 <= server);
   assert(servers > server);
   assert(NULL != count);
-  assert((MSG_IN | MSG_OUT) != (flags & (MSG_IN | MSG_OUT)));
 #endif
 
   uint32_t blocking = (MSG_BLOCK == (flags & MSG_BLOCK));
   size_t max = *count;
 
-  if (MSG_IN == (flags & MSG_IN)) {
-    *count = ring_buffer_read_all(boxes[client].boxes[server].in, max, data, blocking);
-  }
+  struct ring_buffer * b =
+      boxes[client].boxes[server].queues[flags & MSG_QUEUES_MASK];
 
-  if (MSG_OUT == (flags & MSG_OUT)) {
-    *count = ring_buffer_read_all(boxes[client].boxes[server].out, max, data, blocking);
-  }
+  *count = ring_buffer_read_all(b, max, data, blocking);
 
-  dprint("RECEIVING client %zu, srv %zu, MSG_%s, %zu(%zu) messages\n", client, server,
-  	(MSG_OUT == (flags & MSG_OUT))? "OUT" : "IN", *count, max);
+  dprint("RECEIVING client %zu, srv %zu, MSG_%s, %zu(%zu) messages\n", client,
+  	server, (MSG_OUT == (flags & MSG_OUT))? "OUT" : "IN", *count, max);
+
+  return 0;
+}
+
+inline msg_errors_t
+msg_pending(struct box_array * boxes, const size_t client,
+	const size_t server, uint32_t flags, size_t * count)
+{
+#if EXTRA_ASSERTS
+  assert(NULL != boxes);
+  assert(0 <= client);
+  assert(clients > client);
+  assert(0 <= server);
+  assert(servers > server);
+  assert(NULL != count);
+#endif
+
+  struct ring_buffer * b =
+      boxes[client].boxes[server].queues[flags & MSG_QUEUES_MASK];
+
+  *count = ring_buffer_pending(b);
 
   return 0;
 }
