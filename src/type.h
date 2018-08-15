@@ -540,7 +540,7 @@ struct partition {
  * Server/Client Message Passing Data Structures
  */
 
-struct box_array;
+struct mailbox;
 
 struct thread_args {
   int id;
@@ -555,7 +555,7 @@ struct hash_table {
   struct partition *partitions;
   struct partition *g_partition; /* used for item table */
 
-  struct box_array *boxes;
+  struct mailbox *boxes;
   uint64_t *keys;
 
   volatile int quitting;

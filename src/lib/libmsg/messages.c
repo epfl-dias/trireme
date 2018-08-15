@@ -18,7 +18,7 @@ struct box {
   struct ring_buffer * queues[MSG_MAX_QUEUES];
 };
 
-struct box_array {
+struct mailbox {
   struct box *boxes;
 };
 
@@ -26,7 +26,7 @@ static size_t clients;
 static size_t servers;
 
 msg_errors_t
-msg_alloc(struct box_array ** boxes, const size_t max_clients,
+msg_alloc(struct mailbox ** boxes, const size_t max_clients,
 	const size_t max_servers)
 {
   clients = max_clients;
@@ -36,7 +36,7 @@ msg_alloc(struct box_array ** boxes, const size_t max_clients,
   assert(0 < servers);
   assert(NULL != boxes);
 
-  *boxes = malloc(clients * sizeof(struct box_array));
+  *boxes = malloc(clients * sizeof(struct mailbox));
 
   for (size_t i = 0; i < clients; i++) {
     (*boxes)[i].boxes = malloc(servers * sizeof(struct box));
@@ -53,7 +53,7 @@ msg_alloc(struct box_array ** boxes, const size_t max_clients,
 }
 
 msg_errors_t
-msg_free(struct box_array ** boxes)
+msg_free(struct mailbox ** boxes)
 {
   assert(0 < clients);
   assert(0 < servers);
@@ -78,8 +78,8 @@ msg_free(struct box_array ** boxes)
 }
 
 msg_errors_t
-msg_flush(struct box_array * boxes, const size_t client,
-	const size_t server, uint32_t flags)
+msg_flush(struct mailbox * boxes, const size_t client, const size_t server,
+	uint32_t flags)
 {
 #if EXTRA_ASSERTS
   assert(NULL != boxes);
@@ -98,9 +98,8 @@ msg_flush(struct box_array * boxes, const size_t client,
 }
 
 msg_errors_t
-msg_send(struct box_array * boxes, const size_t client,
-	const size_t server, uint32_t flags, const size_t count,
-	const uint64_t * data)
+msg_send(struct mailbox * boxes, const size_t client, const size_t server,
+	uint32_t flags, const size_t count, const uint64_t * data)
 {
 #if EXTRA_ASSERTS
   assert(NULL != boxes);
@@ -124,9 +123,8 @@ msg_send(struct box_array * boxes, const size_t client,
 }
 
 msg_errors_t
-msg_receive(struct box_array * boxes, const size_t client,
-	const size_t server, uint32_t flags, size_t * count,
-	uint64_t * data)
+msg_receive(struct mailbox * boxes, const size_t client, const size_t server,
+	uint32_t flags, size_t * count, uint64_t * data)
 {
 #if EXTRA_ASSERTS
   assert(NULL != boxes);
@@ -152,8 +150,8 @@ msg_receive(struct box_array * boxes, const size_t client,
 }
 
 inline msg_errors_t
-msg_pending(struct box_array * boxes, const size_t client,
-	const size_t server, uint32_t flags, size_t * count)
+msg_pending(struct mailbox * boxes, const size_t client, const size_t server,
+	uint32_t flags, size_t * count)
 {
 #if EXTRA_ASSERTS
   assert(NULL != boxes);
