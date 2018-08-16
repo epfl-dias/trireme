@@ -35,7 +35,7 @@ int stats_get_ninserts(struct hash_table *hash_table);
 void stats_get_buckets(struct hash_table *hash_table, int server, double *avg, double *stddev);
 void stats_get_mem(struct hash_table *hash_table, size_t *used, size_t *total);
 double stats_get_tps(struct hash_table *hash_table);
-int stats_get_latency(struct hash_table *hash_table);
+void stats_get_latency(struct hash_table *hash_table);
 
 /* txn functions */
 void txn_start(struct hash_table *hash_table, int s, struct txn_ctx *ctx);

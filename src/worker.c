@@ -139,7 +139,7 @@ void execute_txns(struct hash_table *hash_table, int s)
 	double tend = now();
 
 	printf("srv %d query time %.3f\n", s, tend - tstart);
-	printf("srv %d total txns %d \n", s, p->q_idx);
+	printf("srv %d total txns %lu \n", s, p->q_idx);
 	printf("srv %d commited txns %d aborted %d\n", s, p->ncommits, p->naborts);
 
 	fflush(stdout);

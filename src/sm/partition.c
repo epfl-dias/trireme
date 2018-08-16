@@ -27,7 +27,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
    */
   if (p == hash_table->g_partition) {
       p->nhash = nrecs;
-      printf("Allocating %d buckets of size %d for HT of global partition\n",
+      printf("Allocating %d buckets of size %zd for HT of global partition\n",
               p->nhash, sizeof(struct bucket));
   } else {
       if (g_benchmark == &ycsb_bench) {
@@ -86,7 +86,7 @@ void init_hash_partition(struct partition *p, size_t nrecs, char alloc)
 #endif
 
   if (alloc) {
-    printf("Server(%d): Allocating %d buckets of size %d for HT\n",
+    printf("Server(%ld): Allocating %d buckets of size %zd for HT\n",
             p - hash_table->partitions , p->nhash, sizeof(struct bucket));
 
     p->table = memalign(CACHELINE, p->nhash * sizeof(struct bucket));

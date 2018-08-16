@@ -36,7 +36,7 @@ void ycsb_init() {
 
 	g_eta = (1 - pow(2.0 / n, 1 - g_alpha)) / (1 - g_zeta2 / g_zetan);
 	g_alpha_half_pow = 1 + pow(0.5, g_alpha);
-	printf("n = %d\n", n);
+	printf("n = %lu\n", n);
 	printf("theta = %.2f\n", g_alpha);
 }
 
